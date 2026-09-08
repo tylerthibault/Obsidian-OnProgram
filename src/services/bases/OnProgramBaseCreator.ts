@@ -13,7 +13,7 @@ export interface OnProgramBaseCreationResult {
  * Creates the canonical OnProgram structure inside a user-selected folder.
  *
  * <folder>/
- *   <folder-name>.base
+ *   <folder-name>.onprogram.base
  *   files/
  *
  * The generated Base is permanently scoped to the files/ directory and ships
@@ -27,7 +27,7 @@ export class OnProgramBaseCreator {
 
   getBasePath(folder: TFolder): string {
     const folderPath = normalizeFolderPath(folder.path);
-    const baseName = folderPath ? folder.name : "OnProgram";
+    const baseName = folderPath ? `${folder.name}.onprogram` : "OnProgram";
     return normalizePath(`${folderPath ? `${folderPath}/` : ""}${baseName}.base`);
   }
 
