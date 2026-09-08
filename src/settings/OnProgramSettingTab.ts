@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import type { OnProgramSettings } from "./OnProgramSettings";
 
 export interface OnProgramSettingsHost {
@@ -7,8 +7,11 @@ export interface OnProgramSettingsHost {
 }
 
 export class OnProgramSettingTab extends PluginSettingTab {
-  constructor(app: App, private readonly host: OnProgramSettingsHost) {
-    super(app, host as never);
+  constructor(
+    app: App,
+    private readonly host: Plugin & OnProgramSettingsHost
+  ) {
+    super(app, host);
   }
 
   display(): void {
