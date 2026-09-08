@@ -1,9 +1,11 @@
 import { BasesView, Notice, type QueryController } from "obsidian";
-import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
-import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
-import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
-import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
+import { CreateTaskModal } from "../../components/CreateTaskModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
+import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
+import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
+import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { TaskCreator } from "../../services/work-items/TaskCreator";
+import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
 
 export const ONPROGRAM_BOARD_VIEW_ID = "onprogram-board";
 
@@ -17,6 +19,7 @@ export class OnProgramBoardView extends BasesView {
     private readonly hostEl: HTMLElement,
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
+    private readonly taskCreator: TaskCreator,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -44,6 +47,9 @@ export class OnProgramBoardView extends BasesView {
         cls: "onprogram-board-invalid-count"
       });
     }
+
+    const addTask = header.createEl("button", { text: "+ New task" });
+    addTask.addEventListener("click", () => this.createTask());
 
     const board = this.hostEl.createDiv({ cls: "onprogram-board" });
 
@@ -102,6 +108,24 @@ export class OnProgramBoardView extends BasesView {
         if (item.dates.scheduled) meta.createSpan({ text: `Scheduled ${item.dates.scheduled.iso}` });
       }
     }
+  }
+
+  private createTask(): void {
+    new CreateTaskModal(this.app, {
+      onSubmit: async (title) => {
+        const result = await this.taskCreator.createTask({
+          title,
+          targetFolder: this.getConfiguredTaskFolder()
+        });
+        new Notice(`OnProgram: Created ${result.title}.`);
+      },
+      onError: (error) => this.errorHandler.handle(error, "create board task", true)
+    }).open();
+  }
+
+  private getConfiguredTaskFolder(): string | undefined {
+    const value = this.config.get("taskFolder");
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
 
   private async moveDraggedItem(status: WorkItemStatus): Promise<void> {
