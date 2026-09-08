@@ -112,13 +112,18 @@ export class BasesIntegrationService implements OnProgramService {
   }
 }
 
+/**
+ * taskFolder is persisted in the view configuration so the view can route new
+ * files, but it is intentionally hidden from the normal view-options UI. The
+ * folder and the Base filter are one ownership contract and must not drift.
+ */
 function baseTaskFolderOptions() {
   return [
     {
       type: "folder" as const,
       key: "taskFolder",
-      displayName: "Task folder",
-      placeholder: "Project/files"
+      displayName: "OnProgram task folder",
+      shouldHide: () => true
     }
   ];
 }
