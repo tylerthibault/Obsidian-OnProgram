@@ -2,11 +2,18 @@ export const WORK_ITEM_DATE_FIELDS = ["start", "end", "due", "scheduled", "compl
 
 export type WorkItemDateField = (typeof WORK_ITEM_DATE_FIELDS)[number];
 
+export type WorkItemDateKind = "date" | "date-time";
+
 /**
- * Canonical serialized date value used at the schema boundary.
- * Parsing into normalized date objects belongs to Sprint 2.2.
+ * Normalized date value used inside OnProgram.
+ *
+ * Date-only values intentionally stay timezone-free so a value such as
+ * 2026-09-08 cannot shift to another calendar day when rendered elsewhere.
  */
-export type WorkItemDateValue = string;
+export interface WorkItemDateValue {
+  kind: WorkItemDateKind;
+  iso: string;
+}
 
 export interface WorkItemDates {
   start?: WorkItemDateValue;
