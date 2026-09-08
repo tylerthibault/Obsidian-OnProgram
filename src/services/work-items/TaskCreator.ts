@@ -1,5 +1,6 @@
 import { TFile, TFolder, normalizePath, type App } from "obsidian";
 import { OnProgramError } from "../../core/ErrorHandler";
+import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import {
   validateWorkItemPropertyMap,
   type WorkItemPropertyMap
@@ -13,10 +14,17 @@ export interface TaskCreationConfig {
   propertyMap: WorkItemPropertyMap;
 }
 
+export interface TaskInitialDate {
+  field: "scheduled" | "due" | "start";
+  value: WorkItemDateValue;
+}
+
 export interface CreateTaskRequest {
   title: string;
   /** Optional per-task override. Falls back to the configured default project. */
   project?: string;
+  /** Optional calendar placement written during initial frontmatter creation. */
+  initialDate?: TaskInitialDate;
 }
 
 export interface CreatedTaskResult {
@@ -80,6 +88,10 @@ export class TaskCreator {
 
       if (project) {
         frontmatter[config.propertyMap.project] = project;
+      }
+
+      if (request.initialDate) {
+        frontmatter[config.propertyMap[request.initialDate.field]] = request.initialDate.value.iso;
       }
     });
   }
