@@ -1,18 +1,18 @@
-import type { BasesEntry, BasesEntryGroup, BasesQueryResult } from "obsidian";
+import type { App, BasesEntry, BasesEntryGroup, BasesQueryResult } from "obsidian";
 import type { WorkItem } from "../../models/work-item/WorkItem";
-import type { WorkItemParseInvalid } from "../work-items/WorkItemParseResult";
+import type { InvalidWorkItemParseResult } from "../work-items/WorkItemParseResult";
 import type { WorkItemParser } from "../work-items/WorkItemParser";
 
 export interface BasesWorkItemResult {
   items: WorkItem[];
-  invalid: WorkItemParseInvalid[];
+  invalid: InvalidWorkItemParseResult[];
   ignoredPaths: string[];
 }
 
 export interface BasesWorkItemGroup {
   key: unknown;
   items: WorkItem[];
-  invalid: WorkItemParseInvalid[];
+  invalid: InvalidWorkItemParseResult[];
   ignoredPaths: string[];
 }
 
@@ -22,7 +22,10 @@ export interface BasesWorkItemGroup {
  * and grouping; this adapter only performs OnProgram schema normalization.
  */
 export class BasesWorkItemAdapter {
-  constructor(private readonly parser: WorkItemParser) {}
+  constructor(
+    private readonly app: App,
+    private readonly parser: WorkItemParser
+  ) {}
 
   adapt(result: BasesQueryResult): BasesWorkItemResult {
     return this.adaptEntries(result.data);
@@ -42,19 +45,13 @@ export class BasesWorkItemAdapter {
 
   private adaptEntries(entries: BasesEntry[]): BasesWorkItemResult {
     const items: WorkItem[] = [];
-    const invalid: WorkItemParseInvalid[] = [];
+    const invalid: InvalidWorkItemParseResult[] = [];
     const ignoredPaths: string[] = [];
 
     for (const entry of entries) {
-      const cache = entry.file ? entry.file : undefined;
-      if (!cache) continue;
+      const cache = this.app.metadataCache.getFileCache(entry.file);
+      const parsed = this.parser.parse(entry.file, cache?.frontmatter);
 
-      const metadata = entry.file.vault?.adapter ? undefined : undefined;
-      void metadata;
-
-      // WorkItemParser accepts frontmatter from Obsidian MetadataCache; callers
-      // supply that through parseEntry so the adapter stays easy to test.
-      const parsed = this.parseEntry(entry);
       if (parsed.kind === "valid") {
         items.push(parsed.item);
       } else if (parsed.kind === "invalid") {
@@ -65,18 +62,5 @@ export class BasesWorkItemAdapter {
     }
 
     return { items, invalid, ignoredPaths };
-  }
-
-  private parseEntry(entry: BasesEntry) {
-    const app = this.parserApp();
-    const cache = app.metadataCache.getFileCache(entry.file);
-    return this.parser.parse(entry.file, cache?.frontmatter);
-  }
-
-  private parserApp() {
-    // The parser intentionally does not own App. Bases entries expose TFile, but
-    // frontmatter still comes from the global Obsidian MetadataCache. This
-    // accessor is injected at construction time by the service wrapper below.
-    return (this as unknown as { app: import("obsidian").App }).app;
   }
 }
