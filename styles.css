@@ -12,3 +12,50 @@
 .onprogram-settings .setting-item-description {
   max-width: var(--onprogram-content-width);
 }
+
+.onprogram-editor-modal {
+  width: min(720px, 92vw);
+}
+
+.onprogram-editor-source {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-top: -8px;
+}
+
+.onprogram-editor-modal .setting-item {
+  align-items: flex-start;
+}
+
+.onprogram-editor-modal .setting-item-control {
+  min-width: 55%;
+}
+
+.onprogram-editor-modal input[type="text"],
+.onprogram-editor-modal select,
+.onprogram-editor-notes {
+  width: 100%;
+}
+
+.onprogram-editor-notes {
+  min-height: 180px;
+  resize: vertical;
+}
+
+.onprogram-editor-actions {
+  display: flex;
+  gap: var(--size-4-2);
+  align-items: center;
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: var(--size-4-4);
+  padding-top: var(--size-4-4);
+}
+
+.onprogram-editor-actions-spacer {
+  flex: 1;
+}
+
+.onprogram-is-busy {
+  pointer-events: none;
+  opacity: 0.72;
+}
