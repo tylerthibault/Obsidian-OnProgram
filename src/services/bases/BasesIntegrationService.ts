@@ -13,6 +13,10 @@ import {
   ONPROGRAM_CALENDAR_VIEW_ID,
   OnProgramCalendarView
 } from "../../views/bases/OnProgramCalendarView";
+import {
+  ONPROGRAM_TIMELINE_VIEW_ID,
+  OnProgramTimelineView
+} from "../../views/bases/OnProgramTimelineView";
 import type { OnProgramService } from "../ServiceRegistry";
 import type { TaskCreator } from "../work-items/TaskCreator";
 import type { WorkItemParser } from "../work-items/WorkItemParser";
@@ -66,11 +70,28 @@ export class BasesIntegrationService implements OnProgramService {
       )
     });
 
-    this.registered = inspectorRegistered && boardRegistered && calendarRegistered;
+    const timelineRegistered = this.plugin.registerBasesView(ONPROGRAM_TIMELINE_VIEW_ID, {
+      name: "OnProgram Timeline",
+      icon: "gantt-chart",
+      factory: (controller, containerEl) => new OnProgramTimelineView(
+        controller,
+        containerEl,
+        adapter,
+        this.writer,
+        this.errorHandler
+      )
+    });
+
+    this.registered = inspectorRegistered && boardRegistered && calendarRegistered && timelineRegistered;
 
     if (this.registered) {
       this.logger.info("Native Bases views registered", {
-        viewIds: [ONPROGRAM_BASES_VIEW_ID, ONPROGRAM_BOARD_VIEW_ID, ONPROGRAM_CALENDAR_VIEW_ID]
+        viewIds: [
+          ONPROGRAM_BASES_VIEW_ID,
+          ONPROGRAM_BOARD_VIEW_ID,
+          ONPROGRAM_CALENDAR_VIEW_ID,
+          ONPROGRAM_TIMELINE_VIEW_ID
+        ]
       });
     } else {
       this.logger.warn("Some Bases integrations were unavailable; verify the Bases core plugin is enabled");
