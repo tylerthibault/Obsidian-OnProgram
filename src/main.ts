@@ -5,6 +5,7 @@ import { EventManager } from "./core/EventManager";
 import { LifecycleManager } from "./core/LifecycleManager";
 import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
+import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemParser } from "./services/work-items/WorkItemParser";
 import { WorkItemScanner } from "./services/work-items/WorkItemScanner";
 import { WorkItemWriter } from "./services/work-items/WorkItemWriter";
@@ -37,6 +38,12 @@ export default class OnProgramPlugin extends Plugin {
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
+    const taskCreator = new TaskCreator(this.app, () => ({
+      taskFolder: this.settings.taskFolder,
+      taskTemplatePath: this.settings.taskTemplatePath,
+      defaultProject: this.settings.defaultProject,
+      propertyMap: this.settings.workItemProperties
+    }));
 
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -54,6 +61,7 @@ export default class OnProgramPlugin extends Plugin {
         lifecycle,
         runtime,
         errorHandler,
+        taskCreator,
         workItemScanner,
         workItemWriter
       }).registerCoreCommands();
@@ -98,7 +106,10 @@ export default class OnProgramPlugin extends Plugin {
     this.logger?.debug("Settings saved", {
       debugMode: this.settings.debugMode,
       showStartupNotice: this.settings.showStartupNotice,
-      workItemProperties: this.settings.workItemProperties
+      workItemProperties: this.settings.workItemProperties,
+      taskFolder: this.settings.taskFolder,
+      taskTemplatePath: this.settings.taskTemplatePath,
+      defaultProject: this.settings.defaultProject
     });
   }
 
