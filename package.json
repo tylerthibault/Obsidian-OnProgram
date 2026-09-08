@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-onprogram",
+  "version": "0.1.0",
+  "description": "A work organizer for Obsidian Bases with board, calendar, timeline, and planning views.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "productivity",
+    "project-management",
+    "bases"
+  ],
+  "author": "tylerthibault",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "esbuild": "0.25.5",
+    "obsidian": "latest",
+    "typescript": "^5.8.3"
+  }
+}
