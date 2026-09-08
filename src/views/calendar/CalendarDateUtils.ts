@@ -49,7 +49,18 @@ export function localDateIso(date: Date): string {
 }
 
 export function parseLocalDate(iso: string): Date {
-  const [year, month, day] = iso.split("-").map(Number);
+  const parts = iso.split("-");
+  if (parts.length !== 3) {
+    throw new Error(`Invalid local date: ${iso}`);
+  }
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    throw new Error(`Invalid local date: ${iso}`);
+  }
+
   return new Date(year, month - 1, day);
 }
 
