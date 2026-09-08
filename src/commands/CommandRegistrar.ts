@@ -1,7 +1,9 @@
 import { Notice, Plugin } from "obsidian";
+import { CreateTaskModal } from "../components/CreateTaskModal";
 import type { ErrorHandler } from "../core/ErrorHandler";
 import type { LifecycleManager } from "../core/LifecycleManager";
 import type { RuntimeService } from "../services/RuntimeService";
+import type { TaskCreator } from "../services/work-items/TaskCreator";
 import type { WorkItemScanner } from "../services/work-items/WorkItemScanner";
 import type { WorkItemWriter } from "../services/work-items/WorkItemWriter";
 import { Logger } from "../utils/Logger";
@@ -10,6 +12,7 @@ export interface CommandDependencies {
   lifecycle: LifecycleManager;
   runtime: RuntimeService;
   errorHandler: ErrorHandler;
+  taskCreator: TaskCreator;
   workItemScanner: WorkItemScanner;
   workItemWriter: WorkItemWriter;
 }
@@ -28,6 +31,28 @@ export class CommandRegistrar {
       callback: () => {
         this.logger.debug("Test command executed");
         new Notice("OnProgram is working!");
+      }
+    });
+
+    this.plugin.addCommand({
+      id: "onprogram-create-task",
+      name: "Create task",
+      callback: () => {
+        new CreateTaskModal(this.plugin.app, {
+          onSubmit: async (title) => {
+            const result = await this.dependencies.taskCreator.createTask({ title });
+
+            this.logger.info("Task created", {
+              path: result.path,
+              usedTemplate: result.usedTemplate
+            });
+
+            new Notice(`OnProgram: Created ${result.title}.`);
+          },
+          onError: (error) => {
+            this.dependencies.errorHandler.handle(error, "create task", true);
+          }
+        }).open();
       }
     });
 
