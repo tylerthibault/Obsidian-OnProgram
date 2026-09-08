@@ -1,9 +1,11 @@
 import { Notice, Plugin } from "obsidian";
 import { CreateTaskModal } from "../components/CreateTaskModal";
+import { QuickTaskEditorModal } from "../components/QuickTaskEditorModal";
 import type { ErrorHandler } from "../core/ErrorHandler";
 import type { LifecycleManager } from "../core/LifecycleManager";
 import type { RuntimeService } from "../services/RuntimeService";
 import type { TaskCreator } from "../services/work-items/TaskCreator";
+import type { WorkItemEditorService } from "../services/work-items/WorkItemEditorService";
 import type { WorkItemScanner } from "../services/work-items/WorkItemScanner";
 import type { WorkItemWriter } from "../services/work-items/WorkItemWriter";
 import { Logger } from "../utils/Logger";
@@ -13,6 +15,7 @@ export interface CommandDependencies {
   runtime: RuntimeService;
   errorHandler: ErrorHandler;
   taskCreator: TaskCreator;
+  workItemEditor: WorkItemEditorService;
   workItemScanner: WorkItemScanner;
   workItemWriter: WorkItemWriter;
 }
@@ -41,18 +44,31 @@ export class CommandRegistrar {
         new CreateTaskModal(this.plugin.app, {
           onSubmit: async (title) => {
             const result = await this.dependencies.taskCreator.createTask({ title });
-
-            this.logger.info("Task created", {
-              path: result.path,
-              usedTemplate: result.usedTemplate
-            });
-
+            this.logger.info("Task created", { path: result.path, usedTemplate: result.usedTemplate });
             new Notice(`OnProgram: Created ${result.title}.`);
           },
-          onError: (error) => {
-            this.dependencies.errorHandler.handle(error, "create task", true);
-          }
+          onError: (error) => this.dependencies.errorHandler.handle(error, "create task", true)
         }).open();
+      }
+    });
+
+    this.plugin.addCommand({
+      id: "onprogram-edit-active-work-item",
+      name: "Edit active work item",
+      checkCallback: (checking) => {
+        const activeFile = this.plugin.app.workspace.getActiveFile();
+        if (!activeFile) return false;
+        const parsed = this.dependencies.workItemScanner.scanFile(activeFile);
+        if (parsed.kind !== "valid") return false;
+        if (!checking) {
+          new QuickTaskEditorModal(
+            this.plugin.app,
+            parsed.item,
+            this.dependencies.workItemEditor,
+            this.dependencies.errorHandler
+          ).open();
+        }
+        return true;
       }
     });
 
@@ -73,14 +89,12 @@ export class CommandRegistrar {
       name: "Scan work items",
       callback: () => {
         const result = this.dependencies.workItemScanner.scanVault();
-
         this.logger.info("Work item scan complete", {
           markdownFileCount: result.markdownFileCount,
           validCount: result.items.length,
           invalidCount: result.invalid.length,
           ignoredCount: result.ignored.length
         });
-
         if (result.invalid.length > 0) {
           this.logger.warn("Invalid work item candidates found", {
             files: result.invalid.map((entry) => ({
@@ -89,7 +103,6 @@ export class CommandRegistrar {
             }))
           });
         }
-
         new Notice(
           `OnProgram scan: ${result.items.length} valid, ${result.invalid.length} invalid, ${result.ignored.length} ignored.`
         );
@@ -99,17 +112,13 @@ export class CommandRegistrar {
     this.plugin.addCommand({
       id: "onprogram-writer-test-complete-active",
       name: "Writer test: complete active work item",
-      callback: async () => {
-        await this.runWriterTest("complete");
-      }
+      callback: async () => this.runWriterTest("complete")
     });
 
     this.plugin.addCommand({
       id: "onprogram-writer-test-reopen-active",
       name: "Writer test: reopen active work item",
-      callback: async () => {
-        await this.runWriterTest("reopen");
-      }
+      callback: async () => this.runWriterTest("reopen")
     });
 
     this.logger.debug("Core commands registered");
@@ -132,14 +141,12 @@ export class CommandRegistrar {
       const result = action === "complete"
         ? await this.dependencies.workItemWriter.completeItem(parsed.item)
         : await this.dependencies.workItemWriter.reopenItem(parsed.item);
-
       this.logger.info(`Writer test ${action} complete`, {
         path: result.path,
         changedProperties: result.changedProperties,
         beforeMtime: result.beforeMtime,
         afterMtime: result.afterMtime
       });
-
       new Notice(
         `OnProgram writer: ${action === "complete" ? "completed" : "reopened"} ${parsed.item.title}.`
       );
