@@ -17,7 +17,7 @@ export const TIMELINE_STYLES = `
 .onprogram-timeline-unscheduled-list { display: flex; gap: var(--size-4-2); overflow-x: auto; padding-top: var(--size-4-2); }
 .onprogram-timeline-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); flex: 1; min-height: 0; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
 .onprogram-timeline-labels { background: var(--background-secondary); overflow: hidden; }
-.onprogram-timeline-label-axis { height: 36px; padding: var(--size-4-2); display: flex; align-items: center; color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); font-size: var(--font-ui-smaller); }
+.onprogram-timeline-labels::before { content: 'Project / work item'; height: 36px; box-sizing: border-box; padding: 0 var(--size-4-2); display: flex; align-items: center; color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); font-size: var(--font-ui-smaller); }
 .onprogram-timeline-group-label, .onprogram-timeline-label-row { height: 42px; box-sizing: border-box; border-bottom: 1px solid var(--background-modifier-border); padding: 0 var(--size-4-2); display: flex; align-items: center; gap: var(--size-4-2); min-width: 0; }
 .onprogram-timeline-group-label { font-weight: var(--font-semibold); background: var(--background-secondary-alt); }
 .onprogram-timeline-label-row button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; flex: 1; }
@@ -29,7 +29,7 @@ export const TIMELINE_STYLES = `
 .onprogram-timeline-gridline { position: absolute; top: 36px; bottom: 0; width: 1px; background: var(--background-modifier-border); pointer-events: none; }
 .onprogram-timeline-today-marker { position: absolute; top: 36px; bottom: 0; width: 2px; background: var(--interactive-accent); z-index: 5; pointer-events: none; }
 .onprogram-timeline-today-marker span { position: sticky; top: 38px; margin-left: 4px; color: var(--interactive-accent); font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); white-space: nowrap; }
-.onprogram-timeline-group-row, .onprogram-timeline-row { position: absolute; left: 0; right: 0; height: 42px; border-bottom: 1px solid var(--background-modifier-border); box-sizing: border-box; }
+.onprogram-timeline-group-row, .onprogram-timeline-row { position: absolute; left: 0; right: 0; height: 42px; border-bottom: 1px solid var(--background-modifier-border); box-sizing: border-box; transform: translateY(36px); }
 .onprogram-timeline-group-row { background: color-mix(in srgb, var(--background-secondary) 55%, transparent); }
 .onprogram-timeline-bar { position: absolute; top: 8px; height: 26px; min-width: 18px; border-radius: var(--radius-s); background: var(--interactive-accent); color: var(--text-on-accent); display: flex; align-items: center; overflow: visible; cursor: grab; touch-action: none; z-index: 3; }
 .onprogram-timeline-bar:active { cursor: grabbing; }
