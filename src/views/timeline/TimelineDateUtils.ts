@@ -59,12 +59,13 @@ export function getTimelinePlacement(item: WorkItem): TimelinePlacement | undefi
 
 export function timelineBounds(placements: TimelinePlacement[]): { start: Date; end: Date } {
   const today = new Date();
-  if (placements.length === 0) {
+  const first = placements.at(0);
+  if (!first) {
     return { start: addDays(today, -14), end: addDays(today, 45) };
   }
 
-  let min = parseLocalDate(placements[0].startIso);
-  let max = parseLocalDate(placements[0].endIso);
+  let min = parseLocalDate(first.startIso);
+  let max = parseLocalDate(first.endIso);
 
   for (const placement of placements) {
     const start = parseLocalDate(placement.startIso);
