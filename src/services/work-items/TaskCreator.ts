@@ -23,6 +23,11 @@ export interface CreateTaskRequest {
   title: string;
   /** Optional per-task override. Falls back to the configured default project. */
   project?: string;
+  /**
+   * Optional destination override used by folder-scoped OnProgram Bases.
+   * Falls back to the global task-folder setting when omitted.
+   */
+  targetFolder?: string;
   /** Optional calendar placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
 }
@@ -45,7 +50,7 @@ export class TaskCreator {
     this.assertSafePropertyMap(config.propertyMap);
 
     const title = normalizeTaskTitle(request.title);
-    const folder = normalizeTaskFolder(config.taskFolder);
+    const folder = normalizeTaskFolder(request.targetFolder ?? config.taskFolder);
     await this.ensureFolder(folder);
 
     const { content, usedTemplate } = await this.loadTemplate(config.taskTemplatePath);
@@ -81,17 +86,34 @@ export class TaskCreator {
     const projectOverride = request.project?.trim();
     const defaultProject = config.defaultProject.trim();
     const project = projectOverride || defaultProject;
+    const map = config.propertyMap;
 
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      frontmatter[config.propertyMap.type] = "task";
-      frontmatter[config.propertyMap.status] = DEFAULT_STATUS_BY_TYPE.task;
+      // Type is canonical for every file created through TaskCreator.
+      frontmatter[map.type] = "task";
+
+      // Populate the complete OnProgram schema once. This means a task can move
+      // between Board, Calendar, Timeline, and future views without requiring a
+      // later migration just to add missing properties.
+      setDefault(frontmatter, map.status, DEFAULT_STATUS_BY_TYPE.task);
+      setDefault(frontmatter, map.project, project || null);
+      setDefault(frontmatter, map.priority, "normal");
+      setDefault(frontmatter, map.start, null);
+      setDefault(frontmatter, map.end, null);
+      setDefault(frontmatter, map.due, null);
+      setDefault(frontmatter, map.scheduled, null);
+      setDefault(frontmatter, map.duration, null);
+      setDefault(frontmatter, map.completed, null);
+      setDefault(frontmatter, map.parent, null);
+      setDefault(frontmatter, map.dependsOn, []);
 
       if (project) {
-        frontmatter[config.propertyMap.project] = project;
+        // Explicit/default project configuration should win over a blank template value.
+        frontmatter[map.project] = project;
       }
 
       if (request.initialDate) {
-        frontmatter[config.propertyMap[request.initialDate.field]] = request.initialDate.value.iso;
+        frontmatter[map[request.initialDate.field]] = request.initialDate.value.iso;
       }
     });
   }
@@ -228,4 +250,10 @@ function normalizeVaultPath(value: string, label: string): string {
   }
 
   return normalizePath(segments.join("/"));
+}
+
+function setDefault(frontmatter: Record<string, unknown>, property: string, value: unknown): void {
+  if (!Object.prototype.hasOwnProperty.call(frontmatter, property)) {
+    frontmatter[property] = value;
+  }
 }
