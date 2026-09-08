@@ -6,6 +6,7 @@ import { LifecycleManager } from "./core/LifecycleManager";
 import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
 import { TaskCreator } from "./services/work-items/TaskCreator";
+import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
 import { WorkItemParser } from "./services/work-items/WorkItemParser";
 import { WorkItemScanner } from "./services/work-items/WorkItemScanner";
 import { WorkItemWriter } from "./services/work-items/WorkItemWriter";
@@ -38,6 +39,7 @@ export default class OnProgramPlugin extends Plugin {
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
+    const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
     const taskCreator = new TaskCreator(this.app, () => ({
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
@@ -54,7 +56,6 @@ export default class OnProgramPlugin extends Plugin {
 
     try {
       services.register(runtime);
-
       this.addSettingTab(new OnProgramSettingTab(this.app, this));
 
       new CommandRegistrar(this, logger, {
@@ -62,15 +63,14 @@ export default class OnProgramPlugin extends Plugin {
         runtime,
         errorHandler,
         taskCreator,
+        workItemEditor,
         workItemScanner,
         workItemWriter
       }).registerCoreCommands();
 
       new EventManager(this, logger).registerCoreEvents();
-
       await services.startAll();
       lifecycle.markReady();
-
       logger.info("Plugin loaded");
 
       if (this.settings.showStartupNotice) {
@@ -78,13 +78,11 @@ export default class OnProgramPlugin extends Plugin {
       }
     } catch (error) {
       lifecycle.markFailed();
-
       try {
         services.stopAll();
       } catch (rollbackError) {
         errorHandler.handle(rollbackError, "startup rollback");
       }
-
       errorHandler.handle(error, "plugin startup", true);
       throw error;
     }
@@ -92,7 +90,6 @@ export default class OnProgramPlugin extends Plugin {
 
   onunload(): void {
     this.lifecycle?.beginUnloading();
-
     try {
       this.services?.stopAll();
       this.logger?.info("Plugin unloaded");
@@ -115,7 +112,6 @@ export default class OnProgramPlugin extends Plugin {
 
   private async loadSettings(): Promise<void> {
     const saved = (await this.loadData()) as Partial<OnProgramSettings> | null;
-
     this.settings = {
       ...DEFAULT_SETTINGS,
       ...(saved ?? {}),
