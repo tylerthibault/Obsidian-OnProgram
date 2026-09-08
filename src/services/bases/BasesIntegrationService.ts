@@ -9,7 +9,12 @@ import {
   ONPROGRAM_BOARD_VIEW_ID,
   OnProgramBoardView
 } from "../../views/bases/OnProgramBoardView";
+import {
+  ONPROGRAM_CALENDAR_VIEW_ID,
+  OnProgramCalendarView
+} from "../../views/bases/OnProgramCalendarView";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { TaskCreator } from "../work-items/TaskCreator";
 import type { WorkItemParser } from "../work-items/WorkItemParser";
 import type { WorkItemWriter } from "../work-items/WorkItemWriter";
 import { BasesWorkItemAdapter } from "./BasesWorkItemAdapter";
@@ -23,6 +28,7 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly logger: Logger,
     private readonly parser: WorkItemParser,
     private readonly writer: WorkItemWriter,
+    private readonly taskCreator: TaskCreator,
     private readonly errorHandler: ErrorHandler
   ) {}
 
@@ -47,11 +53,24 @@ export class BasesIntegrationService implements OnProgramService {
       )
     });
 
-    this.registered = inspectorRegistered && boardRegistered;
+    const calendarRegistered = this.plugin.registerBasesView(ONPROGRAM_CALENDAR_VIEW_ID, {
+      name: "OnProgram Calendar",
+      icon: "calendar-days",
+      factory: (controller, containerEl) => new OnProgramCalendarView(
+        controller,
+        containerEl,
+        adapter,
+        this.writer,
+        this.taskCreator,
+        this.errorHandler
+      )
+    });
+
+    this.registered = inspectorRegistered && boardRegistered && calendarRegistered;
 
     if (this.registered) {
       this.logger.info("Native Bases views registered", {
-        viewIds: [ONPROGRAM_BASES_VIEW_ID, ONPROGRAM_BOARD_VIEW_ID]
+        viewIds: [ONPROGRAM_BASES_VIEW_ID, ONPROGRAM_BOARD_VIEW_ID, ONPROGRAM_CALENDAR_VIEW_ID]
       });
     } else {
       this.logger.warn("Some Bases integrations were unavailable; verify the Bases core plugin is enabled");
