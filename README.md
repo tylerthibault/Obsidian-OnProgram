@@ -4,15 +4,18 @@ OnProgram is an Obsidian work-organizer plugin built around Obsidian Bases. The 
 
 ## Current development status
 
-Phase 1 establishes the plugin foundation.
+**Phase 1 — Development Foundation is complete and verified in Obsidian.**
 
-- **Sprint 1.1:** TypeScript/esbuild development environment
-- **Sprint 1.2:** maintainable plugin architecture
+Development is now in **Phase 2 — Work Item Data Model**.
 
-The active Sprint 1.2 branch is:
+- **Sprint 2.1:** Work Item Schema — active
+- Sprint 2.2: Work Item Parser
+- Sprint 2.3: Work Item Writer
+
+The active branch is:
 
 ```text
-phase-1-sprint-1-2-plugin-architecture
+phase-2-sprint-2-1-work-item-schema
 ```
 
 ## Install in the test vault
@@ -27,7 +30,7 @@ Switch to the active branch and install dependencies:
 
 ```bash
 git fetch origin
-git checkout phase-1-sprint-1-2-plugin-architecture
+git checkout phase-2-sprint-2-1-work-item-schema
 npm install
 ```
 
@@ -66,44 +69,61 @@ OnProgram also has a settings tab with:
 ```text
 src/
 ├── commands/
-│   └── CommandRegistrar.ts
+├── components/
 ├── core/
-│   ├── ErrorHandler.ts
-│   ├── EventManager.ts
-│   └── LifecycleManager.ts
+├── models/
+│   └── work-item/
 ├── services/
-│   ├── RuntimeService.ts
-│   └── ServiceRegistry.ts
 ├── settings/
-│   ├── OnProgramSettings.ts
-│   └── OnProgramSettingTab.ts
 ├── utils/
-│   └── Logger.ts
+├── views/
 └── main.ts
 ```
 
-`src/main.ts` is intentionally a thin composition root. Feature code should be added behind commands, services, views, models, or other focused modules instead of accumulating in the plugin entry point.
+`src/main.ts` is intentionally a thin composition root. Feature code should live behind commands, services, views, models, or other focused modules instead of accumulating in the plugin entry point.
 
-### Architecture rules
+## Work Item Schema
 
-1. Markdown files remain the future source of truth for work items.
-2. Services are registered through `ServiceRegistry` and own their lifecycle.
-3. Obsidian event subscriptions are registered through the plugin so Obsidian can clean them up safely.
-4. Commands are registered centrally through `CommandRegistrar`.
-5. User-facing failures go through `ErrorHandler` and diagnostics go through `Logger`.
-6. Plugin-owned CSS classes use the `onprogram-` prefix.
-7. Debug logging is disabled by default and controlled from OnProgram settings.
+Sprint 2.1 establishes a canonical internal schema for:
 
-## Sprint 1.2 completion criteria
+- Tasks
+- Projects
+- Milestones
+- Events
+- statuses
+- priorities
+- date semantics
+- relationships and dependencies
+- property-name mapping
+- required versus optional properties
 
-Sprint 1.2 is complete when:
+The full specification is documented in [`docs/work-item-schema.md`](docs/work-item-schema.md).
 
-1. plugin startup and shutdown are represented by a lifecycle manager;
-2. commands have a central registration layer;
-3. settings persist through Obsidian's plugin data storage;
-4. logging and error handling are centralized;
-5. services have a registry and lifecycle contract;
-6. core Obsidian event subscriptions are centrally registered and automatically cleaned up;
-7. OnProgram has a reserved CSS namespace;
-8. debug mode can be enabled from plugin settings;
-9. the plugin still builds and loads successfully in Obsidian.
+The central rule remains:
+
+> Markdown files are the source of truth. OnProgram views operate on normalized representations of those files; OnProgram does not create a separate task database.
+
+Default YAML property names are only defaults. The plugin settings model already carries a canonical-to-vault property map so later parser and writer code do not need to hard-code names such as `status`, `due`, or `scheduled`.
+
+## Phase 2 architecture rules
+
+1. A due date is a deadline; it is not automatically a scheduled work block.
+2. `scheduled` is the primary calendar-placement concept.
+3. Canonical domain fields are separate from the vault's physical YAML property names.
+4. Valid WorkItem objects are normalized domain objects, not arbitrary frontmatter dictionaries.
+5. Malformed or incomplete source files must be reported without destructive rewriting.
+6. Missing optional properties should normally remain absent instead of being written as empty YAML fields.
+7. Schema evolution must be explicit and versioned.
+
+## Sprint 2.1 completion criteria
+
+Sprint 2.1 is complete when:
+
+1. Task, Project, Milestone, and Event are defined as canonical work-item types;
+2. canonical statuses and valid status subsets are defined;
+3. priority values, ordering, and missing-priority behavior are defined;
+4. date fields have distinct documented semantics;
+5. default YAML property names and a configurable property-map contract exist;
+6. required versus optional fields are explicit for every work-item type;
+7. TypeScript domain models represent valid normalized work items;
+8. the schema is documented independently of the parser and UI.
