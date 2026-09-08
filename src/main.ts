@@ -6,6 +6,7 @@ import { LifecycleManager } from "./core/LifecycleManager";
 import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
 import { BasesIntegrationService } from "./services/bases/BasesIntegrationService";
+import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
@@ -48,6 +49,7 @@ export default class OnProgramPlugin extends Plugin {
       defaultProject: this.settings.defaultProject,
       propertyMap: this.settings.workItemProperties
     }));
+    const baseContext = new OnProgramBaseContext(this.app);
     const baseCreator = new OnProgramBaseCreator(
       this.app,
       () => this.settings.workItemProperties
@@ -78,6 +80,7 @@ export default class OnProgramPlugin extends Plugin {
         runtime,
         errorHandler,
         taskCreator,
+        baseContext,
         workItemEditor,
         workItemScanner,
         workItemWriter
