@@ -5,6 +5,8 @@ import { EventManager } from "./core/EventManager";
 import { LifecycleManager } from "./core/LifecycleManager";
 import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
+import { WorkItemParser } from "./services/work-items/WorkItemParser";
+import { WorkItemScanner } from "./services/work-items/WorkItemScanner";
 import {
   DEFAULT_SETTINGS,
   type OnProgramSettings
@@ -31,6 +33,8 @@ export default class OnProgramPlugin extends Plugin {
     const lifecycle = new LifecycleManager(logger);
     const services = new ServiceRegistry(logger);
     const runtime = new RuntimeService();
+    const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
+    const workItemScanner = new WorkItemScanner(this.app, workItemParser);
 
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -46,7 +50,8 @@ export default class OnProgramPlugin extends Plugin {
 
       new CommandRegistrar(this, logger, {
         lifecycle,
-        runtime
+        runtime,
+        workItemScanner
       }).registerCoreCommands();
 
       new EventManager(this, logger).registerCoreEvents();
