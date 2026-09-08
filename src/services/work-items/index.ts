@@ -1,3 +1,4 @@
+export * from "./TaskCreator";
 export * from "./WorkItemParseResult";
 export * from "./WorkItemParser";
 export * from "./WorkItemScanner";
