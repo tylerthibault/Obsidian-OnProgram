@@ -320,11 +320,17 @@ export class OnProgramCalendarView extends BasesView {
       onSubmit: async (title) => {
         await this.taskCreator.createTask({
           title,
+          targetFolder: this.getConfiguredTaskFolder(),
           initialDate: { field: this.field, value }
         });
       },
       onError: (error) => this.errorHandler.handle(error, "create calendar task", true)
     }).open();
+  }
+
+  private getConfiguredTaskFolder(): string | undefined {
+    const value = this.config.get("taskFolder");
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
 
   private openItem(item: WorkItem): void {
