@@ -6,16 +6,16 @@ OnProgram is an Obsidian work-organizer plugin built around Obsidian Bases. The 
 
 **Phase 1 — Development Foundation is complete and verified in Obsidian.**
 
-Development is now in **Phase 2 — Work Item Data Model**.
+**Phase 2 — Work Item Data Model is now complete in code.**
 
 - **Sprint 2.1:** Work Item Schema — complete
-- **Sprint 2.2:** Work Item Parser — active
-- Sprint 2.3: Work Item Writer
+- **Sprint 2.2:** Work Item Parser — complete
+- **Sprint 2.3:** Work Item Writer — complete
 
-The active branch is:
+The active Phase 2 branch is:
 
 ```text
-phase-2-sprint-2-2-work-item-parser
+phase-2-sprint-2-3-work-item-writer
 ```
 
 ## Install in the test vault
@@ -30,8 +30,9 @@ Switch to the active branch and install dependencies:
 
 ```bash
 git fetch origin
-git checkout phase-2-sprint-2-2-work-item-parser
+git checkout phase-2-sprint-2-3-work-item-writer
 npm install
+npm run build
 ```
 
 ## Development workflow
@@ -59,8 +60,10 @@ The Command Palette should include:
 - **OnProgram: Test OnProgram**
 - **OnProgram: Show diagnostics**
 - **OnProgram: Scan work items**
+- **OnProgram: Writer test: complete active work item**
+- **OnProgram: Writer test: reopen active work item**
 
-The scan command is read-only. It reports how many Markdown files are valid work items, invalid work-item candidates, or ordinary ignored notes.
+The two writer-test commands intentionally modify the active work-item file and exist only as development acceptance commands for Sprint 2.3.
 
 ## Architecture
 
@@ -83,9 +86,7 @@ src/
 
 ## Work Item Data Model
 
-Sprint 2.1 establishes the canonical internal schema for Tasks, Projects, Milestones, Events, statuses, priorities, date semantics, relationships, and configurable property names.
-
-Sprint 2.2 adds the read-only parsing pipeline:
+Phase 2 establishes the complete read/normalize/write foundation:
 
 ```text
 Markdown file
@@ -94,90 +95,99 @@ MetadataCache
     ↓
 WorkItemParser
     ↓
-valid | invalid | ignored
+normalized WorkItem
+    ↓
+canonical patch
+    ↓
+WorkItemWriter
+    ↓
+Markdown file
 ```
 
 The central rule remains:
 
-> Markdown files are the source of truth. OnProgram views operate on normalized representations of those files; OnProgram does not create a separate task database.
+> Markdown files are the source of truth. OnProgram does not maintain a separate task database.
 
 Detailed specifications:
 
 - [`docs/work-item-schema.md`](docs/work-item-schema.md)
 - [`docs/work-item-parser.md`](docs/work-item-parser.md)
+- [`docs/work-item-writer.md`](docs/work-item-writer.md)
 
 ## Parser behavior
 
 - Files without the mapped `type` property are ignored.
 - Files declaring a supported type are validated and normalized.
-- Files declaring a type but containing malformed required data are reported as invalid rather than silently disappearing.
+- Malformed candidates are reported rather than silently disappearing.
 - Status casing and spaces/underscores are normalized.
-- Missing priority resolves internally to `normal` without rewriting the source file.
+- Missing priority resolves internally to `normal` without rewriting the file.
 - Date-only values remain timezone-free.
 - Durations normalize to minutes.
 - Project, parent, and dependency references are validated.
-- The scanner does not modify the vault.
+- Parsing is read-only.
 
-## Manual Sprint 2.2 acceptance test
+## Writer safety behavior
 
-Create four Markdown files in the test vault.
+- Writes use Obsidian's `FileManager.processFrontMatter` API.
+- Only canonical fields included in the patch are modified.
+- Unrelated YAML and note body content are preserved.
+- Optional properties are removed rather than written as empty values when cleared.
+- Milestone `due` and Event `scheduled` cannot be removed.
+- Status changes are validated against the current work-item type.
+- Property mappings must be valid and one-to-one before any write occurs.
+- Parsed work items carry the source file modification time.
+- Stale writes are refused when the file changed after parsing.
+- OnProgram serializes concurrent writes to the same file.
 
-### Valid Task
+## Manual Phase 2 acceptance test
+
+Create `Writer Test.md`:
 
 ```yaml
 ---
 type: task
-status: In Progress
-priority: HIGH
-scheduled: 2026-09-08T13:30
-duration: 1h 30m
+status: todo
+priority: high
+custom_field: PRESERVE ME
 ---
+
+This body must survive every OnProgram write.
 ```
 
-### Valid Milestone
+Run **OnProgram: Scan work items** and confirm the file is valid.
 
-```yaml
----
-type: milestone
-status: planned
-due: 2026-10-01
----
-```
+Then, with the file open, run:
 
-### Broken Event
+**OnProgram: Writer test: complete active work item**
 
-```yaml
----
-type: event
-status: planned
----
-```
+Expected:
 
-### Ordinary Note
+- `status` becomes `done`;
+- `completed` is added;
+- `priority` is unchanged;
+- `custom_field` is unchanged;
+- the note body is unchanged.
 
-A normal Markdown note with no `type` property.
+Then run:
 
-Run:
+**OnProgram: Writer test: reopen active work item**
 
-**OnProgram: Scan work items**
+Expected:
 
-For only those four files, the expected result is:
+- `status` returns to `todo`;
+- `completed` is removed;
+- unrelated YAML and body remain unchanged.
 
-```text
-2 valid, 1 invalid, 1 ignored
-```
+## Phase 2 completion gate
 
-See `docs/work-item-parser.md` for the full parser contract and test fixture.
+Phase 2 is complete when OnProgram can:
 
-## Sprint 2.2 completion criteria
+1. identify a work-item Markdown file;
+2. normalize it into a typed internal model;
+3. report malformed work-item files without modifying them;
+4. safely update mapped properties;
+5. preserve unrelated frontmatter and note content;
+6. reject stale writes;
+7. reparse the written file into the expected updated work item.
 
-Sprint 2.2 is complete when:
-
-1. OnProgram detects candidate work-item Markdown files through the configured property map;
-2. supported types, statuses, priorities, dates, durations, and references are normalized;
-3. malformed candidates produce structured validation issues;
-4. ordinary notes are safely ignored;
-5. valid results carry backing-file source metadata;
-6. the vault can be scanned read-only through Obsidian's MetadataCache;
-7. the Command Palette exposes a scan command with a usable summary;
-8. no parser action writes to Markdown files.
+The next development phase is **Phase 3 — Work Item Management**, beginning with **Sprint 3.1 — Create Work Item**.
