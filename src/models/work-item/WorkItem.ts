@@ -7,6 +7,8 @@ export type WorkItemReference = string;
 export interface WorkItemSource {
   path: string;
   basename: string;
+  /** File modification time captured when this work item was parsed. */
+  mtime: number;
 }
 
 export interface WorkItemBase {
