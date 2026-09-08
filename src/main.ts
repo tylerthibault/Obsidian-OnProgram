@@ -13,7 +13,10 @@ import { OnProgramSettingTab } from "./settings/OnProgramSettingTab";
 import { Logger } from "./utils/Logger";
 
 export default class OnProgramPlugin extends Plugin {
-  settings: OnProgramSettings = { ...DEFAULT_SETTINGS };
+  settings: OnProgramSettings = {
+    ...DEFAULT_SETTINGS,
+    workItemProperties: { ...DEFAULT_SETTINGS.workItemProperties }
+  };
 
   private logger?: Logger;
   private errorHandler?: ErrorHandler;
@@ -85,15 +88,21 @@ export default class OnProgramPlugin extends Plugin {
     await this.saveData(this.settings);
     this.logger?.debug("Settings saved", {
       debugMode: this.settings.debugMode,
-      showStartupNotice: this.settings.showStartupNotice
+      showStartupNotice: this.settings.showStartupNotice,
+      workItemProperties: this.settings.workItemProperties
     });
   }
 
   private async loadSettings(): Promise<void> {
     const saved = (await this.loadData()) as Partial<OnProgramSettings> | null;
+
     this.settings = {
       ...DEFAULT_SETTINGS,
-      ...(saved ?? {})
+      ...(saved ?? {}),
+      workItemProperties: {
+        ...DEFAULT_SETTINGS.workItemProperties,
+        ...(saved?.workItemProperties ?? {})
+      }
     };
   }
 }
