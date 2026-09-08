@@ -4,11 +4,18 @@ import type { WorkItemStatus } from "./WorkItemStatus";
 
 export type WorkItemReference = string;
 
+export interface WorkItemSource {
+  path: string;
+  basename: string;
+}
+
 export interface WorkItemBase {
-  /** Display title. The parser may derive this from the backing Markdown file. */
+  /** Backing Markdown file. The file remains the source of truth. */
+  source: WorkItemSource;
+  /** Display title, currently derived from the backing Markdown filename. */
   title: string;
   status: WorkItemStatus;
-  priority?: WorkItemPriority;
+  priority: WorkItemPriority;
   project?: WorkItemReference;
   dates: WorkItemDates;
   /** Duration in minutes when the item represents scheduled work. */
