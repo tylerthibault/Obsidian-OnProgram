@@ -6,6 +6,7 @@ import { LifecycleManager } from "./core/LifecycleManager";
 import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
 import { BasesIntegrationService } from "./services/bases/BasesIntegrationService";
+import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
 import { WorkItemParser } from "./services/work-items/WorkItemParser";
@@ -47,6 +48,10 @@ export default class OnProgramPlugin extends Plugin {
       defaultProject: this.settings.defaultProject,
       propertyMap: this.settings.workItemProperties
     }));
+    const baseCreator = new OnProgramBaseCreator(
+      this.app,
+      () => this.settings.workItemProperties
+    );
     const basesIntegration = new BasesIntegrationService(
       this,
       logger,
@@ -78,7 +83,7 @@ export default class OnProgramPlugin extends Plugin {
         workItemWriter
       }).registerCoreCommands();
 
-      new EventManager(this, logger).registerCoreEvents();
+      new EventManager(this, logger, baseCreator, errorHandler).registerCoreEvents();
       await services.startAll();
       lifecycle.markReady();
       logger.info("Plugin loaded");
