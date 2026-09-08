@@ -58,6 +58,13 @@ export default class OnProgramPlugin extends Plugin {
       }
     } catch (error) {
       lifecycle.markFailed();
+
+      try {
+        services.stopAll();
+      } catch (rollbackError) {
+        errorHandler.handle(rollbackError, "startup rollback");
+      }
+
       errorHandler.handle(error, "plugin startup", true);
       throw error;
     }
