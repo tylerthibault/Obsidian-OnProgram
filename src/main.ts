@@ -7,6 +7,7 @@ import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
 import { WorkItemParser } from "./services/work-items/WorkItemParser";
 import { WorkItemScanner } from "./services/work-items/WorkItemScanner";
+import { WorkItemWriter } from "./services/work-items/WorkItemWriter";
 import {
   DEFAULT_SETTINGS,
   type OnProgramSettings
@@ -35,6 +36,7 @@ export default class OnProgramPlugin extends Plugin {
     const runtime = new RuntimeService();
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
+    const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
 
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -51,7 +53,9 @@ export default class OnProgramPlugin extends Plugin {
       new CommandRegistrar(this, logger, {
         lifecycle,
         runtime,
-        workItemScanner
+        errorHandler,
+        workItemScanner,
+        workItemWriter
       }).registerCoreCommands();
 
       new EventManager(this, logger).registerCoreEvents();
