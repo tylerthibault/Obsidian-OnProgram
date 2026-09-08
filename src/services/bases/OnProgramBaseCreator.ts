@@ -1,6 +1,9 @@
 import { TFile, TFolder, type App } from "obsidian";
 import { OnProgramError } from "../../core/ErrorHandler";
-import type { WorkItemPropertyMap } from "../../models/work-item/WorkItemProperties";
+import {
+  validateWorkItemPropertyMap,
+  type WorkItemPropertyMap
+} from "../../models/work-item/WorkItemProperties";
 import { onProgramBasePath, onProgramFilesFolder } from "./OnProgramBasePaths";
 
 export interface OnProgramBaseCreationResult {
@@ -40,6 +43,9 @@ export class OnProgramBaseCreator {
   }
 
   async createInFolder(folder: TFolder): Promise<OnProgramBaseCreationResult> {
+    const propertyMap = this.getPropertyMap();
+    this.assertSafePropertyMap(propertyMap);
+
     const filesFolder = this.getFilesFolder(folder);
     await this.ensureFolder(filesFolder);
 
@@ -58,11 +64,21 @@ export class OnProgramBaseCreator {
       return { baseFile: existing, basePath, filesFolder, created: false };
     }
 
-    const content = buildOnProgramBaseConfig(filesFolder, this.getPropertyMap());
+    const content = buildOnProgramBaseConfig(filesFolder, propertyMap);
     const baseFile = await this.app.vault.create(basePath, content);
     await this.app.workspace.getLeaf(false).openFile(baseFile);
 
     return { baseFile, basePath, filesFolder, created: true };
+  }
+
+  private assertSafePropertyMap(propertyMap: WorkItemPropertyMap): void {
+    const issues = validateWorkItemPropertyMap(propertyMap);
+    if (issues.length === 0) return;
+
+    throw new OnProgramError(
+      `Cannot create an OnProgram Base with the current property mapping: ${issues.map((issue) => issue.message).join(" ")}`,
+      "invalid-work-item-property-map"
+    );
   }
 
   private async ensureFolder(path: string): Promise<void> {
