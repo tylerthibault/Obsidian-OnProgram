@@ -1,6 +1,7 @@
-import { TFile, TFolder, normalizePath, type App } from "obsidian";
+import { TFile, TFolder, type App } from "obsidian";
 import { OnProgramError } from "../../core/ErrorHandler";
 import type { WorkItemPropertyMap } from "../../models/work-item/WorkItemProperties";
+import { onProgramBasePath, onProgramFilesFolder } from "./OnProgramBasePaths";
 
 export interface OnProgramBaseCreationResult {
   baseFile: TFile;
@@ -26,14 +27,11 @@ export class OnProgramBaseCreator {
   ) {}
 
   getBasePath(folder: TFolder): string {
-    const folderPath = normalizeFolderPath(folder.path);
-    const baseName = folderPath ? `${folder.name}.onprogram` : "OnProgram";
-    return normalizePath(`${folderPath ? `${folderPath}/` : ""}${baseName}.base`);
+    return onProgramBasePath(folder);
   }
 
   getFilesFolder(folder: TFolder): string {
-    const folderPath = normalizeFolderPath(folder.path);
-    return normalizePath(`${folderPath ? `${folderPath}/` : ""}files`);
+    return onProgramFilesFolder(folder);
   }
 
   findBase(folder: TFolder): TFile | undefined {
@@ -166,9 +164,4 @@ function yamlString(value: string): string {
   // JSON strings are valid YAML double-quoted scalars and handle quotes,
   // backslashes, Unicode, and unusual folder/property names safely.
   return JSON.stringify(value);
-}
-
-function normalizeFolderPath(path: string): string {
-  const normalized = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  return normalized === "." ? "" : normalized;
 }
