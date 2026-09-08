@@ -38,10 +38,16 @@ export default class OnProgramPlugin extends Plugin {
     const services = new ServiceRegistry(logger);
     const runtime = new RuntimeService();
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
-    const basesIntegration = new BasesIntegrationService(this, logger, workItemParser);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
     const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
+    const basesIntegration = new BasesIntegrationService(
+      this,
+      logger,
+      workItemParser,
+      workItemWriter,
+      errorHandler
+    );
     const taskCreator = new TaskCreator(this.app, () => ({
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
