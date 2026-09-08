@@ -4,10 +4,9 @@ import { Logger } from "../utils/Logger";
 export class OnProgramError extends Error {
   constructor(
     message: string,
-    public readonly code: string,
-    options?: ErrorOptions
+    public readonly code: string
   ) {
-    super(message, options);
+    super(message);
     this.name = "OnProgramError";
   }
 }
