@@ -7,38 +7,28 @@ OnProgram is an Obsidian work-organizer built on Markdown files and Obsidian Bas
 - **Phase 1 — Development Foundation:** complete and verified in Obsidian
 - **Phase 2 — Work Item Data Model:** complete
 - **Phase 3 — Work Item Management:** complete
-- **Phase 4 — Obsidian Bases Integration:** complete in code
-- **Phase 5 — Board View:** next, with preference for Obsidian's native Bases Kanban capability
+- **Phase 4 — Obsidian Bases Integration:** complete
+- **Phase 5 — Board View:** complete in code
+- **Phase 6 — Calendar System:** complete in code
+- **Phase 7 — Timeline View:** next
 
-Active branch:
-
-```text
-phase-4-sprint-4-1-bases-integration
-```
+Active branch: `phase-6-calendar-system`.
 
 ## Install / update the test vault
 
 ```bash
 git fetch origin
-git checkout phase-4-sprint-4-1-bases-integration
+git checkout phase-6-calendar-system
 git pull
 npm install
 npm run build
 ```
 
-For watch mode:
+For watch mode: `npm run dev`.
 
-```bash
-npm run dev
-```
+## Bases-native views
 
-## Native Bases integration
-
-OnProgram registers a native Bases view named **OnProgram** through Obsidian's public Bases API.
-
-Inside a Base, choose **OnProgram** as the view type. The current foundation renderer shows the Base-selected files after the Base has already applied its filters, sorting, grouping, formulas, and limits.
-
-Those entries are then normalized through the same `WorkItemParser` used elsewhere in the plugin.
+OnProgram currently registers **OnProgram Inspector**, **OnProgram Board**, and **OnProgram Calendar**. All consume the Base's actual filtered/sorted result set rather than a separate task database.
 
 ```text
 Obsidian Base
@@ -51,12 +41,16 @@ BasesWorkItemAdapter
     ↓
 OnProgram WorkItems
     ↓
-OnProgram Bases view
+Board / Calendar / future Timeline
 ```
 
-The view refreshes through `BasesView.onDataUpdated()` whenever Obsidian supplies new query results.
+## Board
 
-See [`docs/bases-integration.md`](docs/bases-integration.md).
+The Board groups cards by canonical status. Dragging a card validates the destination and writes the mapped Markdown `status` property through `WorkItemWriter`. Card ordering follows the Base sort. See [`docs/board-view.md`](docs/board-view.md).
+
+## Calendar
+
+One Calendar view switches between Month, Week, and Day. The active date field can be `scheduled`, `due`, or `start`. It supports navigation, Today, date-only/timed placement, direct task creation from cells, drag/drop rescheduling, and an unscheduled-work tray. See [`docs/calendar-view.md`](docs/calendar-view.md).
 
 ## Current commands
 
@@ -69,17 +63,9 @@ See [`docs/bases-integration.md`](docs/bases-integration.md).
 
 ## Work-item management
 
-**Create task** creates a safe Markdown task in the configured task folder, optionally using a template/default project.
+**Create task** creates a safe Markdown task in the configured folder, optionally using a template/default project. Calendar can also supply the initial `scheduled`, `due`, or `start` date during creation.
 
 **Edit active work item** supports title/rename, status, project, priority, dates, duration, Markdown-body Notes, archive, source opening, and Move to Trash while preserving unrelated frontmatter and rejecting stale writes.
-
-## Settings
-
-- **Task folder**
-- **Task template**
-- **Default project**
-- **Debug mode**
-- **Show startup notice**
 
 ## Architecture
 
@@ -96,7 +82,8 @@ src/
 ├── settings/
 ├── utils/
 ├── views/
-│   └── bases/
+│   ├── bases/
+│   └── calendar/
 └── main.ts
 ```
 
@@ -110,18 +97,9 @@ src/
 - [`docs/task-creation.md`](docs/task-creation.md)
 - [`docs/quick-task-editor.md`](docs/quick-task-editor.md)
 - [`docs/bases-integration.md`](docs/bases-integration.md)
-
-## Phase 4 acceptance test
-
-1. Enable Obsidian Bases.
-2. Create a Base containing OnProgram task files.
-3. Add a Base filter such as `status != done`.
-4. Add/switch a view and select **OnProgram**.
-5. Confirm only the Base result rows are represented.
-6. Confirm valid work items, invalid candidates, and ordinary notes are distinguished.
-7. Change a task so it enters or leaves the Base filter.
-8. Confirm the OnProgram view refreshes as the Base query updates.
+- [`docs/board-view.md`](docs/board-view.md)
+- [`docs/calendar-view.md`](docs/calendar-view.md)
 
 ## Next phase
 
-Phase 5 will validate OnProgram's work-item semantics with the native Bases Kanban workflow rather than automatically creating a second competing board implementation. Calendar and Timeline will then be added as Bases-native OnProgram view types.
+**Phase 7 — Timeline View** will add a Bases-native horizontal project timeline with start/end ranges, milestone points, project grouping, zoom levels, Today marker, and direct date manipulation.
