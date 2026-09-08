@@ -44,8 +44,6 @@ export class WorkItemEditorService {
   async loadDraft(item: WorkItem): Promise<WorkItemEditorDraft> {
     const file = this.resolveFile(item.source.path);
     const content = await this.app.vault.read(file);
-    const info = getFrontMatterInfo(content);
-    const notes = info.exists ? content.slice(info.contentStart).replace(/^\r?\n/, "") : content;
 
     return {
       title: item.title,
@@ -56,7 +54,7 @@ export class WorkItemEditorService {
       due: item.dates.due?.iso ?? "",
       scheduled: item.dates.scheduled?.iso ?? "",
       duration: item.durationMinutes ? String(item.durationMinutes) : "",
-      notes
+      notes: extractNotes(content)
     };
   }
 
@@ -72,25 +70,17 @@ export class WorkItemEditorService {
       );
     }
 
+    const desiredTitle = normalizeTaskTitle(draft.title);
+    const targetPath = this.validateRenameTarget(originalFile, desiredTitle);
     const patch = this.buildPatch(item, draft);
+
     await this.writer.updateItem(item, patch);
 
     let file = this.resolveFile(item.source.path);
-    await this.writeNotes(file, originalContent, draft.notes);
+    await this.writeNotes(file, extractNotes(originalContent), draft.notes);
 
-    const desiredTitle = normalizeTaskTitle(draft.title);
-    const renamed = desiredTitle !== file.basename;
+    const renamed = targetPath !== file.path;
     if (renamed) {
-      const parentPath = file.parent?.path ?? "";
-      const targetPath = normalizePath(`${parentPath ? `${parentPath}/` : ""}${desiredTitle}.md`);
-      const existing = this.app.vault.getAbstractFileByPath(targetPath);
-      if (existing && existing !== file) {
-        throw new OnProgramError(
-          `A note named '${desiredTitle}.md' already exists in this folder.`,
-          "work-item-rename-conflict"
-        );
-      }
-
       await this.app.fileManager.renameFile(file, targetPath);
       file = this.resolveFile(targetPath);
     }
@@ -119,9 +109,25 @@ export class WorkItemEditorService {
     await this.app.workspace.getLeaf(false).openFile(file);
   }
 
-  private buildPatch(item: WorkItem, draft: WorkItemEditorDraft): WorkItemWritePatch {
-    const duration = parseOptionalDuration(draft.duration);
+  private validateRenameTarget(file: TFile, desiredTitle: string): string {
+    if (desiredTitle === file.basename) {
+      return file.path;
+    }
 
+    const parentPath = file.parent?.path ?? "";
+    const targetPath = normalizePath(`${parentPath ? `${parentPath}/` : ""}${desiredTitle}.md`);
+    const existing = this.app.vault.getAbstractFileByPath(targetPath);
+    if (existing && existing !== file) {
+      throw new OnProgramError(
+        `A note named '${desiredTitle}.md' already exists in this folder.`,
+        "work-item-rename-conflict"
+      );
+    }
+
+    return targetPath;
+  }
+
+  private buildPatch(item: WorkItem, draft: WorkItemEditorDraft): WorkItemWritePatch {
     return {
       status: draft.status,
       priority: draft.priority,
@@ -129,7 +135,7 @@ export class WorkItemEditorService {
       start: parseOptionalDate(draft.start, "start"),
       due: this.requiredAwareDate(item.type === "milestone", draft.due, "due"),
       scheduled: this.requiredAwareDate(item.type === "event", draft.scheduled, "scheduled"),
-      durationMinutes: duration
+      durationMinutes: parseOptionalDuration(draft.duration)
     };
   }
 
@@ -152,16 +158,17 @@ export class WorkItemEditorService {
     return parseDate(trimmed, label);
   }
 
-  private async writeNotes(file: TFile, originalContent: string, notes: string): Promise<void> {
-    const currentContent = await this.app.vault.read(file);
-    const currentInfo = getFrontMatterInfo(currentContent);
-    const originalInfo = getFrontMatterInfo(originalContent);
-    const originalNotes = originalInfo.exists
-      ? originalContent.slice(originalInfo.contentStart).replace(/^\r?\n/, "")
-      : originalContent;
-
+  private async writeNotes(file: TFile, originalNotes: string, notes: string): Promise<void> {
     if (notes === originalNotes) {
       return;
+    }
+
+    const currentContent = await this.app.vault.read(file);
+    if (extractNotes(currentContent) !== originalNotes) {
+      throw new OnProgramError(
+        `The note body changed while the editor was open. Reload before saving: ${file.path}`,
+        "work-item-edit-conflict"
+      );
     }
 
     await this.app.vault.process(file, (content) => {
@@ -182,6 +189,11 @@ export class WorkItemEditorService {
     }
     return file;
   }
+}
+
+function extractNotes(content: string): string {
+  const info = getFrontMatterInfo(content);
+  return info.exists ? content.slice(info.contentStart).replace(/^\r?\n/, "") : content;
 }
 
 function optionalString(value: string): string | null {
