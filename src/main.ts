@@ -37,8 +37,8 @@ export default class OnProgramPlugin extends Plugin {
     const lifecycle = new LifecycleManager(logger);
     const services = new ServiceRegistry(logger);
     const runtime = new RuntimeService();
-    const basesIntegration = new BasesIntegrationService(this, logger);
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
+    const basesIntegration = new BasesIntegrationService(this, logger, workItemParser);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
     const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
