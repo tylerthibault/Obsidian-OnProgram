@@ -1,40 +1,33 @@
 # OnProgram
 
-OnProgram is an Obsidian work-organizer plugin built around Obsidian Bases. The long-term goal is to let the same underlying Markdown files be organized and manipulated through multiple work views such as boards, calendars, timelines, and planning views.
+OnProgram is an Obsidian work-organizer plugin built around Obsidian Bases. Markdown files remain the source of truth while OnProgram adds task-management and, later, board/calendar/timeline views over those same files.
 
 ## Current development status
 
 - **Phase 1 — Development Foundation:** complete and verified in Obsidian
-- **Phase 2 — Work Item Data Model:** complete in code
-- **Phase 3 — Work Item Management:** in progress
+- **Phase 2 — Work Item Data Model:** complete
+- **Phase 3 — Work Item Management:** complete in code
   - **Sprint 3.1 — Create Work Item:** complete
-  - Sprint 3.2 — Quick Task Editor: next
+  - **Sprint 3.2 — Quick Task Editor:** complete
+- **Phase 4 — Obsidian Bases Integration:** next
 
-The active branch is:
+Active branch:
 
 ```text
-phase-3-sprint-3-1-create-work-item
+phase-3-sprint-3-2-quick-task-editor
 ```
 
 ## Install / update the test vault
 
-This repository should live at:
-
-```text
-<Your Vault>/.obsidian/plugins/onprogram/
-```
-
-Switch to the active branch and build it:
-
 ```bash
 git fetch origin
-git checkout phase-3-sprint-3-1-create-work-item
+git checkout phase-3-sprint-3-2-quick-task-editor
 git pull
 npm install
 npm run build
 ```
 
-For development watch mode:
+For watch mode:
 
 ```bash
 npm run dev
@@ -42,49 +35,45 @@ npm run dev
 
 ## Current commands
 
-The Command Palette includes:
-
 - **OnProgram: Create task**
+- **OnProgram: Edit active work item**
 - **OnProgram: Scan work items**
 - **OnProgram: Show diagnostics**
 - **OnProgram: Test OnProgram**
-- **OnProgram: Writer test: complete active work item**
-- **OnProgram: Writer test: reopen active work item**
+- temporary writer acceptance commands
 
-The writer-test commands are temporary development acceptance tools and will be replaced by normal task-management UI.
+## Work-item management
 
-## Task creation
+### Create
 
-**OnProgram: Create task** opens a title modal, creates a Markdown task, initializes its required properties, and opens it.
+**Create task** creates a Markdown file in the configured task folder, optionally uses a template/default project, initializes mapped `type`/`status` properties, avoids filename collisions, and opens the new task.
 
-Default destination:
+### Edit
 
-```text
-OnProgram/Tasks
-```
+**Edit active work item** is available when the active Markdown file parses as a valid OnProgram work item. The reusable editor supports:
 
-The OnProgram settings tab now includes:
+- Title / backing filename
+- Status
+- Project
+- Priority
+- Start
+- Due
+- Scheduled
+- Duration
+- Notes (the Markdown body)
+- Open source file
+- Archive
+- Move to Trash
 
-- **Task folder** — destination for newly created tasks
+The editor refuses stale saves, checks rename collisions before mutation, preserves unrelated YAML, protects required schema dates, detects concurrent body edits, and uses Obsidian Trash rather than permanent deletion.
+
+## Settings
+
+- **Task folder** — destination for new tasks
 - **Task template** — optional vault-relative Markdown template
 - **Default project** — optional project reference for new tasks
 - **Debug mode**
 - **Show startup notice**
-
-New tasks always receive the mapped equivalents of:
-
-```yaml
----
-type: task
-status: todo
----
-```
-
-If a Default project is configured, it is added as well.
-
-Task creation never overwrites an existing note. Duplicate titles receive a numeric suffix such as `Task 2.md`.
-
-See [`docs/task-creation.md`](docs/task-creation.md) for the complete creation contract and acceptance tests.
 
 ## Architecture
 
@@ -103,9 +92,7 @@ src/
 └── main.ts
 ```
 
-`src/main.ts` is intentionally a thin composition root. Feature code should live behind commands, services, views, models, or other focused modules instead of accumulating in the plugin entry point.
-
-## Work-item pipeline
+The core pipeline is:
 
 ```text
 Markdown file
@@ -116,47 +103,31 @@ WorkItemParser
     ↓
 normalized WorkItem
     ↓
-canonical patch
-    ↓
-WorkItemWriter
+WorkItemWriter / WorkItemEditorService
     ↓
 Markdown file
 ```
 
-The central rule remains:
-
 > Markdown files are the source of truth. OnProgram does not maintain a separate task database.
 
-Technical specifications:
+## Technical specifications
 
 - [`docs/work-item-schema.md`](docs/work-item-schema.md)
 - [`docs/work-item-parser.md`](docs/work-item-parser.md)
 - [`docs/work-item-writer.md`](docs/work-item-writer.md)
 - [`docs/task-creation.md`](docs/task-creation.md)
+- [`docs/quick-task-editor.md`](docs/quick-task-editor.md)
 
-## Data-safety guarantees already implemented
+## Phase 3 acceptance test
 
-- ordinary notes without a work-item `type` are ignored;
-- malformed work items are reported rather than silently discarded;
-- date-only values remain timezone-free;
-- unrelated frontmatter and Markdown body content survive writer operations;
-- property mappings must be valid and one-to-one before writes;
-- Milestone due dates and Event scheduled dates are protected as required fields;
-- stale writes are refused if a source file changed after OnProgram parsed it;
-- OnProgram serializes its own concurrent writes to the same file;
-- task creation never overwrites an existing Markdown file.
+1. Run **OnProgram: Create task** and create `Test task`.
+2. Confirm the task is created and opened with `type: task` / `status: todo`.
+3. Run **OnProgram: Edit active work item**.
+4. Change the title, status, project, due date, duration, and Markdown Notes.
+5. Save and confirm the same backing Markdown file (renamed if requested) contains the changes while unrelated YAML survives.
+6. Reopen the editor and test Archive.
+7. Separately create another task and confirm Move to Trash sends it through Obsidian Trash.
 
-## Sprint 3.1 manual acceptance test
+## Next phase
 
-1. Run **OnProgram: Create task**.
-2. Enter `Test task`.
-3. Confirm `OnProgram/Tasks/Test task.md` is created and opened.
-4. Confirm it contains `type: task` and `status: todo`.
-5. Run the command again using the same title.
-6. Confirm `Test task 2.md` is created and the first task remains untouched.
-
-Optional template/default-project tests are documented in `docs/task-creation.md`.
-
-## Next sprint
-
-**Sprint 3.2 — Quick Task Editor** will introduce a reusable task editor for status, project, priority, dates, scheduling, duration, notes, completion, and source-file access.
+**Phase 4 — Obsidian Bases Integration** will add Base discovery, a unified work-item query layer, and live synchronization so Bases and future OnProgram views operate over the same source files.
