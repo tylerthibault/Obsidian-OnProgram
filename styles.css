@@ -1,3 +1,14 @@
-/* OnProgram plugin styles.
- * Feature-specific styles will be added as UI components are introduced.
+/*
+ * OnProgram CSS convention
+ * ------------------------
+ * Every plugin-owned class must use the `onprogram-` prefix so styles stay
+ * isolated from Obsidian and other community plugins.
  */
+
+.onprogram-settings {
+  --onprogram-content-width: 680px;
+}
+
+.onprogram-settings .setting-item-description {
+  max-width: var(--onprogram-content-width);
+}
