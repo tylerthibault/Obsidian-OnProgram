@@ -56,13 +56,9 @@ export class OnProgramCalendarView extends BasesView {
     this.renderToolbar(result.items);
     this.renderUnscheduled(result.items);
 
-    if (this.mode === "month") {
-      this.renderMonth(result.items);
-    } else if (this.mode === "week") {
-      this.renderWeek(result.items);
-    } else {
-      this.renderDay(result.items);
-    }
+    if (this.mode === "month") this.renderMonth(result.items);
+    else if (this.mode === "week") this.renderWeek(result.items);
+    else this.renderDay(result.items);
   }
 
   private renderToolbar(items: WorkItem[]): void {
@@ -90,10 +86,7 @@ export class OnProgramCalendarView extends BasesView {
     const controls = toolbar.createDiv({ cls: "onprogram-calendar-controls" });
     const fieldSelect = controls.createEl("select", { cls: "dropdown" });
     for (const field of ["scheduled", "due", "start"] as const) {
-      const option = fieldSelect.createEl("option", {
-        text: humanize(field),
-        value: field
-      });
+      const option = fieldSelect.createEl("option", { text: humanize(field), value: field });
       option.selected = field === this.field;
     }
     fieldSelect.setAttr("aria-label", "Calendar field");
@@ -114,10 +107,7 @@ export class OnProgramCalendarView extends BasesView {
       });
     }
 
-    controls.createSpan({
-      text: `${items.length} work items`,
-      cls: "onprogram-calendar-count"
-    });
+    controls.createSpan({ text: `${items.length} work items`, cls: "onprogram-calendar-count" });
   }
 
   private renderUnscheduled(items: WorkItem[]): void {
@@ -125,12 +115,11 @@ export class OnProgramCalendarView extends BasesView {
     if (unscheduled.length === 0) return;
 
     const section = this.hostEl.createEl("details", { cls: "onprogram-calendar-unscheduled" });
-    const summary = section.createEl("summary");
-    summary.setText(`Unscheduled for ${humanize(this.field)} (${unscheduled.length})`);
+    section.createEl("summary", {
+      text: `Unscheduled for ${humanize(this.field)} (${unscheduled.length})`
+    });
     const tray = section.createDiv({ cls: "onprogram-calendar-unscheduled-tray" });
-    for (const item of unscheduled) {
-      tray.appendChild(this.makeItemChip(item));
-    }
+    for (const item of unscheduled) tray.appendChild(this.makeItemChip(item));
   }
 
   private renderMonth(items: WorkItem[]): void {
@@ -146,12 +135,8 @@ export class OnProgramCalendarView extends BasesView {
       const date = addDays(start, offset);
       const iso = localDateIso(date);
       const cell = calendar.createDiv({ cls: "onprogram-calendar-day-cell" });
-      if (date.getMonth() !== this.anchorDate.getMonth()) {
-        cell.addClass("onprogram-calendar-outside-month");
-      }
-      if (sameCalendarDay(date, today)) {
-        cell.addClass("onprogram-calendar-today");
-      }
+      if (date.getMonth() !== this.anchorDate.getMonth()) cell.addClass("onprogram-calendar-outside-month");
+      if (sameCalendarDay(date, today)) cell.addClass("onprogram-calendar-today");
 
       const cellHeader = cell.createDiv({ cls: "onprogram-calendar-day-header" });
       cellHeader.createSpan({ text: String(date.getDate()) });
@@ -160,14 +145,11 @@ export class OnProgramCalendarView extends BasesView {
       add.addEventListener("click", () => this.createTaskAt({ kind: "date", iso }));
 
       this.makeDropTarget(cell, iso);
-
       const dayItems = items.filter((item) => {
         const value = getCalendarDate(item, this.field);
         return value ? datePart(value) === iso : false;
       });
-      for (const item of dayItems) {
-        cell.appendChild(this.makeItemChip(item));
-      }
+      for (const item of dayItems) cell.appendChild(this.makeItemChip(item));
     }
   }
 
@@ -182,7 +164,7 @@ export class OnProgramCalendarView extends BasesView {
       days.push(date);
       const header = calendar.createDiv({ cls: "onprogram-calendar-week-day-header" });
       header.createDiv({ text: date.toLocaleDateString(undefined, { weekday: "short" }) });
-      header.createStrong({ text: String(date.getDate()) });
+      header.createEl("strong", { text: String(date.getDate()) });
       if (sameCalendarDay(date, new Date())) header.addClass("onprogram-calendar-today");
     }
 
@@ -223,7 +205,7 @@ export class OnProgramCalendarView extends BasesView {
     const calendar = this.hostEl.createDiv({ cls: "onprogram-calendar-day" });
 
     const allDay = calendar.createDiv({ cls: "onprogram-calendar-day-all-day" });
-    allDay.createStrong({ text: "All day" });
+    allDay.createEl("strong", { text: "All day" });
     const allDayItems = items.filter((item) => {
       const value = getCalendarDate(item, this.field);
       return value?.kind === "date" && datePart(value) === iso;
@@ -236,7 +218,6 @@ export class OnProgramCalendarView extends BasesView {
 
     const hours = calendar.createDiv({ cls: "onprogram-calendar-day-hours" });
     const now = new Date();
-
     for (let hour = 0; hour < 24; hour += 1) {
       const row = hours.createDiv({ cls: "onprogram-calendar-day-hour" });
       row.createDiv({ text: formatHour(hour), cls: "onprogram-calendar-time-label" });
@@ -257,7 +238,7 @@ export class OnProgramCalendarView extends BasesView {
   }
 
   private makeItemChip(item: WorkItem, detailed = false): HTMLElement {
-    const chip = document.createElement("div");
+    const chip = this.hostEl.doc.createElement("div");
     chip.addClass("onprogram-calendar-item");
     chip.draggable = true;
     chip.dataset.path = item.source.path;
@@ -270,8 +251,10 @@ export class OnProgramCalendarView extends BasesView {
     title.addEventListener("click", () => this.openItem(item));
 
     if (detailed || item.priority === "urgent" || item.priority === "high") {
-      const meta = chip.createSpan({ cls: "onprogram-calendar-item-meta" });
-      meta.setText(item.durationMinutes ? `${item.priority} · ${item.durationMinutes}m` : item.priority);
+      chip.createSpan({
+        text: item.durationMinutes ? `${item.priority} · ${item.durationMinutes}m` : item.priority,
+        cls: "onprogram-calendar-item-meta"
+      });
     }
 
     chip.addEventListener("dragstart", (event) => {
@@ -312,7 +295,11 @@ export class OnProgramCalendarView extends BasesView {
     const existing = getCalendarDate(item, this.field);
     const value = hour === undefined
       ? moveDateToDay(existing, dayIso)
-      : moveDateToDateTime(dayIso, hour, existing?.kind === "date-time" ? Number(existing.iso.slice(14, 16)) : 0);
+      : moveDateToDateTime(
+          dayIso,
+          hour,
+          existing?.kind === "date-time" ? Number(existing.iso.slice(14, 16)) : 0
+        );
 
     this.writing = true;
     this.hostEl.addClass("onprogram-is-busy");
