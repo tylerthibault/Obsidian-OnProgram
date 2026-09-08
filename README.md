@@ -1,27 +1,26 @@
 # OnProgram
 
-OnProgram is an Obsidian work-organizer plugin built around Obsidian Bases. Markdown files remain the source of truth while OnProgram adds task-management and, later, board/calendar/timeline views over those same files.
+OnProgram is an Obsidian work-organizer built on Markdown files and Obsidian Bases. Markdown remains the source of truth while Bases supplies the query/filter host for OnProgram views.
 
 ## Current development status
 
 - **Phase 1 — Development Foundation:** complete and verified in Obsidian
 - **Phase 2 — Work Item Data Model:** complete
-- **Phase 3 — Work Item Management:** complete in code
-  - **Sprint 3.1 — Create Work Item:** complete
-  - **Sprint 3.2 — Quick Task Editor:** complete
-- **Phase 4 — Obsidian Bases Integration:** next
+- **Phase 3 — Work Item Management:** complete
+- **Phase 4 — Obsidian Bases Integration:** complete in code
+- **Phase 5 — Board View:** next, with preference for Obsidian's native Bases Kanban capability
 
 Active branch:
 
 ```text
-phase-3-sprint-3-2-quick-task-editor
+phase-4-sprint-4-1-bases-integration
 ```
 
 ## Install / update the test vault
 
 ```bash
 git fetch origin
-git checkout phase-3-sprint-3-2-quick-task-editor
+git checkout phase-4-sprint-4-1-bases-integration
 git pull
 npm install
 npm run build
@@ -32,6 +31,32 @@ For watch mode:
 ```bash
 npm run dev
 ```
+
+## Native Bases integration
+
+OnProgram registers a native Bases view named **OnProgram** through Obsidian's public Bases API.
+
+Inside a Base, choose **OnProgram** as the view type. The current foundation renderer shows the Base-selected files after the Base has already applied its filters, sorting, grouping, formulas, and limits.
+
+Those entries are then normalized through the same `WorkItemParser` used elsewhere in the plugin.
+
+```text
+Obsidian Base
+    ↓
+filters / formulas / sorting / grouping / limit
+    ↓
+BasesQueryResult
+    ↓
+BasesWorkItemAdapter
+    ↓
+OnProgram WorkItems
+    ↓
+OnProgram Bases view
+```
+
+The view refreshes through `BasesView.onDataUpdated()` whenever Obsidian supplies new query results.
+
+See [`docs/bases-integration.md`](docs/bases-integration.md).
 
 ## Current commands
 
@@ -44,34 +69,15 @@ npm run dev
 
 ## Work-item management
 
-### Create
+**Create task** creates a safe Markdown task in the configured task folder, optionally using a template/default project.
 
-**Create task** creates a Markdown file in the configured task folder, optionally uses a template/default project, initializes mapped `type`/`status` properties, avoids filename collisions, and opens the new task.
-
-### Edit
-
-**Edit active work item** is available when the active Markdown file parses as a valid OnProgram work item. The reusable editor supports:
-
-- Title / backing filename
-- Status
-- Project
-- Priority
-- Start
-- Due
-- Scheduled
-- Duration
-- Notes (the Markdown body)
-- Open source file
-- Archive
-- Move to Trash
-
-The editor refuses stale saves, checks rename collisions before mutation, preserves unrelated YAML, protects required schema dates, detects concurrent body edits, and uses Obsidian Trash rather than permanent deletion.
+**Edit active work item** supports title/rename, status, project, priority, dates, duration, Markdown-body Notes, archive, source opening, and Move to Trash while preserving unrelated frontmatter and rejecting stale writes.
 
 ## Settings
 
-- **Task folder** — destination for new tasks
-- **Task template** — optional vault-relative Markdown template
-- **Default project** — optional project reference for new tasks
+- **Task folder**
+- **Task template**
+- **Default project**
 - **Debug mode**
 - **Show startup notice**
 
@@ -85,30 +91,16 @@ src/
 ├── models/
 │   └── work-item/
 ├── services/
+│   ├── bases/
 │   └── work-items/
 ├── settings/
 ├── utils/
 ├── views/
+│   └── bases/
 └── main.ts
 ```
 
-The core pipeline is:
-
-```text
-Markdown file
-    ↓
-MetadataCache
-    ↓
-WorkItemParser
-    ↓
-normalized WorkItem
-    ↓
-WorkItemWriter / WorkItemEditorService
-    ↓
-Markdown file
-```
-
-> Markdown files are the source of truth. OnProgram does not maintain a separate task database.
+> Markdown files are the source of truth. Bases is the query/view host. OnProgram does not maintain a separate task database.
 
 ## Technical specifications
 
@@ -117,17 +109,19 @@ Markdown file
 - [`docs/work-item-writer.md`](docs/work-item-writer.md)
 - [`docs/task-creation.md`](docs/task-creation.md)
 - [`docs/quick-task-editor.md`](docs/quick-task-editor.md)
+- [`docs/bases-integration.md`](docs/bases-integration.md)
 
-## Phase 3 acceptance test
+## Phase 4 acceptance test
 
-1. Run **OnProgram: Create task** and create `Test task`.
-2. Confirm the task is created and opened with `type: task` / `status: todo`.
-3. Run **OnProgram: Edit active work item**.
-4. Change the title, status, project, due date, duration, and Markdown Notes.
-5. Save and confirm the same backing Markdown file (renamed if requested) contains the changes while unrelated YAML survives.
-6. Reopen the editor and test Archive.
-7. Separately create another task and confirm Move to Trash sends it through Obsidian Trash.
+1. Enable Obsidian Bases.
+2. Create a Base containing OnProgram task files.
+3. Add a Base filter such as `status != done`.
+4. Add/switch a view and select **OnProgram**.
+5. Confirm only the Base result rows are represented.
+6. Confirm valid work items, invalid candidates, and ordinary notes are distinguished.
+7. Change a task so it enters or leaves the Base filter.
+8. Confirm the OnProgram view refreshes as the Base query updates.
 
 ## Next phase
 
-**Phase 4 — Obsidian Bases Integration** will add Base discovery, a unified work-item query layer, and live synchronization so Bases and future OnProgram views operate over the same source files.
+Phase 5 will validate OnProgram's work-item semantics with the native Bases Kanban workflow rather than automatically creating a second competing board implementation. Calendar and Timeline will then be added as Bases-native OnProgram view types.
