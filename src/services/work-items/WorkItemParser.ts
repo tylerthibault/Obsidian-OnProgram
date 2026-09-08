@@ -115,7 +115,8 @@ export class WorkItemParser {
     const base: WorkItemBase = {
       source: {
         path: file.path,
-        basename: file.basename
+        basename: file.basename,
+        mtime: file.stat.mtime
       },
       title: file.basename,
       status,
