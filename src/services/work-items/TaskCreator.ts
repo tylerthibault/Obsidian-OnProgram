@@ -89,13 +89,13 @@ export class TaskCreator {
     const map = config.propertyMap;
 
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      // Type is canonical for every file created through TaskCreator.
+      // Type and initial status are canonical invariants for a newly created task.
       frontmatter[map.type] = "task";
+      frontmatter[map.status] = DEFAULT_STATUS_BY_TYPE.task;
 
       // Populate the complete OnProgram schema once. This means a task can move
       // between Board, Calendar, Timeline, and future views without requiring a
       // later migration just to add missing properties.
-      setDefault(frontmatter, map.status, DEFAULT_STATUS_BY_TYPE.task);
       setDefault(frontmatter, map.project, project || null);
       setDefault(frontmatter, map.priority, "normal");
       setDefault(frontmatter, map.start, null);
