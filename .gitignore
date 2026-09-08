@@ -1,0 +1,17 @@
+# Editors
+.vscode/
+.idea/
+*.iml
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+*.map
+
+# Obsidian plugin data
+data.json
+
+# OS files
+.DS_Store
+Thumbs.db
