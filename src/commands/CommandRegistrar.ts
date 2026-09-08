@@ -1,13 +1,17 @@
 import { Notice, Plugin } from "obsidian";
+import type { ErrorHandler } from "../core/ErrorHandler";
 import type { LifecycleManager } from "../core/LifecycleManager";
 import type { RuntimeService } from "../services/RuntimeService";
 import type { WorkItemScanner } from "../services/work-items/WorkItemScanner";
+import type { WorkItemWriter } from "../services/work-items/WorkItemWriter";
 import { Logger } from "../utils/Logger";
 
 export interface CommandDependencies {
   lifecycle: LifecycleManager;
   runtime: RuntimeService;
+  errorHandler: ErrorHandler;
   workItemScanner: WorkItemScanner;
+  workItemWriter: WorkItemWriter;
 }
 
 export class CommandRegistrar {
@@ -67,6 +71,55 @@ export class CommandRegistrar {
       }
     });
 
+    this.plugin.addCommand({
+      id: "onprogram-writer-test-complete-active",
+      name: "Writer test: complete active work item",
+      callback: async () => {
+        await this.runWriterTest("complete");
+      }
+    });
+
+    this.plugin.addCommand({
+      id: "onprogram-writer-test-reopen-active",
+      name: "Writer test: reopen active work item",
+      callback: async () => {
+        await this.runWriterTest("reopen");
+      }
+    });
+
     this.logger.debug("Core commands registered");
+  }
+
+  private async runWriterTest(action: "complete" | "reopen"): Promise<void> {
+    const activeFile = this.plugin.app.workspace.getActiveFile();
+    if (!activeFile) {
+      new Notice("OnProgram: Open a Markdown work item before running the writer test.");
+      return;
+    }
+
+    const parsed = this.dependencies.workItemScanner.scanFile(activeFile);
+    if (parsed.kind !== "valid") {
+      new Notice("OnProgram: The active file is not a valid work item.");
+      return;
+    }
+
+    try {
+      const result = action === "complete"
+        ? await this.dependencies.workItemWriter.completeItem(parsed.item)
+        : await this.dependencies.workItemWriter.reopenItem(parsed.item);
+
+      this.logger.info(`Writer test ${action} complete`, {
+        path: result.path,
+        changedProperties: result.changedProperties,
+        beforeMtime: result.beforeMtime,
+        afterMtime: result.afterMtime
+      });
+
+      new Notice(
+        `OnProgram writer: ${action === "complete" ? "completed" : "reopened"} ${parsed.item.title}.`
+      );
+    } catch (error) {
+      this.dependencies.errorHandler.handle(error, `writer test ${action}`, true);
+    }
   }
 }
