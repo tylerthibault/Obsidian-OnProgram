@@ -144,3 +144,114 @@
   color: var(--text-muted);
   padding: var(--size-4-6) 0;
 }
+
+.onprogram-board-view {
+  height: 100%;
+  padding: var(--size-4-4);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.onprogram-board-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-3);
+  margin-bottom: var(--size-4-3);
+}
+
+.onprogram-board-header h3 {
+  margin: 0;
+}
+
+.onprogram-board-count,
+.onprogram-board-invalid-count,
+.onprogram-board-column-count {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.onprogram-board {
+  display: flex;
+  gap: var(--size-4-3);
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: var(--size-4-2);
+}
+
+.onprogram-board-column {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  max-height: 100%;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.onprogram-board-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.onprogram-board-cards {
+  display: grid;
+  align-content: start;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2);
+  overflow-y: auto;
+  min-height: 120px;
+  flex: 1;
+}
+
+.onprogram-board-drop-target {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.onprogram-board-card {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: var(--size-4-3);
+  cursor: grab;
+  box-shadow: var(--shadow-s);
+}
+
+.onprogram-board-card:active {
+  cursor: grabbing;
+}
+
+.onprogram-board-card-dragging {
+  opacity: 0.45;
+}
+
+.onprogram-board-card-title {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--size-4-2);
+}
+
+.onprogram-board-card-meta {
+  display: flex;
+  gap: var(--size-4-1);
+  flex-wrap: wrap;
+}
+
+.onprogram-board-card-meta span {
+  background: var(--background-secondary-alt);
+  border-radius: var(--radius-s);
+  padding: 2px var(--size-4-1);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
