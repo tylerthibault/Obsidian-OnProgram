@@ -48,11 +48,13 @@ export class BasesIntegrationService implements OnProgramService {
     const boardRegistered = this.plugin.registerBasesView(ONPROGRAM_BOARD_VIEW_ID, {
       name: "OnProgram Board",
       icon: "columns-3",
+      options: baseTaskFolderOptions,
       factory: (controller, containerEl) => new OnProgramBoardView(
         controller,
         containerEl,
         adapter,
         this.writer,
+        this.taskCreator,
         this.errorHandler
       )
     });
@@ -60,6 +62,7 @@ export class BasesIntegrationService implements OnProgramService {
     const calendarRegistered = this.plugin.registerBasesView(ONPROGRAM_CALENDAR_VIEW_ID, {
       name: "OnProgram Calendar",
       icon: "calendar-days",
+      options: baseTaskFolderOptions,
       factory: (controller, containerEl) => new OnProgramCalendarView(
         controller,
         containerEl,
@@ -73,11 +76,13 @@ export class BasesIntegrationService implements OnProgramService {
     const timelineRegistered = this.plugin.registerBasesView(ONPROGRAM_TIMELINE_VIEW_ID, {
       name: "OnProgram Timeline",
       icon: "gantt-chart",
+      options: baseTaskFolderOptions,
       factory: (controller, containerEl) => new OnProgramTimelineView(
         controller,
         containerEl,
         adapter,
         this.writer,
+        this.taskCreator,
         this.errorHandler
       )
     });
@@ -105,4 +110,15 @@ export class BasesIntegrationService implements OnProgramService {
   get isRegistered(): boolean {
     return this.registered;
   }
+}
+
+function baseTaskFolderOptions() {
+  return [
+    {
+      type: "folder" as const,
+      key: "taskFolder",
+      displayName: "Task folder",
+      placeholder: "Project/files"
+    }
+  ];
 }
