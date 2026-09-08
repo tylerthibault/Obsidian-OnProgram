@@ -2,11 +2,11 @@
 
 OnProgram is an Obsidian work-organizer plugin built around Obsidian Bases. The long-term goal is to let the same underlying Markdown files be organized and manipulated through multiple work views such as boards, calendars, timelines, and planning views.
 
-## Phase 1: Plugin registration
+## Current development status
 
-The current version is intentionally minimal. It exists to confirm that Obsidian can discover, enable, and load the plugin successfully.
+Phase 1, Sprint 1.1 establishes the TypeScript/esbuild development foundation while preserving the original Phase 0 registration test.
 
-### Install in the test vault
+## Install in the test vault
 
 Clone or place this repository at:
 
@@ -14,25 +14,48 @@ Clone or place this repository at:
 <Your Vault>/.obsidian/plugins/onprogram/
 ```
 
-If you already cloned the repository, pull the latest changes:
+Then switch to the active Sprint 1.1 branch:
 
 ```bash
-git pull origin main
+git fetch origin
+git checkout phase-1-sprint-1-milestone-1
 ```
 
-Then restart Obsidian or reload the app.
+Install development dependencies:
 
-Go to:
+```bash
+npm install
+```
+
+## Development workflow
+
+Start esbuild in watch mode:
+
+```bash
+npm run dev
+```
+
+Changes under `src/` will rebuild `main.js` automatically.
+
+For a production build with TypeScript validation and minified output:
+
+```bash
+npm run build
+```
+
+## Verify in Obsidian
+
+Restart or reload Obsidian, then go to:
 
 **Settings → Community plugins**
 
 Enable **OnProgram**.
 
-When the plugin loads, Obsidian should show the notice:
+When the plugin loads, Obsidian should show:
 
 > OnProgram loaded
 
-Then open the Command Palette and run:
+Open the Command Palette and run:
 
 **OnProgram: Test OnProgram**
 
@@ -40,11 +63,33 @@ You should see:
 
 > OnProgram is working!
 
-## Current files
+## Development structure
 
-- `manifest.json` — Obsidian plugin metadata
-- `main.js` — minimal plugin entry point used for Phase 1 registration testing
+```text
+OnProgram/
+├── src/
+│   └── main.ts
+├── manifest.json
+├── package.json
+├── tsconfig.json
+├── esbuild.config.mjs
+├── versions.json
+├── styles.css
+├── README.md
+└── main.js
+```
 
-## Next phase
+- `src/main.ts` — TypeScript source entry point
+- `main.js` — Obsidian-loadable build output
+- `esbuild.config.mjs` — development watch and production bundling configuration
+- `tsconfig.json` — strict TypeScript configuration
+- `versions.json` — plugin-version to minimum-Obsidian-version compatibility map
 
-Once registration is confirmed, the repository will be converted to a TypeScript/esbuild development setup before implementing OnProgram's task model and Bases-powered views.
+## Sprint 1.1 completion criteria
+
+Sprint 1.1 is complete when:
+
+1. `npm install` installs the Obsidian API and build dependencies.
+2. `npm run dev` watches `src/main.ts` and rebuilds `main.js`.
+3. `npm run build` type-checks and creates the production `main.js` bundle.
+4. Obsidian can load the resulting plugin and the test command still works.
