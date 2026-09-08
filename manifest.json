@@ -2,7 +2,7 @@
   "id": "onprogram",
   "name": "OnProgram",
   "version": "0.1.0",
-  "minAppVersion": "1.10.0",
+  "minAppVersion": "1.10.2",
   "description": "A work organizer for Obsidian Bases with board, calendar, timeline, and planning views.",
   "author": "tylerthibault",
   "isDesktopOnly": false
