@@ -4,6 +4,7 @@ import { QuickTaskEditorModal } from "../components/QuickTaskEditorModal";
 import type { ErrorHandler } from "../core/ErrorHandler";
 import type { LifecycleManager } from "../core/LifecycleManager";
 import type { RuntimeService } from "../services/RuntimeService";
+import type { OnProgramBaseContext } from "../services/bases/OnProgramBaseContext";
 import type { TaskCreator } from "../services/work-items/TaskCreator";
 import type { WorkItemEditorService } from "../services/work-items/WorkItemEditorService";
 import type { WorkItemScanner } from "../services/work-items/WorkItemScanner";
@@ -15,6 +16,7 @@ export interface CommandDependencies {
   runtime: RuntimeService;
   errorHandler: ErrorHandler;
   taskCreator: TaskCreator;
+  baseContext: OnProgramBaseContext;
   workItemEditor: WorkItemEditorService;
   workItemScanner: WorkItemScanner;
   workItemWriter: WorkItemWriter;
@@ -43,8 +45,16 @@ export class CommandRegistrar {
       callback: () => {
         new CreateTaskModal(this.plugin.app, {
           onSubmit: async (title) => {
-            const result = await this.dependencies.taskCreator.createTask({ title });
-            this.logger.info("Task created", { path: result.path, usedTemplate: result.usedTemplate });
+            const targetFolder = await this.dependencies.baseContext.resolveActiveTaskFolder();
+            const result = await this.dependencies.taskCreator.createTask({
+              title,
+              targetFolder
+            });
+            this.logger.info("Task created", {
+              path: result.path,
+              usedTemplate: result.usedTemplate,
+              baseScoped: Boolean(targetFolder)
+            });
             new Notice(`OnProgram: Created ${result.title}.`);
           },
           onError: (error) => this.dependencies.errorHandler.handle(error, "create task", true)
