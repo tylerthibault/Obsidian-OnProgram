@@ -1,4 +1,5 @@
 import { TFile, TFolder, normalizePath, parseYaml, type App } from "obsidian";
+import { onProgramBasePath } from "./OnProgramBasePaths";
 
 interface BaseViewConfigShape {
   type?: unknown;
@@ -46,18 +47,12 @@ export class OnProgramBaseContext {
       return undefined;
     }
 
-    const expectedBaseName = ownerFolder.path
-      ? `${ownerFolder.name}.onprogram.base`
-      : "OnProgram.base";
-    const basePath = normalizePath(
-      `${ownerFolder.path ? `${ownerFolder.path}/` : ""}${expectedBaseName}`
-    );
-    const baseFile = this.app.vault.getAbstractFileByPath(basePath);
+    const baseFile = this.app.vault.getAbstractFileByPath(onProgramBasePath(ownerFolder));
     if (!(baseFile instanceof TFile)) {
       return undefined;
     }
 
-    return (await this.readTaskFolderFromBase(baseFile)) ?? filesFolder.path;
+    return (await this.readTaskFolderFromBase(baseFile)) ?? normalizePath(filesFolder.path);
   }
 
   private async readTaskFolderFromBase(file: TFile): Promise<string | undefined> {
