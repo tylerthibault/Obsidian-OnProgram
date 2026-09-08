@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "A work organizer for Obsidian Bases with board, calendar, timeline, and planning views.",
   "main": "main.js",
+  "type": "module",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production"
