@@ -59,8 +59,8 @@ export function getTimelinePlacement(item: WorkItem): TimelinePlacement | undefi
 
 export function timelineBounds(placements: TimelinePlacement[]): { start: Date; end: Date } {
   const today = new Date();
-  const first = placements.at(0);
-  if (!first) {
+  const first = placements[0];
+  if (first === undefined) {
     return { start: addDays(today, -14), end: addDays(today, 45) };
   }
 
