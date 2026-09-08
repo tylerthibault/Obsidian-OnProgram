@@ -5,6 +5,7 @@ import { EventManager } from "./core/EventManager";
 import { LifecycleManager } from "./core/LifecycleManager";
 import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
+import { BasesIntegrationService } from "./services/bases/BasesIntegrationService";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
 import { WorkItemParser } from "./services/work-items/WorkItemParser";
@@ -36,6 +37,7 @@ export default class OnProgramPlugin extends Plugin {
     const lifecycle = new LifecycleManager(logger);
     const services = new ServiceRegistry(logger);
     const runtime = new RuntimeService();
+    const basesIntegration = new BasesIntegrationService(this, logger);
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
@@ -56,6 +58,7 @@ export default class OnProgramPlugin extends Plugin {
 
     try {
       services.register(runtime);
+      services.register(basesIntegration);
       this.addSettingTab(new OnProgramSettingTab(this.app, this));
 
       new CommandRegistrar(this, logger, {
