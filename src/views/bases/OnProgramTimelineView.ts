@@ -1,9 +1,11 @@
 import { BasesView, Notice, type QueryController } from "obsidian";
+import { CreateTaskModal } from "../../components/CreateTaskModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
+import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemWritePatch } from "../../services/work-items/WorkItemWritePatch";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
-import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import { localDateIso, parseLocalDate } from "../calendar/CalendarDateUtils";
 import {
   TIMELINE_PIXELS_PER_DAY,
@@ -30,6 +32,7 @@ export class OnProgramTimelineView extends BasesView {
     private readonly hostEl: HTMLElement,
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
+    private readonly taskCreator: TaskCreator,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -62,6 +65,9 @@ export class OnProgramTimelineView extends BasesView {
     summary.createSpan({ text: `${placements.length} scheduled` });
     if (unscheduledCount > 0) summary.createSpan({ text: `${unscheduledCount} unscheduled` });
 
+    const addTask = toolbar.createEl("button", { text: "+ New task" });
+    addTask.addEventListener("click", () => this.createTask());
+
     const zoom = toolbar.createDiv({ cls: "onprogram-timeline-zoom" });
     for (const value of ["day", "week", "month", "quarter"] as const) {
       const button = zoom.createEl("button", {
@@ -73,6 +79,24 @@ export class OnProgramTimelineView extends BasesView {
         this.render();
       });
     }
+  }
+
+  private createTask(): void {
+    new CreateTaskModal(this.app, {
+      onSubmit: async (title) => {
+        const result = await this.taskCreator.createTask({
+          title,
+          targetFolder: this.getConfiguredTaskFolder()
+        });
+        new Notice(`OnProgram: Created ${result.title}.`);
+      },
+      onError: (error) => this.errorHandler.handle(error, "create timeline task", true)
+    }).open();
+  }
+
+  private getConfiguredTaskFolder(): string | undefined {
+    const value = this.config.get("taskFolder");
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
 
   private renderUnscheduled(items: WorkItem[]): void {
@@ -95,6 +119,7 @@ export class OnProgramTimelineView extends BasesView {
 
     const shell = this.hostEl.createDiv({ cls: "onprogram-timeline-shell" });
     const labels = shell.createDiv({ cls: "onprogram-timeline-labels" });
+    labels.createDiv({ text: "Work item", cls: "onprogram-timeline-label-axis" });
     const scroll = shell.createDiv({ cls: "onprogram-timeline-scroll" });
     const canvas = scroll.createDiv({ cls: "onprogram-timeline-canvas" });
     canvas.setCssStyles({ width: `${timelineWidth}px` });
@@ -108,13 +133,13 @@ export class OnProgramTimelineView extends BasesView {
     for (const [groupName, groupPlacements] of groups) {
       labels.createDiv({ text: groupName, cls: "onprogram-timeline-group-label" });
       const groupRow = canvas.createDiv({ cls: "onprogram-timeline-group-row" });
-      groupRow.setCssStyles({ top: `${rowIndex * 42}px` });
+      groupRow.setCssStyles({ top: `${36 + rowIndex * 42}px` });
       rowIndex += 1;
 
       for (const placement of groupPlacements) {
         labels.appendChild(this.makeLabel(placement.item));
         const row = canvas.createDiv({ cls: "onprogram-timeline-row" });
-        row.setCssStyles({ top: `${rowIndex * 42}px` });
+        row.setCssStyles({ top: `${36 + rowIndex * 42}px` });
         this.renderPlacement(row, placement, bounds.start, pixelsPerDay);
         rowIndex += 1;
       }
@@ -124,12 +149,9 @@ export class OnProgramTimelineView extends BasesView {
       labels.createDiv({ text: "No dated work items", cls: "onprogram-timeline-empty" });
     }
 
-    const height = Math.max(160, rowIndex * 42 + 42);
+    const height = Math.max(196, 36 + rowIndex * 42 + 42);
     canvas.setCssStyles({ height: `${height}px` });
     labels.setCssStyles({ minHeight: `${height}px` });
-
-    // Align label rows with the scrollable timeline header.
-    labels.createDiv({ cls: "onprogram-timeline-label-bottom-spacer" });
   }
 
   private renderTicks(canvas: HTMLElement, start: Date, end: Date, pixelsPerDay: number): void {
