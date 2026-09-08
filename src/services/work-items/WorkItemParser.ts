@@ -136,8 +136,8 @@ export class WorkItemParser {
       base.durationMinutes = durationMinutes;
     }
 
-    const item = this.createTypedItem(type, base, dates, file, issues);
-    if (!item || hasValidationErrors(issues)) {
+    const item = this.createTypedItem(type, base, dates);
+    if (!item) {
       return this.invalid(file, issues);
     }
 
@@ -306,9 +306,7 @@ export class WorkItemParser {
   private createTypedItem(
     type: WorkItemType,
     base: WorkItemBase,
-    dates: WorkItemDates,
-    file: TFile,
-    issues: WorkItemValidationIssue[]
+    dates: WorkItemDates
   ): WorkItem | undefined {
     if (type === "milestone") {
       if (!dates.due) {
@@ -342,21 +340,10 @@ export class WorkItemParser {
       return item;
     }
 
-    if (type === "task" || type === "project") {
-      return {
-        ...base,
-        type
-      };
-    }
-
-    issues.push({
-      severity: "error",
-      code: "invalid-type",
-      property: "type",
-      value: type,
-      message: `Unable to construct work item for '${file.path}'.`
-    });
-    return undefined;
+    return {
+      ...base,
+      type
+    };
   }
 
   private read(
@@ -391,7 +378,7 @@ function formatValue(value: unknown): string {
   }
 
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value) ?? String(value);
   } catch {
     return String(value);
   }
