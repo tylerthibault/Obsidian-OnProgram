@@ -1,10 +1,12 @@
 import type { Plugin } from "obsidian";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { WorkItemParser } from "../work-items/WorkItemParser";
 import { Logger } from "../../utils/Logger";
 import {
   ONPROGRAM_BASES_VIEW_ID,
   OnProgramBasesView
 } from "../../views/bases/OnProgramBasesView";
+import { BasesWorkItemAdapter } from "./BasesWorkItemAdapter";
 
 export class BasesIntegrationService implements OnProgramService {
   readonly id = "bases-integration";
@@ -12,14 +14,17 @@ export class BasesIntegrationService implements OnProgramService {
 
   constructor(
     private readonly plugin: Plugin,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly parser: WorkItemParser
   ) {}
 
   start(): void {
+    const adapter = new BasesWorkItemAdapter(this.plugin.app, this.parser);
+
     this.registered = this.plugin.registerBasesView(ONPROGRAM_BASES_VIEW_ID, {
       name: "OnProgram",
       icon: "compass",
-      factory: (controller, containerEl) => new OnProgramBasesView(controller, containerEl)
+      factory: (controller, containerEl) => new OnProgramBasesView(controller, containerEl, adapter)
     });
 
     if (this.registered) {
