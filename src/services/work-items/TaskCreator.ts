@@ -5,7 +5,7 @@ import {
   validateWorkItemPropertyMap,
   type WorkItemPropertyMap
 } from "../../models/work-item/WorkItemProperties";
-import { DEFAULT_STATUS_BY_TYPE } from "../../models/work-item/WorkItemStatus";
+import { DEFAULT_STATUS_BY_TYPE, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 
 export interface TaskCreationConfig {
   taskFolder: string;
@@ -23,13 +23,21 @@ export interface CreateTaskRequest {
   title: string;
   /** Optional per-task override. Falls back to the configured default project. */
   project?: string;
+  /** Optional status override used by contextual creation, such as Board columns. */
+  initialStatus?: WorkItemStatus;
   /**
    * Optional destination override used by folder-scoped OnProgram Bases.
    * Falls back to the global task-folder setting when omitted.
    */
   targetFolder?: string;
-  /** Optional calendar placement written during initial frontmatter creation. */
+  /** Optional calendar/timeline placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
+  /**
+   * Whether to navigate to the newly created note. Defaults to true for command
+   * compatibility. Interactive Bases views pass false so the planning surface
+   * stays visible after creation.
+   */
+  openAfterCreate?: boolean;
 }
 
 export interface CreatedTaskResult {
@@ -68,7 +76,9 @@ export class TaskCreator {
       throw error;
     }
 
-    await this.app.workspace.getLeaf(false).openFile(file);
+    if (request.openAfterCreate !== false) {
+      await this.app.workspace.getLeaf(false).openFile(file);
+    }
 
     return {
       file,
@@ -91,7 +101,7 @@ export class TaskCreator {
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
       // Type and initial status are canonical invariants for a newly created task.
       frontmatter[map.type] = "task";
-      frontmatter[map.status] = DEFAULT_STATUS_BY_TYPE.task;
+      frontmatter[map.status] = request.initialStatus ?? DEFAULT_STATUS_BY_TYPE.task;
 
       // Populate the complete OnProgram schema once. This means a task can move
       // between Board, Calendar, Timeline, and future views without requiring a
