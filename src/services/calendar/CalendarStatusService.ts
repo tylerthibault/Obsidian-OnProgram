@@ -63,7 +63,7 @@ export class CalendarStatusService implements OnProgramService {
 
   private readonly handleContextMenu = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
-    const calendarItem = target?.closest<HTMLElement>(".onprogram-calendar-item[data-path]");
+    const calendarItem = target?.closest(".onprogram-calendar-item[data-path]") as HTMLElement | null;
     if (!calendarItem) return;
 
     const path = calendarItem.dataset.path;
@@ -146,9 +146,11 @@ export class CalendarStatusService implements OnProgramService {
     const container = this.container;
     if (!container) return;
 
-    for (const element of container.querySelectorAll<HTMLElement>(
-      ".onprogram-calendar-item[data-path]"
-    )) {
+    const elements = Array.from(
+      container.querySelectorAll(".onprogram-calendar-item[data-path]")
+    ) as HTMLElement[];
+
+    for (const element of elements) {
       const path = element.dataset.path;
       if (!path) continue;
 
@@ -161,7 +163,7 @@ export class CalendarStatusService implements OnProgramService {
         `${item.title}\nStatus: ${humanize(item.status)}\nRight-click to change status. Double-click to open.`
       );
 
-      let badge = element.querySelector<HTMLElement>(`.${STATUS_BADGE_CLASS}`);
+      let badge = element.querySelector(`.${STATUS_BADGE_CLASS}`) as HTMLElement | null;
       if (item.status === "done" || item.status === "posted") {
         if (!badge) {
           badge = element.createSpan({ cls: STATUS_BADGE_CLASS });
