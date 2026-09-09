@@ -27,11 +27,16 @@ export class EventManager {
         const existing = this.baseCreator.findBase(file);
         menu.addItem((item) => {
           item
-            .setTitle(existing ? "Open OnProgram base" : "Create OnProgram base")
+            .setTitle("OnProgram Base")
             .setIcon("database")
             .onClick(() => {
               void this.openOrCreateBase(file);
             });
+        });
+
+        this.logger.debug("OnProgram Base folder-menu item added", {
+          folder: file.path,
+          existingBase: existing?.path ?? null
         });
       })
     );
