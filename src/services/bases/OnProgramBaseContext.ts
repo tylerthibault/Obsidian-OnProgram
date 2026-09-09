@@ -1,5 +1,5 @@
 import { TFile, TFolder, normalizePath, parseYaml, type App } from "obsidian";
-import { onProgramBasePath } from "./OnProgramBasePaths";
+import { onProgramBasePath, onProgramTasksFolder } from "./OnProgramBasePaths";
 
 interface BaseViewConfigShape {
   type?: unknown;
@@ -11,12 +11,10 @@ interface BaseConfigShape {
 }
 
 /**
- * Resolves the folder owned by the currently active OnProgram Base.
+ * Resolves the task folder owned by the currently active OnProgram Base.
  *
- * The primary path is an active .base file whose OnProgram view config contains
- * taskFolder. As a convenience, when the active file is a Markdown task inside a
- * canonical <project>/files directory, the sibling OnProgram Base is also
- * detected so the global Create task command stays in that project context.
+ * The active Base's parent/Tasks directory is authoritative. Stored taskFolder
+ * values are retained only as a compatibility fallback for older Bases.
  */
 export class OnProgramBaseContext {
   constructor(private readonly app: App) {}
@@ -26,6 +24,9 @@ export class OnProgramBaseContext {
     if (!activeFile) return undefined;
 
     if (activeFile.extension === "base") {
+      if (activeFile.parent instanceof TFolder) {
+        return onProgramTasksFolder(activeFile.parent);
+      }
       return this.readTaskFolderFromBase(activeFile);
     }
 
@@ -37,45 +38,41 @@ export class OnProgramBaseContext {
   }
 
   private async resolveFromTaskFile(file: TFile): Promise<string | undefined> {
-    const filesFolder = file.parent;
-    if (!(filesFolder instanceof TFolder) || filesFolder.name !== "files") {
-      return undefined;
+    const taskFolder = file.parent;
+    if (!(taskFolder instanceof TFolder)) return undefined;
+
+    if (taskFolder.name === "Tasks") {
+      return normalizePath(taskFolder.path);
     }
 
-    const ownerFolder = filesFolder.parent;
-    if (!(ownerFolder instanceof TFolder)) {
-      return undefined;
-    }
+    // Legacy compatibility for old <project>/files layouts.
+    if (taskFolder.name !== "files") return undefined;
+
+    const ownerFolder = taskFolder.parent;
+    if (!(ownerFolder instanceof TFolder)) return undefined;
 
     const baseFile = this.app.vault.getAbstractFileByPath(onProgramBasePath(ownerFolder));
-    if (!(baseFile instanceof TFile)) {
-      return undefined;
-    }
+    if (!(baseFile instanceof TFile)) return undefined;
 
-    return (await this.readTaskFolderFromBase(baseFile)) ?? normalizePath(filesFolder.path);
+    return (await this.readTaskFolderFromBase(baseFile)) ?? normalizePath(taskFolder.path);
   }
 
   private async readTaskFolderFromBase(file: TFile): Promise<string | undefined> {
     try {
       const parsed = parseYaml(await this.app.vault.cachedRead(file)) as BaseConfigShape | null;
-      if (!parsed || !Array.isArray(parsed.views)) {
-        return undefined;
-      }
+      if (!parsed || !Array.isArray(parsed.views)) return undefined;
 
       for (const rawView of parsed.views) {
         if (!isRecord(rawView)) continue;
         const view = rawView as BaseViewConfigShape;
-        if (typeof view.type !== "string" || !view.type.startsWith("onprogram-")) {
-          continue;
-        }
+        if (typeof view.type !== "string" || !view.type.startsWith("onprogram-")) continue;
 
         if (typeof view.taskFolder === "string" && view.taskFolder.trim()) {
           return normalizePath(view.taskFolder.trim());
         }
       }
     } catch {
-      // Invalid or temporarily incomplete Base YAML should not break global task
-      // creation. The caller can safely fall back to the configured global folder.
+      // Invalid or temporarily incomplete Base YAML should not break task creation.
     }
 
     return undefined;
