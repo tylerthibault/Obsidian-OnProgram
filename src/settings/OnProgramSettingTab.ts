@@ -1,5 +1,5 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
-import type { OnProgramSettings } from "./OnProgramSettings";
+import type { OnProgramSettings, TaskFolderMode } from "./OnProgramSettings";
 
 export interface OnProgramSettingsHost {
   settings: OnProgramSettings;
@@ -20,17 +20,38 @@ export class OnProgramSettingTab extends PluginSettingTab {
     containerEl.addClass("onprogram-settings");
 
     new Setting(containerEl)
-      .setName("Task folder")
-      .setDesc("Vault-relative folder for tasks created by OnProgram. Leave empty to use the vault root.")
-      .addText((text) =>
-        text
-          .setPlaceholder("OnProgram/Tasks")
-          .setValue(this.host.settings.taskFolder)
+      .setName("Task folder mode")
+      .setDesc("Choose whether tasks are stored beside the Base you are currently using or in one fixed vault folder.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("current-base", "Current Base folder / Tasks")
+          .addOption("custom", "Custom vault folder")
+          .setValue(this.host.settings.taskFolderMode)
           .onChange(async (value) => {
-            this.host.settings.taskFolder = value.trim();
+            this.host.settings.taskFolderMode = value as TaskFolderMode;
             await this.host.saveSettings();
+            this.display();
           })
       );
+
+    if (this.host.settings.taskFolderMode === "custom") {
+      new Setting(containerEl)
+        .setName("Custom task folder")
+        .setDesc("Vault-relative folder for tasks created by OnProgram when Custom vault folder is selected. Leave empty to use the vault root.")
+        .addText((text) =>
+          text
+            .setPlaceholder("OnProgram/Tasks")
+            .setValue(this.host.settings.taskFolder)
+            .onChange(async (value) => {
+              this.host.settings.taskFolder = value.trim();
+              await this.host.saveSettings();
+            })
+        );
+    } else {
+      new Setting(containerEl)
+        .setName("Task destination")
+        .setDesc("Tasks created from a Base are stored in a Tasks folder beside that Base, for example Project/Project Base.base → Project/Tasks/My Task.md.");
+    }
 
     new Setting(containerEl)
       .setName("Task template")
