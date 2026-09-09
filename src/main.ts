@@ -46,6 +46,7 @@ export default class OnProgramPlugin extends Plugin {
     const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
     const workItemOpener = new WorkItemOpener(this.app, () => this.settings.openItemsInSplit);
     const taskCreator = new TaskCreator(this.app, () => ({
+      taskFolderMode: this.settings.taskFolderMode,
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
       defaultProject: this.settings.defaultProject,
@@ -126,6 +127,7 @@ export default class OnProgramPlugin extends Plugin {
       showStartupNotice: this.settings.showStartupNotice,
       openItemsInSplit: this.settings.openItemsInSplit,
       workItemProperties: this.settings.workItemProperties,
+      taskFolderMode: this.settings.taskFolderMode,
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
       defaultProject: this.settings.defaultProject
