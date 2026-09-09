@@ -6,6 +6,7 @@ import {
   type WorkItemPropertyMap
 } from "../../models/work-item/WorkItemProperties";
 import { DEFAULT_STATUS_BY_TYPE, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
+import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
 
 export interface TaskCreationConfig {
   taskFolder: string;
@@ -27,7 +28,7 @@ export interface CreateTaskRequest {
   initialStatus?: WorkItemStatus;
   /**
    * Optional destination override used by folder-scoped OnProgram Bases.
-   * Falls back to the global task-folder setting when omitted.
+   * The active Base's sibling Tasks/ folder takes precedence when a Base is active.
    */
   targetFolder?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
@@ -58,7 +59,8 @@ export class TaskCreator {
     this.assertSafePropertyMap(config.propertyMap);
 
     const title = normalizeTaskTitle(request.title);
-    const folder = normalizeTaskFolder(request.targetFolder ?? config.taskFolder);
+    const contextualFolder = resolveOnProgramViewTaskFolder(this.app, request.targetFolder);
+    const folder = normalizeTaskFolder(contextualFolder ?? config.taskFolder);
     await this.ensureFolder(folder);
 
     const { content, usedTemplate } = await this.loadTemplate(config.taskTemplatePath);
