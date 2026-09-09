@@ -59,6 +59,16 @@ export class OnProgramSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Open tasks side by side")
+      .setDesc("When you double-click a task in Board, Calendar, or Timeline, open its Markdown file in a split pane to the right. Turn this off to open it in the current pane instead.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.host.settings.openItemsInSplit).onChange(async (value) => {
+          this.host.settings.openItemsInSplit = value;
+          await this.host.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
       .setName("Debug mode")
       .setDesc("Write verbose OnProgram diagnostic messages to the developer console.")
       .addToggle((toggle) =>
