@@ -8,6 +8,7 @@ import { ServiceRegistry } from "./services/ServiceRegistry";
 import { BasesIntegrationService } from "./services/bases/BasesIntegrationService";
 import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
+import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
 import { WorkItemOpener } from "./services/work-items/WorkItemOpener";
@@ -66,6 +67,12 @@ export default class OnProgramPlugin extends Plugin {
       workItemOpener,
       errorHandler
     );
+    const calendarStatus = new CalendarStatusService(
+      this,
+      workItemParser,
+      workItemWriter,
+      errorHandler
+    );
 
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -77,6 +84,7 @@ export default class OnProgramPlugin extends Plugin {
     try {
       services.register(runtime);
       services.register(basesIntegration);
+      services.register(calendarStatus);
       this.addSettingTab(new OnProgramSettingTab(this.app, this));
 
       new CommandRegistrar(this, logger, {
