@@ -4,7 +4,7 @@ import {
   validateWorkItemPropertyMap,
   type WorkItemPropertyMap
 } from "../../models/work-item/WorkItemProperties";
-import { onProgramBasePath, onProgramFilesFolder } from "./OnProgramBasePaths";
+import { onProgramBasePath, onProgramTasksFolder } from "./OnProgramBasePaths";
 
 export interface OnProgramBaseCreationResult {
   baseFile: TFile;
@@ -18,10 +18,10 @@ export interface OnProgramBaseCreationResult {
  *
  * <folder>/
  *   <folder-name>.onprogram.base
- *   files/
+ *   Tasks/
  *
- * The generated Base is permanently scoped to the files/ directory and ships
- * with Board, Calendar, and Timeline views already configured.
+ * The generated Base is permanently scoped to the local Tasks/ directory and
+ * ships with Board, Calendar, and Timeline views already configured.
  */
 export class OnProgramBaseCreator {
   constructor(
@@ -34,7 +34,7 @@ export class OnProgramBaseCreator {
   }
 
   getFilesFolder(folder: TFolder): string {
-    return onProgramFilesFolder(folder);
+    return onProgramTasksFolder(folder);
   }
 
   findBase(folder: TFolder): TFile | undefined {
@@ -96,7 +96,7 @@ export class OnProgramBaseCreator {
 
       if (!(existing instanceof TFolder)) {
         throw new OnProgramError(
-          `Cannot create OnProgram files directory because '${current}' is a file.`,
+          `Cannot create OnProgram Tasks directory because '${current}' is a file.`,
           "onprogram-files-folder-conflict"
         );
       }
