@@ -24,6 +24,39 @@ import type { WorkItemParser } from "../work-items/WorkItemParser";
 import type { WorkItemWriter } from "../work-items/WorkItemWriter";
 import { BasesWorkItemAdapter } from "./BasesWorkItemAdapter";
 
+const CALENDAR_MODES = ["month", "week", "day"] as const;
+const CALENDAR_FIELDS = ["scheduled", "due", "start"] as const;
+const TIMELINE_ZOOMS = [
+  "fifteen-minute",
+  "hour",
+  "day",
+  "week",
+  "month",
+  "quarter"
+] as const;
+
+type CalendarMode = (typeof CALENDAR_MODES)[number];
+type CalendarField = (typeof CALENDAR_FIELDS)[number];
+type TimelineZoom = (typeof TIMELINE_ZOOMS)[number];
+
+type ViewConfigAccess = {
+  get(key: string): unknown;
+  set(key: string, value: unknown | null): void;
+};
+
+type CalendarStateShim = {
+  config: ViewConfigAccess;
+  mode: CalendarMode;
+  field: CalendarField;
+  render(): void;
+};
+
+type TimelineStateShim = {
+  config: ViewConfigAccess;
+  zoom: TimelineZoom;
+  render(): void;
+};
+
 export class BasesIntegrationService implements OnProgramService {
   readonly id = "bases-integration";
   private registered = false;
@@ -65,30 +98,34 @@ export class BasesIntegrationService implements OnProgramService {
     const calendarRegistered = this.plugin.registerBasesView(ONPROGRAM_CALENDAR_VIEW_ID, {
       name: "OnProgram Calendar",
       icon: "calendar-days",
-      options: baseTaskFolderOptions,
-      factory: (controller, containerEl) => new OnProgramCalendarView(
-        controller,
-        containerEl,
-        adapter,
-        this.writer,
-        this.taskCreator,
-        this.workItemOpener,
-        this.errorHandler
+      options: calendarViewOptions,
+      factory: (controller, containerEl) => configureCalendarPersistence(
+        new OnProgramCalendarView(
+          controller,
+          containerEl,
+          adapter,
+          this.writer,
+          this.taskCreator,
+          this.workItemOpener,
+          this.errorHandler
+        )
       )
     });
 
     const timelineRegistered = this.plugin.registerBasesView(ONPROGRAM_TIMELINE_VIEW_ID, {
       name: "OnProgram Timeline",
       icon: "gantt-chart",
-      options: baseTaskFolderOptions,
-      factory: (controller, containerEl) => new OnProgramTimelineView(
-        controller,
-        containerEl,
-        adapter,
-        this.writer,
-        this.taskCreator,
-        this.workItemOpener,
-        this.errorHandler
+      options: timelineViewOptions,
+      factory: (controller, containerEl) => configureTimelinePersistence(
+        new OnProgramTimelineView(
+          controller,
+          containerEl,
+          adapter,
+          this.writer,
+          this.taskCreator,
+          this.workItemOpener,
+          this.errorHandler
+        )
       )
     });
 
@@ -131,4 +168,134 @@ function baseTaskFolderOptions() {
       shouldHide: () => true
     }
   ];
+}
+
+function calendarViewOptions() {
+  return [
+    ...baseTaskFolderOptions(),
+    {
+      type: "dropdown" as const,
+      key: "calendarMode",
+      displayName: "Default calendar view",
+      default: "month",
+      options: {
+        month: "Month",
+        week: "Week",
+        day: "Day"
+      }
+    },
+    {
+      type: "dropdown" as const,
+      key: "calendarField",
+      displayName: "Calendar date field",
+      default: "scheduled",
+      options: {
+        scheduled: "Scheduled",
+        due: "Due",
+        start: "Start"
+      }
+    }
+  ];
+}
+
+function timelineViewOptions() {
+  return [
+    ...baseTaskFolderOptions(),
+    {
+      type: "dropdown" as const,
+      key: "timelineZoom",
+      displayName: "Default timeline zoom",
+      default: "week",
+      options: {
+        "fifteen-minute": "15 min",
+        hour: "Hour",
+        day: "Day",
+        week: "Week",
+        month: "Month",
+        quarter: "Quarter"
+      }
+    }
+  ];
+}
+
+/**
+ * Bases stores these option values in the individual view configuration inside
+ * the .base file. The current Calendar/Timeline classes keep their toolbar state
+ * internally, so this small adapter synchronizes the two directions:
+ *
+ * - toolbar change -> persisted Base view option
+ * - Configure view change -> live toolbar/view state
+ *
+ * Keeping this per-view means separate Bases can have different defaults.
+ */
+function configureCalendarPersistence(view: OnProgramCalendarView): OnProgramCalendarView {
+  const state = view as unknown as CalendarStateShim;
+  state.mode = readOption(state.config.get("calendarMode"), CALENDAR_MODES, "month");
+  state.field = readOption(state.config.get("calendarField"), CALENDAR_FIELDS, "scheduled");
+
+  let lastMode = state.mode;
+  let lastField = state.field;
+  const originalRender = state.render.bind(view);
+
+  state.render = () => {
+    const configuredMode = readOption(state.config.get("calendarMode"), CALENDAR_MODES, "month");
+    const configuredField = readOption(
+      state.config.get("calendarField"),
+      CALENDAR_FIELDS,
+      "scheduled"
+    );
+
+    if (state.mode !== lastMode && configuredMode === lastMode) {
+      lastMode = state.mode;
+      state.config.set("calendarMode", state.mode);
+    } else if (configuredMode !== lastMode) {
+      state.mode = configuredMode;
+      lastMode = configuredMode;
+    }
+
+    if (state.field !== lastField && configuredField === lastField) {
+      lastField = state.field;
+      state.config.set("calendarField", state.field);
+    } else if (configuredField !== lastField) {
+      state.field = configuredField;
+      lastField = configuredField;
+    }
+
+    originalRender();
+  };
+
+  return view;
+}
+
+function configureTimelinePersistence(view: OnProgramTimelineView): OnProgramTimelineView {
+  const state = view as unknown as TimelineStateShim;
+  state.zoom = readOption(state.config.get("timelineZoom"), TIMELINE_ZOOMS, "week");
+
+  let lastZoom = state.zoom;
+  const originalRender = state.render.bind(view);
+
+  state.render = () => {
+    const configuredZoom = readOption(state.config.get("timelineZoom"), TIMELINE_ZOOMS, "week");
+
+    if (state.zoom !== lastZoom && configuredZoom === lastZoom) {
+      lastZoom = state.zoom;
+      state.config.set("timelineZoom", state.zoom);
+    } else if (configuredZoom !== lastZoom) {
+      state.zoom = configuredZoom;
+      lastZoom = configuredZoom;
+    }
+
+    originalRender();
+  };
+
+  return view;
+}
+
+function readOption<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T
+): T {
+  if (typeof value !== "string") return fallback;
+  return (allowed as readonly string[]).includes(value) ? value as T : fallback;
 }
