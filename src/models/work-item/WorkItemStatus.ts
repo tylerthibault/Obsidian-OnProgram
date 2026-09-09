@@ -8,6 +8,7 @@ export const WORK_ITEM_STATUSES = [
   "blocked",
   "waiting",
   "done",
+  "posted",
   "cancelled",
   "archived"
 ] as const;
@@ -16,6 +17,7 @@ export type WorkItemStatus = (typeof WORK_ITEM_STATUSES)[number];
 
 export const TERMINAL_WORK_ITEM_STATUSES: readonly WorkItemStatus[] = [
   "done",
+  "posted",
   "cancelled",
   "archived"
 ];
@@ -31,7 +33,7 @@ export const ALLOWED_STATUSES_BY_TYPE: Readonly<Record<WorkItemType, readonly Wo
   task: WORK_ITEM_STATUSES,
   project: ["planned", "in-progress", "blocked", "waiting", "done", "cancelled", "archived"],
   milestone: ["planned", "in-progress", "blocked", "done", "cancelled", "archived"],
-  event: ["planned", "in-progress", "done", "cancelled", "archived"]
+  event: ["planned", "in-progress", "done", "posted", "cancelled", "archived"]
 };
 
 export function isWorkItemStatus(value: unknown): value is WorkItemStatus {
