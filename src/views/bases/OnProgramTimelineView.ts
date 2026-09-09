@@ -2,30 +2,41 @@ import { BasesView, Notice, type QueryController } from "obsidian";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
+import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemWritePatch } from "../../services/work-items/WorkItemWritePatch";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
-import { localDateIso, parseLocalDate } from "../calendar/CalendarDateUtils";
 import {
-  TIMELINE_PIXELS_PER_DAY,
-  daysBetween,
   getTimelinePlacement,
-  preserveDateKind,
-  shiftIsoDate,
+  isSubdayZoom,
+  pixelsBetween,
+  shiftedDateValue,
+  snapDragMinutes,
+  timelineBandSegments,
   timelineBounds,
+  timelineDate,
+  timelinePlacementLabel,
   timelineTickDates,
   timelineTickLabel,
   type TimelinePlacement,
+  type TimelineRangeEndField,
+  type TimelineRangeStartField,
   type TimelineZoom
 } from "../timeline/TimelineDateUtils";
+import { TIMELINE_STYLES } from "../timeline/TimelineStyles";
 
 export const ONPROGRAM_TIMELINE_VIEW_ID = "onprogram-timeline";
+
+const AXIS_HEIGHT = 62;
+const ROW_HEIGHT = 44;
 
 export class OnProgramTimelineView extends BasesView {
   type = ONPROGRAM_TIMELINE_VIEW_ID;
   private zoom: TimelineZoom = "week";
   private writing = false;
+  private scrollEl?: HTMLElement;
+  private activeBounds?: { start: Date; end: Date };
 
   constructor(
     controller: QueryController,
@@ -45,6 +56,8 @@ export class OnProgramTimelineView extends BasesView {
   private render(): void {
     this.hostEl.empty();
     this.hostEl.addClass("onprogram-timeline-view");
+    const style = this.hostEl.createEl("style");
+    style.textContent = TIMELINE_STYLES;
 
     const result = this.adapter.adapt(this.data);
     const placements = result.items
@@ -52,33 +65,43 @@ export class OnProgramTimelineView extends BasesView {
       .filter((placement): placement is TimelinePlacement => placement !== undefined);
     const unscheduled = result.items.filter((item) => !getTimelinePlacement(item));
 
-    this.renderToolbar(placements, unscheduled.length);
+    this.renderToolbar(unscheduled.length);
     this.renderUnscheduled(unscheduled);
     this.renderTimeline(placements);
   }
 
-  private renderToolbar(placements: TimelinePlacement[], unscheduledCount: number): void {
+  private renderToolbar(unscheduledCount: number): void {
     const toolbar = this.hostEl.createDiv({ cls: "onprogram-timeline-toolbar" });
-    toolbar.createEl("h3", { text: "OnProgram Timeline" });
 
-    const summary = toolbar.createDiv({ cls: "onprogram-timeline-summary" });
-    summary.createSpan({ text: `${placements.length} scheduled` });
-    if (unscheduledCount > 0) summary.createSpan({ text: `${unscheduledCount} unscheduled` });
+    const today = toolbar.createEl("button", { text: "Today" });
+    today.addEventListener("click", () => this.scrollToNow());
+
+    const unscheduled = toolbar.createSpan({
+      text: `Unscheduled ${unscheduledCount}`,
+      cls: "onprogram-timeline-unscheduled-count"
+    });
+    if (unscheduledCount === 0) unscheduled.addClass("is-empty");
+
+    toolbar.createSpan({ cls: "onprogram-timeline-spacer" });
+
+    const zoomControl = toolbar.createDiv({ cls: "onprogram-timeline-zoom-control" });
+    zoomControl.createSpan({ text: "Zoom" });
+    const select = zoomControl.createEl("select");
+    for (const value of timelineZooms()) {
+      select.createEl("option", {
+        text: zoomLabel(value),
+        value
+      });
+    }
+    select.value = this.zoom;
+    select.addEventListener("change", () => {
+      this.zoom = select.value as TimelineZoom;
+      this.render();
+      this.scrollToNow();
+    });
 
     const addTask = toolbar.createEl("button", { text: "+ New task" });
     addTask.addEventListener("click", () => this.createTask());
-
-    const zoom = toolbar.createDiv({ cls: "onprogram-timeline-zoom" });
-    for (const value of ["day", "week", "month", "quarter"] as const) {
-      const button = zoom.createEl("button", {
-        text: humanize(value),
-        cls: value === this.zoom ? "mod-cta" : ""
-      });
-      button.addEventListener("click", () => {
-        this.zoom = value;
-        this.render();
-      });
-    }
   }
 
   private createTask(): void {
@@ -103,7 +126,7 @@ export class OnProgramTimelineView extends BasesView {
     if (items.length === 0) return;
 
     const details = this.hostEl.createEl("details", { cls: "onprogram-timeline-unscheduled" });
-    details.createEl("summary", { text: `No timeline date (${items.length})` });
+    details.createEl("summary", { text: `Unscheduled work (${items.length})` });
     const list = details.createDiv({ cls: "onprogram-timeline-unscheduled-list" });
     for (const item of items) {
       const button = list.createEl("button", { text: item.title });
@@ -112,53 +135,82 @@ export class OnProgramTimelineView extends BasesView {
   }
 
   private renderTimeline(placements: TimelinePlacement[]): void {
-    const bounds = timelineBounds(placements);
-    const pixelsPerDay = TIMELINE_PIXELS_PER_DAY[this.zoom];
-    const totalDays = Math.max(1, daysBetween(bounds.start, bounds.end) + 1);
-    const timelineWidth = Math.max(900, totalDays * pixelsPerDay);
+    const bounds = timelineBounds(placements, this.zoom);
+    this.activeBounds = bounds;
+    const timelineWidth = Math.max(900, pixelsBetween(bounds.start, bounds.end, this.zoom));
 
     const shell = this.hostEl.createDiv({ cls: "onprogram-timeline-shell" });
     const labels = shell.createDiv({ cls: "onprogram-timeline-labels" });
     labels.createDiv({ text: "Work item", cls: "onprogram-timeline-label-axis" });
+
     const scroll = shell.createDiv({ cls: "onprogram-timeline-scroll" });
+    this.scrollEl = scroll;
     const canvas = scroll.createDiv({ cls: "onprogram-timeline-canvas" });
     canvas.setCssStyles({ width: `${timelineWidth}px` });
 
-    this.renderTicks(canvas, bounds.start, bounds.end, pixelsPerDay);
-    this.renderToday(canvas, bounds.start, pixelsPerDay, timelineWidth);
+    this.renderAxis(canvas, bounds.start, bounds.end);
+    this.renderNow(canvas, bounds.start, timelineWidth);
 
     const groups = groupPlacements(placements);
+    const showGroups = groups.size > 1 || !groups.has("No project");
     let rowIndex = 0;
 
-    for (const [groupName, groupPlacements] of groups) {
-      labels.createDiv({ text: groupName, cls: "onprogram-timeline-group-label" });
-      const groupRow = canvas.createDiv({ cls: "onprogram-timeline-group-row" });
-      groupRow.setCssStyles({ top: `${36 + rowIndex * 42}px` });
-      rowIndex += 1;
-
-      for (const placement of groupPlacements) {
-        labels.appendChild(this.makeLabel(placement.item));
-        const row = canvas.createDiv({ cls: "onprogram-timeline-row" });
-        row.setCssStyles({ top: `${36 + rowIndex * 42}px` });
-        this.renderPlacement(row, placement, bounds.start, pixelsPerDay);
+    if (showGroups) {
+      for (const [groupName, groupPlacements] of groups) {
+        labels.createDiv({ text: groupName, cls: "onprogram-timeline-group-label" });
+        const groupRow = canvas.createDiv({ cls: "onprogram-timeline-group-row" });
+        groupRow.setCssStyles({ top: `${AXIS_HEIGHT + rowIndex * ROW_HEIGHT}px` });
         rowIndex += 1;
+
+        for (const placement of groupPlacements) {
+          rowIndex = this.renderPlacementRow(labels, canvas, placement, bounds.start, rowIndex);
+        }
+      }
+    } else {
+      for (const placement of placements) {
+        rowIndex = this.renderPlacementRow(labels, canvas, placement, bounds.start, rowIndex);
       }
     }
 
-    if (groups.size === 0) {
+    if (placements.length === 0) {
       labels.createDiv({ text: "No dated work items", cls: "onprogram-timeline-empty" });
     }
 
-    const height = Math.max(196, 36 + rowIndex * 42 + 42);
+    const height = Math.max(196, AXIS_HEIGHT + rowIndex * ROW_HEIGHT + ROW_HEIGHT);
     canvas.setCssStyles({ height: `${height}px` });
     labels.setCssStyles({ minHeight: `${height}px` });
+
+    this.hostEl.win.setTimeout(() => this.scrollToNow(false), 0);
   }
 
-  private renderTicks(canvas: HTMLElement, start: Date, end: Date, pixelsPerDay: number): void {
-    const header = canvas.createDiv({ cls: "onprogram-timeline-axis" });
+  private renderPlacementRow(
+    labels: HTMLElement,
+    canvas: HTMLElement,
+    placement: TimelinePlacement,
+    timelineStart: Date,
+    rowIndex: number
+  ): number {
+    labels.appendChild(this.makeLabel(placement));
+    const row = canvas.createDiv({ cls: "onprogram-timeline-row" });
+    row.setCssStyles({ top: `${AXIS_HEIGHT + rowIndex * ROW_HEIGHT}px` });
+    this.renderPlacement(row, placement, timelineStart);
+    return rowIndex + 1;
+  }
+
+  private renderAxis(canvas: HTMLElement, start: Date, end: Date): void {
+    const axis = canvas.createDiv({ cls: "onprogram-timeline-axis" });
+
+    for (const segment of timelineBandSegments(start, end, this.zoom)) {
+      const left = pixelsBetween(start, segment.start, this.zoom);
+      const width = Math.max(1, pixelsBetween(segment.start, segment.end, this.zoom));
+      const band = axis.createDiv({ cls: "onprogram-timeline-band" });
+      band.setCssStyles({ left: `${left}px`, width: `${width}px` });
+      band.setText(segment.label);
+    }
+
     for (const tick of timelineTickDates(start, end, this.zoom)) {
-      const left = daysBetween(start, tick) * pixelsPerDay;
-      const marker = header.createDiv({ cls: "onprogram-timeline-tick" });
+      const left = pixelsBetween(start, tick, this.zoom);
+      const marker = axis.createDiv({ cls: "onprogram-timeline-tick" });
       marker.setCssStyles({ left: `${left}px` });
       marker.createSpan({ text: timelineTickLabel(tick, this.zoom) });
 
@@ -167,71 +219,71 @@ export class OnProgramTimelineView extends BasesView {
     }
   }
 
-  private renderToday(
-    canvas: HTMLElement,
-    start: Date,
-    pixelsPerDay: number,
-    timelineWidth: number
-  ): void {
-    const today = new Date();
-    const left = daysBetween(start, today) * pixelsPerDay;
+  private renderNow(canvas: HTMLElement, start: Date, timelineWidth: number): void {
+    const now = new Date();
+    const left = pixelsBetween(start, now, this.zoom);
     if (left < 0 || left > timelineWidth) return;
 
-    const marker = canvas.createDiv({ cls: "onprogram-timeline-today-marker" });
+    const marker = canvas.createDiv({ cls: "onprogram-timeline-now-marker" });
     marker.setCssStyles({ left: `${left}px` });
-    marker.createSpan({ text: "Today" });
+    marker.createSpan({ text: isSubdayZoom(this.zoom) ? "Now" : "Today" });
   }
 
-  private makeLabel(item: WorkItem): HTMLElement {
+  private makeLabel(placement: TimelinePlacement): HTMLElement {
     const row = this.hostEl.doc.createElement("div");
     row.addClass("onprogram-timeline-label-row");
-    const button = row.createEl("button", { text: item.title });
-    button.addEventListener("click", () => this.openItem(item));
-    row.createSpan({ text: item.status });
+    const button = row.createEl("button", { text: placement.item.title });
+    button.setAttr("title", `${placement.item.title} · ${timelinePlacementLabel(placement)}`);
+    button.addEventListener("click", () => this.openItem(placement.item));
+    row.createSpan({
+      text: placement.item.status,
+      cls: "onprogram-timeline-label-meta"
+    });
     return row;
   }
 
   private renderPlacement(
     row: HTMLElement,
     placement: TimelinePlacement,
-    timelineStart: Date,
-    pixelsPerDay: number
+    timelineStart: Date
   ): void {
-    const left = daysBetween(timelineStart, parseLocalDate(placement.startIso)) * pixelsPerDay;
+    const startDate = timelineDate(
+      placement.startIso,
+      placement.kind === "point" ? "point" : "start"
+    );
+    const left = pixelsBetween(timelineStart, startDate, this.zoom);
+    const title = `${placement.item.title} · ${timelinePlacementLabel(placement)}`;
 
     if (placement.kind === "point") {
       const point = row.createDiv({ cls: "onprogram-timeline-point" });
-      point.setCssStyles({ left: `${left}px` });
-      point.setAttr("title", `${placement.item.title} · ${placement.startIso}`);
-      point.createSpan({ text: "◆" });
-      this.attachPointDrag(point, placement, pixelsPerDay);
+      point.setCssStyles({ left: `${left - 14}px` });
+      point.setAttr("title", title);
+      this.attachPointDrag(point, placement);
       return;
     }
 
-    const durationDays = Math.max(
-      1,
-      daysBetween(parseLocalDate(placement.startIso), parseLocalDate(placement.endIso)) + 1
-    );
-    const width = Math.max(18, durationDays * pixelsPerDay);
+    const endDate = timelineDate(placement.endIso, "end");
+    const width = Math.max(18, pixelsBetween(startDate, endDate, this.zoom));
     const bar = row.createDiv({ cls: "onprogram-timeline-bar" });
     bar.setCssStyles({ left: `${left}px`, width: `${width}px` });
-    bar.setAttr("title", `${placement.item.title}: ${placement.startIso} → ${placement.endIso}`);
+    bar.setAttr("title", title);
 
-    const leftHandle = bar.createDiv({ cls: "onprogram-timeline-resize onprogram-timeline-resize-start" });
-    const label = bar.createSpan({ text: placement.item.title, cls: "onprogram-timeline-bar-label" });
-    label.setAttr("aria-hidden", "true");
-    const rightHandle = bar.createDiv({ cls: "onprogram-timeline-resize onprogram-timeline-resize-end" });
+    const leftHandle = bar.createDiv({
+      cls: "onprogram-timeline-resize onprogram-timeline-resize-start"
+    });
+    if (width >= 72) {
+      bar.createSpan({ text: placement.item.title, cls: "onprogram-timeline-bar-label" });
+    }
+    const rightHandle = bar.createDiv({
+      cls: "onprogram-timeline-resize onprogram-timeline-resize-end"
+    });
 
-    this.attachRangeDrag(bar, placement, pixelsPerDay);
-    this.attachResize(leftHandle, placement, "start", pixelsPerDay);
-    this.attachResize(rightHandle, placement, "end", pixelsPerDay);
+    this.attachRangeDrag(bar, placement);
+    this.attachResize(leftHandle, placement, "start");
+    this.attachResize(rightHandle, placement, "end");
   }
 
-  private attachRangeDrag(
-    bar: HTMLElement,
-    placement: TimelinePlacement,
-    pixelsPerDay: number
-  ): void {
+  private attachRangeDrag(bar: HTMLElement, placement: TimelinePlacement): void {
     bar.addEventListener("pointerdown", (event) => {
       if ((event.target as HTMLElement).closest(".onprogram-timeline-resize")) return;
       if (this.writing) return;
@@ -242,27 +294,21 @@ export class OnProgramTimelineView extends BasesView {
       bar.addClass("onprogram-timeline-dragging");
 
       const move = (moveEvent: PointerEvent) => {
-        const dx = moveEvent.clientX - startX;
-        bar.setCssStyles({ transform: `translateX(${dx}px)` });
+        bar.setCssStyles({ transform: `translateX(${moveEvent.clientX - startX}px)` });
       };
 
       const finish = (upEvent: PointerEvent) => {
-        bar.removeEventListener("pointermove", move);
-        bar.removeEventListener("pointerup", finish);
-        bar.removeEventListener("pointercancel", cancel);
-        bar.releasePointerCapture(upEvent.pointerId);
-        bar.removeClass("onprogram-timeline-dragging");
-        bar.setCssStyles({ transform: originalTransform });
-
-        const delta = Math.round((upEvent.clientX - startX) / pixelsPerDay);
-        if (delta !== 0) void this.shiftPlacement(placement, delta);
+        cleanup(upEvent);
+        const deltaMinutes = snapDragMinutes(upEvent.clientX - startX, this.zoom);
+        if (deltaMinutes !== 0) void this.shiftPlacement(placement, deltaMinutes);
       };
 
-      const cancel = (cancelEvent: PointerEvent) => {
+      const cancel = (cancelEvent: PointerEvent) => cleanup(cancelEvent);
+      const cleanup = (endEvent: PointerEvent) => {
         bar.removeEventListener("pointermove", move);
         bar.removeEventListener("pointerup", finish);
         bar.removeEventListener("pointercancel", cancel);
-        bar.releasePointerCapture(cancelEvent.pointerId);
+        if (bar.hasPointerCapture(endEvent.pointerId)) bar.releasePointerCapture(endEvent.pointerId);
         bar.removeClass("onprogram-timeline-dragging");
         bar.setCssStyles({ transform: originalTransform });
       };
@@ -273,11 +319,7 @@ export class OnProgramTimelineView extends BasesView {
     });
   }
 
-  private attachPointDrag(
-    point: HTMLElement,
-    placement: TimelinePlacement,
-    pixelsPerDay: number
-  ): void {
+  private attachPointDrag(point: HTMLElement, placement: TimelinePlacement): void {
     point.addEventListener("pointerdown", (event) => {
       if (this.writing) return;
       const startX = event.clientX;
@@ -287,17 +329,19 @@ export class OnProgramTimelineView extends BasesView {
       const move = (moveEvent: PointerEvent) => {
         point.setCssStyles({ transform: `translateX(${moveEvent.clientX - startX}px)` });
       };
+
       const finish = (upEvent: PointerEvent) => {
         cleanup(upEvent);
-        const delta = Math.round((upEvent.clientX - startX) / pixelsPerDay);
-        if (delta !== 0) void this.shiftPlacement(placement, delta);
+        const deltaMinutes = snapDragMinutes(upEvent.clientX - startX, this.zoom);
+        if (deltaMinutes !== 0) void this.shiftPlacement(placement, deltaMinutes);
       };
+
       const cancel = (cancelEvent: PointerEvent) => cleanup(cancelEvent);
       const cleanup = (endEvent: PointerEvent) => {
         point.removeEventListener("pointermove", move);
         point.removeEventListener("pointerup", finish);
         point.removeEventListener("pointercancel", cancel);
-        point.releasePointerCapture(endEvent.pointerId);
+        if (point.hasPointerCapture(endEvent.pointerId)) point.releasePointerCapture(endEvent.pointerId);
         point.removeClass("onprogram-timeline-dragging");
         point.setCssStyles({ transform: "" });
       };
@@ -311,8 +355,7 @@ export class OnProgramTimelineView extends BasesView {
   private attachResize(
     handle: HTMLElement,
     placement: TimelinePlacement,
-    edge: "start" | "end",
-    pixelsPerDay: number
+    edge: "start" | "end"
   ): void {
     handle.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
@@ -323,17 +366,16 @@ export class OnProgramTimelineView extends BasesView {
       handle.addClass("onprogram-timeline-resizing");
 
       const finish = (upEvent: PointerEvent) => {
-        handle.removeEventListener("pointerup", finish);
-        handle.removeEventListener("pointercancel", cancel);
-        handle.releasePointerCapture(upEvent.pointerId);
-        handle.removeClass("onprogram-timeline-resizing");
-        const delta = Math.round((upEvent.clientX - startX) / pixelsPerDay);
-        if (delta !== 0) void this.resizePlacement(placement, edge, delta);
+        cleanup(upEvent);
+        const deltaMinutes = snapDragMinutes(upEvent.clientX - startX, this.zoom);
+        if (deltaMinutes !== 0) void this.resizePlacement(placement, edge, deltaMinutes);
       };
-      const cancel = (cancelEvent: PointerEvent) => {
+
+      const cancel = (cancelEvent: PointerEvent) => cleanup(cancelEvent);
+      const cleanup = (endEvent: PointerEvent) => {
         handle.removeEventListener("pointerup", finish);
         handle.removeEventListener("pointercancel", cancel);
-        handle.releasePointerCapture(cancelEvent.pointerId);
+        if (handle.hasPointerCapture(endEvent.pointerId)) handle.releasePointerCapture(endEvent.pointerId);
         handle.removeClass("onprogram-timeline-resizing");
       };
 
@@ -342,17 +384,40 @@ export class OnProgramTimelineView extends BasesView {
     });
   }
 
-  private async shiftPlacement(placement: TimelinePlacement, deltaDays: number): Promise<void> {
+  private async shiftPlacement(
+    placement: TimelinePlacement,
+    deltaMinutes: number
+  ): Promise<void> {
     const item = placement.item;
-    let patch: WorkItemWritePatch;
+    const forceTime = isSubdayZoom(this.zoom);
+    const patch: WorkItemWritePatch = {};
 
     if (placement.kind === "point" && placement.pointField) {
-      const nextIso = shiftIsoDate(placement.startIso, deltaDays);
-      patch = this.patchPoint(item, placement.pointField, nextIso);
-    } else {
-      const nextStart = shiftIsoDate(placement.startIso, deltaDays);
-      const nextEnd = shiftIsoDate(placement.endIso, deltaDays);
-      patch = this.patchRange(item, placement, nextStart, nextEnd);
+      const original = this.getDateField(item, placement.pointField);
+      if (!original) return;
+      this.setDatePatch(
+        patch,
+        placement.pointField,
+        shiftedDateValue(original, deltaMinutes, forceTime)
+      );
+    } else if (placement.kind === "range" && placement.sourceStartField) {
+      const start = this.getDateField(item, placement.sourceStartField);
+      if (!start) return;
+      this.setDatePatch(
+        patch,
+        placement.sourceStartField,
+        shiftedDateValue(start, deltaMinutes, forceTime)
+      );
+
+      if (placement.sourceEndField === "end" || placement.sourceEndField === "due") {
+        const end = this.getDateField(item, placement.sourceEndField);
+        if (!end) return;
+        this.setDatePatch(
+          patch,
+          placement.sourceEndField,
+          shiftedDateValue(end, deltaMinutes, forceTime)
+        );
+      }
     }
 
     await this.write(item, patch, `shift ${item.title}`);
@@ -361,53 +426,81 @@ export class OnProgramTimelineView extends BasesView {
   private async resizePlacement(
     placement: TimelinePlacement,
     edge: "start" | "end",
-    deltaDays: number
+    deltaMinutes: number
   ): Promise<void> {
-    if (placement.kind !== "range") return;
-
-    let nextStart = placement.startIso;
-    let nextEnd = placement.endIso;
-    if (edge === "start") nextStart = shiftIsoDate(nextStart, deltaDays);
-    else nextEnd = shiftIsoDate(nextEnd, deltaDays);
-
-    if (parseLocalDate(nextEnd) < parseLocalDate(nextStart)) {
-      new Notice("OnProgram: timeline range cannot end before it starts.");
+    if (placement.kind !== "range" || !placement.sourceStartField || !placement.sourceEndField) {
       return;
     }
 
-    await this.write(
-      placement.item,
-      this.patchRange(placement.item, placement, nextStart, nextEnd),
-      `resize ${placement.item.title}`
-    );
-  }
+    const item = placement.item;
+    const forceTime = isSubdayZoom(this.zoom);
+    const patch: WorkItemWritePatch = {};
 
-  private patchRange(
-    item: WorkItem,
-    placement: TimelinePlacement,
-    startIso: string,
-    endIso: string
-  ): WorkItemWritePatch {
-    const patch: WorkItemWritePatch = {
-      start: preserveDateKind(item.dates.start, startIso)
-    };
+    if (edge === "start") {
+      const originalStart = this.getDateField(item, placement.sourceStartField);
+      if (!originalStart) return;
+      const nextStart = shiftedDateValue(originalStart, deltaMinutes, forceTime);
 
-    if (placement.sourceEndField === "due") {
-      patch.due = preserveDateKind(item.dates.due, endIso);
+      if (placement.sourceEndField === "duration") {
+        const duration = item.durationMinutes ?? 0;
+        const nextDuration = duration - deltaMinutes;
+        if (nextDuration <= 0) {
+          new Notice("OnProgram: timeline duration must stay greater than zero.");
+          return;
+        }
+        this.setDatePatch(patch, placement.sourceStartField, nextStart);
+        patch.durationMinutes = nextDuration;
+      } else {
+        const end = this.getDateField(item, placement.sourceEndField);
+        if (!end) return;
+        if (timelineDate(nextStart.iso, "start") >= timelineDate(end.iso, "end")) {
+          new Notice("OnProgram: timeline range cannot start after it ends.");
+          return;
+        }
+        this.setDatePatch(patch, placement.sourceStartField, nextStart);
+      }
+    } else if (placement.sourceEndField === "duration") {
+      const duration = item.durationMinutes ?? 0;
+      const nextDuration = duration + deltaMinutes;
+      if (nextDuration <= 0) {
+        new Notice("OnProgram: timeline duration must stay greater than zero.");
+        return;
+      }
+      patch.durationMinutes = nextDuration;
     } else {
-      patch.end = preserveDateKind(item.dates.end, endIso);
+      const originalEnd = this.getDateField(item, placement.sourceEndField);
+      const start = this.getDateField(item, placement.sourceStartField);
+      if (!originalEnd || !start) return;
+      const nextEnd = shiftedDateValue(originalEnd, deltaMinutes, forceTime);
+      if (timelineDate(nextEnd.iso, "end") <= timelineDate(start.iso, "start")) {
+        new Notice("OnProgram: timeline range cannot end before it starts.");
+        return;
+      }
+      this.setDatePatch(patch, placement.sourceEndField, nextEnd);
     }
-    return patch;
+
+    await this.write(item, patch, `resize ${item.title}`);
   }
 
-  private patchPoint(
+  private getDateField(
     item: WorkItem,
-    field: "due" | "scheduled" | "start",
-    iso: string
-  ): WorkItemWritePatch {
-    if (field === "due") return { due: preserveDateKind(item.dates.due, iso) };
-    if (field === "scheduled") return { scheduled: preserveDateKind(item.dates.scheduled, iso) };
-    return { start: preserveDateKind(item.dates.start, iso) };
+    field: TimelineRangeStartField | Exclude<TimelineRangeEndField, "duration"> | "scheduled"
+  ): WorkItemDateValue | undefined {
+    if (field === "start") return item.dates.start;
+    if (field === "scheduled") return item.dates.scheduled;
+    if (field === "end") return item.dates.end;
+    return item.dates.due;
+  }
+
+  private setDatePatch(
+    patch: WorkItemWritePatch,
+    field: TimelineRangeStartField | Exclude<TimelineRangeEndField, "duration"> | "scheduled",
+    value: WorkItemDateValue
+  ): void {
+    if (field === "start") patch.start = value;
+    else if (field === "scheduled") patch.scheduled = value;
+    else if (field === "end") patch.end = value;
+    else patch.due = value;
   }
 
   private async write(item: WorkItem, patch: WorkItemWritePatch, context: string): Promise<void> {
@@ -424,6 +517,16 @@ export class OnProgramTimelineView extends BasesView {
     }
   }
 
+  private scrollToNow(smooth = true): void {
+    const scroll = this.scrollEl;
+    const bounds = this.activeBounds;
+    if (!scroll || !bounds) return;
+
+    const nowX = pixelsBetween(bounds.start, new Date(), this.zoom);
+    const target = Math.max(0, nowX - scroll.clientWidth * 0.45);
+    scroll.scrollTo({ left: target, behavior: smooth ? "smooth" : "auto" });
+  }
+
   private openItem(item: WorkItem): void {
     const entry = this.data.data.find((candidate) => candidate.file.path === item.source.path);
     if (entry) void this.app.workspace.getLeaf(false).openFile(entry.file);
@@ -438,10 +541,14 @@ function groupPlacements(placements: TimelinePlacement[]): Map<string, TimelineP
     group.push(placement);
     groups.set(key, group);
   }
-
-  return new Map([...groups.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  return groups;
 }
 
-function humanize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function timelineZooms(): readonly TimelineZoom[] {
+  return ["fifteen-minute", "hour", "day", "week", "month", "quarter"];
+}
+
+function zoomLabel(zoom: TimelineZoom): string {
+  if (zoom === "fifteen-minute") return "15 min";
+  return zoom.charAt(0).toUpperCase() + zoom.slice(1);
 }
