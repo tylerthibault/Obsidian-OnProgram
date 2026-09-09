@@ -51,6 +51,7 @@ export class OnProgramCalendarView extends BasesView {
   }
 
   private render(): void {
+    this.syncViewConfig();
     this.hostEl.empty();
     this.hostEl.addClass("onprogram-calendar-view");
 
@@ -61,6 +62,31 @@ export class OnProgramCalendarView extends BasesView {
     if (this.mode === "month") this.renderMonth(result.items);
     else if (this.mode === "week") this.renderWeek(result.items);
     else this.renderDay(result.items);
+  }
+
+  private syncViewConfig(): void {
+    try {
+      const mode = this.config.get("calendarMode");
+      if (mode === "month" || mode === "week" || mode === "day") {
+        this.mode = mode;
+      }
+
+      const field = this.config.get("calendarField");
+      if (field === "scheduled" || field === "due" || field === "start") {
+        this.field = field;
+      }
+    } catch {
+      // Bases can instantiate a custom view before its config is fully attached.
+      // Default state remains usable and a later render will synchronize it.
+    }
+  }
+
+  private persistViewOption(key: string, value: string): void {
+    try {
+      this.config.set(key, value);
+    } catch {
+      // Never let view-option persistence prevent the Calendar from rendering.
+    }
   }
 
   private renderToolbar(items: WorkItem[]): void {
@@ -94,6 +120,7 @@ export class OnProgramCalendarView extends BasesView {
     fieldSelect.setAttr("aria-label", "Calendar field");
     fieldSelect.addEventListener("change", () => {
       this.field = fieldSelect.value as CalendarField;
+      this.persistViewOption("calendarField", this.field);
       this.render();
     });
 
@@ -105,6 +132,7 @@ export class OnProgramCalendarView extends BasesView {
       });
       button.addEventListener("click", () => {
         this.mode = mode;
+        this.persistViewOption("calendarMode", mode);
         this.render();
       });
     }
