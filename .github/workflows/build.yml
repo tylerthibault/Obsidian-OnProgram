@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - dev
       - "phase-*"
       - "feature-*"
   pull_request:
@@ -29,3 +30,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload plugin bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: onprogram-plugin-bundle
+          path: |
+            main.js
+            manifest.json
+            styles.css
+          if-no-files-found: error
