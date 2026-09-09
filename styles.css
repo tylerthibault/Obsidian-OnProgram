@@ -521,3 +521,37 @@
     grid-template-columns: 54px repeat(7, minmax(110px, 1fr));
   }
 }
+
+/* Keep the time gutter, calendar cells, and event geometry on one exact scale. */
+.onprogram-calendar-view .onprogram-calendar-week {
+  grid-template-rows: auto auto repeat(24, 64px);
+  grid-auto-rows: 64px;
+}
+
+.onprogram-calendar-view .onprogram-calendar-week-cell:not(.onprogram-calendar-all-day) {
+  box-sizing: border-box;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  padding: 0;
+}
+
+.onprogram-calendar-view .onprogram-calendar-week > .onprogram-calendar-time-label {
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.onprogram-calendar-view .onprogram-calendar-day-hour {
+  box-sizing: border-box;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+}
+
+.onprogram-calendar-view .onprogram-calendar-day-hour > .onprogram-calendar-time-label,
+.onprogram-calendar-view .onprogram-calendar-day-slot {
+  box-sizing: border-box;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+}
