@@ -19,6 +19,7 @@ import {
 } from "../../views/bases/OnProgramTimelineView";
 import type { OnProgramService } from "../ServiceRegistry";
 import type { TaskCreator } from "../work-items/TaskCreator";
+import type { WorkItemOpener } from "../work-items/WorkItemOpener";
 import type { WorkItemParser } from "../work-items/WorkItemParser";
 import type { WorkItemWriter } from "../work-items/WorkItemWriter";
 import { BasesWorkItemAdapter } from "./BasesWorkItemAdapter";
@@ -33,6 +34,7 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly parser: WorkItemParser,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {}
 
@@ -55,6 +57,7 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.writer,
         this.taskCreator,
+        this.workItemOpener,
         this.errorHandler
       )
     });
@@ -69,6 +72,7 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.writer,
         this.taskCreator,
+        this.workItemOpener,
         this.errorHandler
       )
     });
@@ -83,6 +87,7 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.writer,
         this.taskCreator,
+        this.workItemOpener,
         this.errorHandler
       )
     });
