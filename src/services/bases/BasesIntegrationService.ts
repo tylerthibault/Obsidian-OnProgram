@@ -35,6 +35,27 @@ const TIMELINE_ZOOMS = [
   "quarter"
 ] as const;
 
+const CALENDAR_MODE_OPTIONS: Record<string, string> = {
+  month: "Month",
+  week: "Week",
+  day: "Day"
+};
+
+const CALENDAR_FIELD_OPTIONS: Record<string, string> = {
+  scheduled: "Scheduled",
+  due: "Due",
+  start: "Start"
+};
+
+const TIMELINE_ZOOM_OPTIONS: Record<string, string> = {
+  "fifteen-minute": "15 min",
+  hour: "Hour",
+  day: "Day",
+  week: "Week",
+  month: "Month",
+  quarter: "Quarter"
+};
+
 type CalendarMode = (typeof CALENDAR_MODES)[number];
 type CalendarField = (typeof CALENDAR_FIELDS)[number];
 type TimelineZoom = (typeof TIMELINE_ZOOMS)[number];
@@ -178,22 +199,14 @@ function calendarViewOptions() {
       key: "calendarMode",
       displayName: "Default calendar view",
       default: "month",
-      options: {
-        month: "Month",
-        week: "Week",
-        day: "Day"
-      }
+      options: CALENDAR_MODE_OPTIONS
     },
     {
       type: "dropdown" as const,
       key: "calendarField",
       displayName: "Calendar date field",
       default: "scheduled",
-      options: {
-        scheduled: "Scheduled",
-        due: "Due",
-        start: "Start"
-      }
+      options: CALENDAR_FIELD_OPTIONS
     }
   ];
 }
@@ -206,14 +219,7 @@ function timelineViewOptions() {
       key: "timelineZoom",
       displayName: "Default timeline zoom",
       default: "week",
-      options: {
-        "fifteen-minute": "15 min",
-        hour: "Hour",
-        day: "Day",
-        week: "Week",
-        month: "Month",
-        quarter: "Quarter"
-      }
+      options: TIMELINE_ZOOM_OPTIONS
     }
   ];
 }
