@@ -4,6 +4,7 @@ import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
+import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
 import {
   addDays,
@@ -39,6 +40,7 @@ export class OnProgramCalendarView extends BasesView {
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -137,6 +139,7 @@ export class OnProgramCalendarView extends BasesView {
       const cell = calendar.createDiv({ cls: "onprogram-calendar-day-cell" });
       if (date.getMonth() !== this.anchorDate.getMonth()) cell.addClass("onprogram-calendar-outside-month");
       if (sameCalendarDay(date, today)) cell.addClass("onprogram-calendar-today");
+      cell.setAttr("title", `Double-click empty space to create a task on ${iso}`);
 
       const cellHeader = cell.createDiv({ cls: "onprogram-calendar-day-header" });
       cellHeader.createSpan({ text: String(date.getDate()) });
@@ -145,6 +148,7 @@ export class OnProgramCalendarView extends BasesView {
       add.addEventListener("click", () => this.createTaskAt({ kind: "date", iso }));
 
       this.makeDropTarget(cell, iso);
+      this.attachEmptyDoubleClick(cell, () => this.createTaskAt({ kind: "date", iso }));
       const dayItems = items.filter((item) => {
         const value = getCalendarDate(item, this.field);
         return value ? datePart(value) === iso : false;
@@ -172,13 +176,14 @@ export class OnProgramCalendarView extends BasesView {
     for (const date of days) {
       const iso = localDateIso(date);
       const cell = calendar.createDiv({ cls: "onprogram-calendar-week-cell onprogram-calendar-all-day" });
+      cell.setAttr("title", `Double-click empty space to create a task on ${iso}`);
       this.makeDropTarget(cell, iso);
+      this.attachEmptyDoubleClick(cell, () => this.createTaskAt({ kind: "date", iso }));
       const dayItems = items.filter((item) => {
         const value = getCalendarDate(item, this.field);
         return value?.kind === "date" && datePart(value) === iso;
       });
       for (const item of dayItems) cell.appendChild(this.makeItemChip(item));
-      cell.addEventListener("dblclick", () => this.createTaskAt({ kind: "date", iso }));
     }
 
     for (let hour = 0; hour < 24; hour += 1) {
@@ -187,8 +192,9 @@ export class OnProgramCalendarView extends BasesView {
         const iso = localDateIso(date);
         const cell = calendar.createDiv({ cls: "onprogram-calendar-week-cell" });
         cell.dataset.hour = String(hour);
+        cell.setAttr("title", `Double-click empty space to create a task at ${formatHour(hour)}`);
         this.makeDropTarget(cell, iso, hour);
-        cell.addEventListener("dblclick", () => this.createTaskAt(moveDateToDateTime(iso, hour)));
+        this.attachEmptyDoubleClick(cell, () => this.createTaskAt(moveDateToDateTime(iso, hour)));
 
         const hourItems = items.filter((item) => {
           const value = getCalendarDate(item, this.field);
@@ -212,6 +218,7 @@ export class OnProgramCalendarView extends BasesView {
     });
     const allDayTray = allDay.createDiv({ cls: "onprogram-calendar-day-all-day-items" });
     this.makeDropTarget(allDayTray, iso);
+    this.attachEmptyDoubleClick(allDayTray, () => this.createTaskAt({ kind: "date", iso }));
     for (const item of allDayItems) allDayTray.appendChild(this.makeItemChip(item));
     const add = allDay.createEl("button", { text: "+ Add task" });
     add.addEventListener("click", () => this.createTaskAt({ kind: "date", iso }));
@@ -225,8 +232,9 @@ export class OnProgramCalendarView extends BasesView {
       if (sameCalendarDay(this.anchorDate, now) && now.getHours() === hour) {
         slot.addClass("onprogram-calendar-current-hour");
       }
+      slot.setAttr("title", `Double-click empty space to create a task at ${formatHour(hour)}`);
       this.makeDropTarget(slot, iso, hour);
-      slot.addEventListener("dblclick", () => this.createTaskAt(moveDateToDateTime(iso, hour)));
+      this.attachEmptyDoubleClick(slot, () => this.createTaskAt(moveDateToDateTime(iso, hour)));
 
       const hourItems = items.filter((item) => {
         const value = getCalendarDate(item, this.field);
@@ -242,13 +250,17 @@ export class OnProgramCalendarView extends BasesView {
     chip.addClass("onprogram-calendar-item");
     chip.draggable = true;
     chip.dataset.path = item.source.path;
+    chip.setAttr("title", "Double-click to open this task");
 
     const value = getCalendarDate(item, this.field);
     const time = value ? timePart(value) : undefined;
     if (time) chip.createSpan({ text: time, cls: "onprogram-calendar-item-time" });
 
-    const title = chip.createEl("button", { text: item.title, cls: "onprogram-calendar-item-title" });
-    title.addEventListener("click", () => this.openItem(item));
+    chip.createEl("button", { text: item.title, cls: "onprogram-calendar-item-title" });
+    chip.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      this.openItem(item);
+    });
 
     if (detailed || item.priority === "urgent" || item.priority === "high") {
       chip.createSpan({
@@ -271,6 +283,15 @@ export class OnProgramCalendarView extends BasesView {
     });
 
     return chip;
+  }
+
+  private attachEmptyDoubleClick(element: HTMLElement, action: () => void): void {
+    element.addEventListener("dblclick", (event) => {
+      const target = event.target as HTMLElement;
+      if (target.closest(".onprogram-calendar-item, button, select")) return;
+      event.preventDefault();
+      action();
+    });
   }
 
   private makeDropTarget(element: HTMLElement, dayIso: string, hour?: number): void {
@@ -318,11 +339,13 @@ export class OnProgramCalendarView extends BasesView {
   private createTaskAt(value: { kind: "date" | "date-time"; iso: string }): void {
     new CreateTaskModal(this.app, {
       onSubmit: async (title) => {
-        await this.taskCreator.createTask({
+        const result = await this.taskCreator.createTask({
           title,
           targetFolder: this.getConfiguredTaskFolder(),
-          initialDate: { field: this.field, value }
+          initialDate: { field: this.field, value },
+          openAfterCreate: false
         });
+        new Notice(`OnProgram: Created ${result.title}.`);
       },
       onError: (error) => this.errorHandler.handle(error, "create calendar task", true)
     }).open();
@@ -335,7 +358,7 @@ export class OnProgramCalendarView extends BasesView {
 
   private openItem(item: WorkItem): void {
     const entry = this.data.data.find((candidate) => candidate.file.path === item.source.path);
-    if (entry) void this.app.workspace.getLeaf(false).openFile(entry.file);
+    if (entry) void this.workItemOpener.open(entry.file);
   }
 
   private button(parent: HTMLElement, text: string, action: () => void, label?: string): void {
