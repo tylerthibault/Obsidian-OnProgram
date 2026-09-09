@@ -10,6 +10,7 @@ import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
+import { WorkItemOpener } from "./services/work-items/WorkItemOpener";
 import { WorkItemParser } from "./services/work-items/WorkItemParser";
 import { WorkItemScanner } from "./services/work-items/WorkItemScanner";
 import { WorkItemWriter } from "./services/work-items/WorkItemWriter";
@@ -43,6 +44,7 @@ export default class OnProgramPlugin extends Plugin {
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
     const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
+    const workItemOpener = new WorkItemOpener(this.app, () => this.settings.openItemsInSplit);
     const taskCreator = new TaskCreator(this.app, () => ({
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
@@ -60,6 +62,7 @@ export default class OnProgramPlugin extends Plugin {
       workItemParser,
       workItemWriter,
       taskCreator,
+      workItemOpener,
       errorHandler
     );
 
@@ -121,6 +124,7 @@ export default class OnProgramPlugin extends Plugin {
     this.logger?.debug("Settings saved", {
       debugMode: this.settings.debugMode,
       showStartupNotice: this.settings.showStartupNotice,
+      openItemsInSplit: this.settings.openItemsInSplit,
       workItemProperties: this.settings.workItemProperties,
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
