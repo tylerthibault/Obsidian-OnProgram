@@ -5,8 +5,10 @@ import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
+import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWritePatch } from "../../services/work-items/WorkItemWritePatch";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
+import { localDateIso } from "../calendar/CalendarDateUtils";
 import {
   getTimelinePlacement,
   isSubdayZoom,
@@ -17,6 +19,7 @@ import {
   timelineBounds,
   timelineDate,
   timelinePlacementLabel,
+  timelineScale,
   timelineTickDates,
   timelineTickLabel,
   type TimelinePlacement,
@@ -30,6 +33,7 @@ export const ONPROGRAM_TIMELINE_VIEW_ID = "onprogram-timeline";
 
 const AXIS_HEIGHT = 62;
 const ROW_HEIGHT = 44;
+const MINUTE = 60_000;
 
 export class OnProgramTimelineView extends BasesView {
   type = ONPROGRAM_TIMELINE_VIEW_ID;
@@ -44,6 +48,7 @@ export class OnProgramTimelineView extends BasesView {
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -104,12 +109,14 @@ export class OnProgramTimelineView extends BasesView {
     addTask.addEventListener("click", () => this.createTask());
   }
 
-  private createTask(): void {
+  private createTask(initialDate?: WorkItemDateValue): void {
     new CreateTaskModal(this.app, {
       onSubmit: async (title) => {
         const result = await this.taskCreator.createTask({
           title,
-          targetFolder: this.getConfiguredTaskFolder()
+          targetFolder: this.getConfiguredTaskFolder(),
+          initialDate: initialDate ? { field: "scheduled", value: initialDate } : undefined,
+          openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${result.title}.`);
       },
@@ -130,7 +137,11 @@ export class OnProgramTimelineView extends BasesView {
     const list = details.createDiv({ cls: "onprogram-timeline-unscheduled-list" });
     for (const item of items) {
       const button = list.createEl("button", { text: item.title });
-      button.addEventListener("click", () => this.openItem(item));
+      button.setAttr("title", "Double-click to open this task");
+      button.addEventListener("dblclick", (event) => {
+        event.stopPropagation();
+        this.openItem(item);
+      });
     }
   }
 
@@ -147,6 +158,8 @@ export class OnProgramTimelineView extends BasesView {
     this.scrollEl = scroll;
     const canvas = scroll.createDiv({ cls: "onprogram-timeline-canvas" });
     canvas.setCssStyles({ width: `${timelineWidth}px` });
+    canvas.setAttr("title", "Double-click empty timeline space to create a task at that time");
+    this.attachCanvasDoubleClick(canvas, bounds.start);
 
     this.renderAxis(canvas, bounds.start, bounds.end);
     this.renderNow(canvas, bounds.start, timelineWidth);
@@ -181,6 +194,30 @@ export class OnProgramTimelineView extends BasesView {
     labels.setCssStyles({ minHeight: `${height}px` });
 
     this.hostEl.win.setTimeout(() => this.scrollToNow(false), 0);
+  }
+
+  private attachCanvasDoubleClick(canvas: HTMLElement, timelineStart: Date): void {
+    canvas.addEventListener("dblclick", (event) => {
+      const target = event.target as HTMLElement;
+      if (target.closest(
+        ".onprogram-timeline-axis, .onprogram-timeline-bar, .onprogram-timeline-point, .onprogram-timeline-resize"
+      )) {
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.max(0, event.clientX - rect.left);
+      const scale = timelineScale(this.zoom);
+      const rawMinutes = x / scale.pixelsPerMinute;
+      const snappedMinutes = Math.round(rawMinutes / scale.snapMinutes) * scale.snapMinutes;
+      const date = new Date(timelineStart.getTime() + snappedMinutes * MINUTE);
+      const value: WorkItemDateValue = isSubdayZoom(this.zoom)
+        ? { kind: "date-time", iso: localDateTimeIso(date) }
+        : { kind: "date", iso: localDateIso(date) };
+
+      event.preventDefault();
+      this.createTask(value);
+    });
   }
 
   private renderPlacementRow(
@@ -233,8 +270,11 @@ export class OnProgramTimelineView extends BasesView {
     const row = this.hostEl.doc.createElement("div");
     row.addClass("onprogram-timeline-label-row");
     const button = row.createEl("button", { text: placement.item.title });
-    button.setAttr("title", `${placement.item.title} · ${timelinePlacementLabel(placement)}`);
-    button.addEventListener("click", () => this.openItem(placement.item));
+    button.setAttr("title", `${placement.item.title} · ${timelinePlacementLabel(placement)} · Double-click to open`);
+    button.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      this.openItem(placement.item);
+    });
     row.createSpan({
       text: placement.item.status,
       cls: "onprogram-timeline-label-meta"
@@ -252,12 +292,16 @@ export class OnProgramTimelineView extends BasesView {
       placement.kind === "point" ? "point" : "start"
     );
     const left = pixelsBetween(timelineStart, startDate, this.zoom);
-    const title = `${placement.item.title} · ${timelinePlacementLabel(placement)}`;
+    const title = `${placement.item.title} · ${timelinePlacementLabel(placement)} · Double-click to open`;
 
     if (placement.kind === "point") {
       const point = row.createDiv({ cls: "onprogram-timeline-point" });
       point.setCssStyles({ left: `${left - 14}px` });
       point.setAttr("title", title);
+      point.addEventListener("dblclick", (event) => {
+        event.stopPropagation();
+        this.openItem(placement.item);
+      });
       this.attachPointDrag(point, placement);
       return;
     }
@@ -267,6 +311,11 @@ export class OnProgramTimelineView extends BasesView {
     const bar = row.createDiv({ cls: "onprogram-timeline-bar" });
     bar.setCssStyles({ left: `${left}px`, width: `${width}px` });
     bar.setAttr("title", title);
+    bar.addEventListener("dblclick", (event) => {
+      if ((event.target as HTMLElement).closest(".onprogram-timeline-resize")) return;
+      event.stopPropagation();
+      this.openItem(placement.item);
+    });
 
     const leftHandle = bar.createDiv({
       cls: "onprogram-timeline-resize onprogram-timeline-resize-start"
@@ -529,7 +578,7 @@ export class OnProgramTimelineView extends BasesView {
 
   private openItem(item: WorkItem): void {
     const entry = this.data.data.find((candidate) => candidate.file.path === item.source.path);
-    if (entry) void this.app.workspace.getLeaf(false).openFile(entry.file);
+    if (entry) void this.workItemOpener.open(entry.file);
   }
 }
 
@@ -551,4 +600,12 @@ function timelineZooms(): readonly TimelineZoom[] {
 function zoomLabel(zoom: TimelineZoom): string {
   if (zoom === "fifteen-minute") return "15 min";
   return zoom.charAt(0).toUpperCase() + zoom.slice(1);
+}
+
+function localDateTimeIso(date: Date): string {
+  return `${localDateIso(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
 }
