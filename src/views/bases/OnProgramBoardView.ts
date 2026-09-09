@@ -5,6 +5,7 @@ import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
+import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
 
 export const ONPROGRAM_BOARD_VIEW_ID = "onprogram-board";
@@ -20,6 +21,7 @@ export class OnProgramBoardView extends BasesView {
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -63,6 +65,12 @@ export class OnProgramBoardView extends BasesView {
       columnHeader.createSpan({ text: String(items.length), cls: "onprogram-board-column-count" });
 
       const cards = column.createDiv({ cls: "onprogram-board-cards" });
+      cards.setAttr("title", `Double-click empty space to create a ${humanize(status)} task`);
+      cards.addEventListener("dblclick", (event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest(".onprogram-board-card, button")) return;
+        this.createTask(status);
+      });
       cards.addEventListener("dragover", (event) => {
         event.preventDefault();
         if (this.draggedPath) column.addClass("onprogram-board-drop-target");
@@ -78,7 +86,12 @@ export class OnProgramBoardView extends BasesView {
         const card = cards.createDiv({ cls: "onprogram-board-card" });
         card.draggable = true;
         card.dataset.path = item.source.path;
+        card.setAttr("title", "Double-click to open this task");
 
+        card.addEventListener("dblclick", (event) => {
+          event.stopPropagation();
+          this.openItem(item.source.path);
+        });
         card.addEventListener("dragstart", (event) => {
           this.draggedPath = item.source.path;
           card.addClass("onprogram-board-card-dragging");
@@ -92,13 +105,9 @@ export class OnProgramBoardView extends BasesView {
             .forEach((element) => element.removeClass("onprogram-board-drop-target"));
         });
 
-        const title = card.createEl("button", {
+        card.createEl("button", {
           text: item.title,
           cls: "onprogram-board-card-title"
-        });
-        title.addEventListener("click", () => {
-          const entry = this.data.data.find((candidate) => candidate.file.path === item.source.path);
-          if (entry) void this.app.workspace.getLeaf(false).openFile(entry.file);
         });
 
         const meta = card.createDiv({ cls: "onprogram-board-card-meta" });
@@ -110,12 +119,14 @@ export class OnProgramBoardView extends BasesView {
     }
   }
 
-  private createTask(): void {
+  private createTask(initialStatus?: WorkItemStatus): void {
     new CreateTaskModal(this.app, {
       onSubmit: async (title) => {
         const result = await this.taskCreator.createTask({
           title,
-          targetFolder: this.getConfiguredTaskFolder()
+          initialStatus,
+          targetFolder: this.getConfiguredTaskFolder(),
+          openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${result.title}.`);
       },
@@ -126,6 +137,11 @@ export class OnProgramBoardView extends BasesView {
   private getConfiguredTaskFolder(): string | undefined {
     const value = this.config.get("taskFolder");
     return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  }
+
+  private openItem(path: string): void {
+    const entry = this.data.data.find((candidate) => candidate.file.path === path);
+    if (entry) void this.workItemOpener.open(entry.file);
   }
 
   private async moveDraggedItem(status: WorkItemStatus): Promise<void> {
