@@ -31,8 +31,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Commit generated dev bundle
-        if: github.event_name == 'push' && github.ref_name == 'dev'
+      - name: Commit generated development bundle
+        if: github.event_name == 'push' && github.ref_name != 'main' && github.actor != 'github-actions[bot]'
         run: |
           if git diff --quiet -- main.js; then
             echo "main.js is already current"
