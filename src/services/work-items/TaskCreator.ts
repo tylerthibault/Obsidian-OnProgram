@@ -9,6 +9,7 @@ import { DEFAULT_STATUS_BY_TYPE, type WorkItemStatus } from "../../models/work-i
 import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
 
 export interface TaskCreationConfig {
+  taskFolderMode: "current-base" | "custom";
   taskFolder: string;
   taskTemplatePath: string;
   defaultProject: string;
@@ -27,8 +28,8 @@ export interface CreateTaskRequest {
   /** Optional status override used by contextual creation, such as Board columns. */
   initialStatus?: WorkItemStatus;
   /**
-   * Optional destination override used by folder-scoped OnProgram Bases.
-   * The active Base's sibling Tasks/ folder takes precedence when a Base is active.
+   * Optional destination hint supplied by a folder-scoped OnProgram Base view.
+   * In current-base mode, live Base context wins and this is a compatibility fallback.
    */
   targetFolder?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
@@ -59,8 +60,7 @@ export class TaskCreator {
     this.assertSafePropertyMap(config.propertyMap);
 
     const title = normalizeTaskTitle(request.title);
-    const contextualFolder = resolveOnProgramViewTaskFolder(this.app, request.targetFolder);
-    const folder = normalizeTaskFolder(contextualFolder ?? config.taskFolder);
+    const folder = this.resolveDestinationFolder(config, request);
     await this.ensureFolder(folder);
 
     const { content, usedTemplate } = await this.loadTemplate(config.taskTemplatePath);
@@ -88,6 +88,25 @@ export class TaskCreator {
       title: file.basename,
       usedTemplate
     };
+  }
+
+  private resolveDestinationFolder(
+    config: TaskCreationConfig,
+    request: CreateTaskRequest
+  ): string {
+    if (config.taskFolderMode === "custom") {
+      return normalizeTaskFolder(config.taskFolder);
+    }
+
+    const contextualFolder = resolveOnProgramViewTaskFolder(this.app, request.targetFolder);
+    if (!contextualFolder) {
+      throw new OnProgramError(
+        "OnProgram could not determine the current Base folder. Focus the Base and try again, or choose Custom vault folder in OnProgram settings.",
+        "task-base-folder-unresolved"
+      );
+    }
+
+    return normalizeTaskFolder(contextualFolder);
   }
 
   private async initializeTaskFrontmatter(
