@@ -7,6 +7,7 @@ export interface WorkItemWritePatch {
   status?: WorkItemStatus;
   priority?: WorkItemPriority | null;
   project?: string | null;
+  linkedBase?: string | null;
   start?: WorkItemDateValue | null;
   end?: WorkItemDateValue | null;
   due?: WorkItemDateValue | null;
