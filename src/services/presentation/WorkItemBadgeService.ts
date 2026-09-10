@@ -48,6 +48,12 @@ export class WorkItemBadgeService implements OnProgramService {
       this.observer.observe(this.container, { childList: true, subtree: true });
     }
 
+    // Editing frontmatter does not necessarily rebuild the Calendar immediately.
+    // Refresh the badge as soon as Obsidian's metadata cache sees the new value.
+    this.plugin.registerEvent(
+      this.plugin.app.metadataCache.on("changed", () => this.queueRefresh())
+    );
+
     this.queueRefresh();
   }
 
@@ -91,7 +97,9 @@ export class WorkItemBadgeService implements OnProgramService {
     if (!container) return;
 
     const settings = this.getSettings();
-    const property = settings.badgeProperty.trim();
+    // Grade is the useful development default. Users can point this at any
+    // other frontmatter property (priority, category, owner, etc.).
+    const property = settings.badgeProperty.trim() || "grade";
     const color = normalizeBadgeColor(settings.badgeColor);
 
     for (const rawElement of Array.from(container.querySelectorAll(BADGE_SELECTOR))) {
@@ -99,10 +107,8 @@ export class WorkItemBadgeService implements OnProgramService {
       const path = element.dataset.path;
       if (!path) continue;
 
-      const existing = element.querySelector(".onprogram-work-item-badge") as HTMLElement | null;
-      const value = property
-        ? getFileBadgeValue(this.plugin.app, path, property)
-        : undefined;
+      const existing = element.querySelector(":scope > .onprogram-work-item-badge") as HTMLElement | null;
+      const value = getFileBadgeValue(this.plugin.app, path, property);
 
       if (!value) {
         existing?.remove();
@@ -138,9 +144,13 @@ const BADGE_STYLES = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  max-width: 42%;
+  width: auto;
   min-width: 30px;
+  height: 22px;
   min-height: 22px;
+  max-height: 22px;
+  max-width: 42%;
+  box-sizing: border-box;
   padding: 1px 8px;
   border: 1px solid var(--onprogram-badge-color);
   border-radius: 999px;
@@ -148,12 +158,11 @@ const BADGE_STYLES = `
   color: var(--text-normal);
   font-size: var(--font-ui-smaller);
   font-weight: var(--font-semibold);
-  line-height: 1.2;
+  line-height: 18px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-  box-sizing: border-box;
 }
 
 .onprogram-work-item-badge[data-badge-color="green"] { --onprogram-badge-color: var(--color-green); }
@@ -164,7 +173,7 @@ const BADGE_STYLES = `
 .onprogram-work-item-badge[data-badge-color="yellow"] { --onprogram-badge-color: var(--color-yellow); }
 .onprogram-work-item-badge[data-badge-color="gray"] { --onprogram-badge-color: var(--text-muted); }
 
-/* Timed Calendar cards reserve a header row for the time + badge. */
+/* Timed Calendar cards reserve a header row for the time + property badge. */
 .onprogram-calendar-timed-item.onprogram-has-work-item-badge .onprogram-calendar-timed-title,
 .onprogram-calendar-timed-item .onprogram-calendar-timed-title {
   display: -webkit-box;
@@ -187,32 +196,5 @@ const BADGE_STYLES = `
 
 .onprogram-board-card.onprogram-has-work-item-badge .onprogram-board-card-title {
   padding-right: 58px;
-}
-
-/* Done/posted status remains visually distinct if the status service is enabled. */
-.onprogram-calendar-status-badge {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  z-index: 8;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--background-primary-alt);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  font-weight: var(--font-semibold);
-  pointer-events: none;
-}
-
-.onprogram-calendar-item[data-onprogram-status="done"] {
-  opacity: 0.68;
-}
-
-.onprogram-calendar-item[data-onprogram-status="done"] .onprogram-calendar-item-title {
-  text-decoration: line-through;
-}
-
-.onprogram-calendar-item[data-onprogram-status="posted"] {
-  box-shadow: inset 0 0 0 1px var(--color-green);
 }
 `;
