@@ -120,7 +120,8 @@ export function buildOnProgramBaseConfig(
     ["duration", "Duration"],
     ["completed", "Completed"],
     ["parent", "Parent"],
-    ["dependsOn", "Depends on"]
+    ["dependsOn", "Depends on"],
+    ["linkedBase", "OnProgram Base"]
   ];
 
   const visibleOrder = [
@@ -128,6 +129,7 @@ export function buildOnProgramBaseConfig(
     `note.${propertyMap.status}`,
     `note.${propertyMap.priority}`,
     `note.${propertyMap.project}`,
+    `note.${propertyMap.linkedBase}`,
     `note.${propertyMap.scheduled}`,
     `note.${propertyMap.due}`,
     `note.${propertyMap.start}`,
@@ -177,7 +179,5 @@ function baseView(
 }
 
 function yamlString(value: string): string {
-  // JSON strings are valid YAML double-quoted scalars and handle quotes,
-  // backslashes, Unicode, and unusual folder/property names safely.
   return JSON.stringify(value);
 }
