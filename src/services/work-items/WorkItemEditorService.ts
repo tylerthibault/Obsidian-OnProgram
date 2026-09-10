@@ -16,6 +16,7 @@ export interface WorkItemEditorDraft {
   title: string;
   status: WorkItemStatus;
   project: string;
+  linkedBase: string;
   priority: WorkItemPriority;
   start: string;
   due: string;
@@ -49,6 +50,7 @@ export class WorkItemEditorService {
       title: item.title,
       status: item.status,
       project: item.project ?? "",
+      linkedBase: item.linkedBase ?? "",
       priority: item.priority,
       start: item.dates.start?.iso ?? "",
       due: item.dates.due?.iso ?? "",
@@ -110,9 +112,7 @@ export class WorkItemEditorService {
   }
 
   private validateRenameTarget(file: TFile, desiredTitle: string): string {
-    if (desiredTitle === file.basename) {
-      return file.path;
-    }
+    if (desiredTitle === file.basename) return file.path;
 
     const parentPath = file.parent?.path ?? "";
     const targetPath = normalizePath(`${parentPath ? `${parentPath}/` : ""}${desiredTitle}.md`);
@@ -132,6 +132,7 @@ export class WorkItemEditorService {
       status: draft.status,
       priority: draft.priority,
       project: optionalString(draft.project),
+      linkedBase: optionalString(draft.linkedBase),
       start: parseOptionalDate(draft.start, "start"),
       due: this.requiredAwareDate(item.type === "milestone", draft.due, "due"),
       scheduled: this.requiredAwareDate(item.type === "event", draft.scheduled, "scheduled"),
@@ -159,9 +160,7 @@ export class WorkItemEditorService {
   }
 
   private async writeNotes(file: TFile, originalNotes: string, notes: string): Promise<void> {
-    if (notes === originalNotes) {
-      return;
-    }
+    if (notes === originalNotes) return;
 
     const currentContent = await this.app.vault.read(file);
     if (extractNotes(currentContent) !== originalNotes) {
@@ -173,9 +172,7 @@ export class WorkItemEditorService {
 
     await this.app.vault.process(file, (content) => {
       const info = getFrontMatterInfo(content);
-      if (!info.exists) {
-        return notes;
-      }
+      if (!info.exists) return notes;
 
       const frontmatterBlock = content.slice(0, info.contentStart).replace(/\s*$/, "");
       return `${frontmatterBlock}\n\n${notes}`;
@@ -216,9 +213,7 @@ function parseDate(value: string, label: string): WorkItemDateValue {
 
 function parseOptionalDuration(value: string): number | null {
   const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
+  if (!trimmed) return null;
 
   const normalized = normalizeDurationMinutes(trimmed);
   if (normalized === undefined) {
