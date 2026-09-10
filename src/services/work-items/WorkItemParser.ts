@@ -99,6 +99,11 @@ export class WorkItemParser {
       "parent",
       issues
     );
+    const linkedBase = this.parseOptionalReference(
+      this.read(frontmatter, propertyMap, "linkedBase"),
+      "linkedBase",
+      issues
+    );
     const dependsOn = this.parseDependsOn(
       this.read(frontmatter, propertyMap, "dependsOn"),
       issues
@@ -125,17 +130,10 @@ export class WorkItemParser {
       dependsOn
     };
 
-    if (project) {
-      base.project = project;
-    }
-
-    if (parent) {
-      base.parent = parent;
-    }
-
-    if (durationMinutes !== undefined) {
-      base.durationMinutes = durationMinutes;
-    }
+    if (project) base.project = project;
+    if (parent) base.parent = parent;
+    if (linkedBase) base.linkedBase = linkedBase;
+    if (durationMinutes !== undefined) base.durationMinutes = durationMinutes;
 
     const item = this.createTypedItem(type, base, dates);
     if (!item) {
@@ -154,9 +152,7 @@ export class WorkItemParser {
     type: WorkItemType,
     issues: WorkItemValidationIssue[]
   ): WorkItemStatus | undefined {
-    if (!hasValue(value)) {
-      return undefined;
-    }
+    if (!hasValue(value)) return undefined;
 
     const status = normalizeWorkItemStatus(value);
     if (!status) {
@@ -190,9 +186,7 @@ export class WorkItemParser {
     defaultPriority: WorkItemBase["priority"],
     issues: WorkItemValidationIssue[]
   ): WorkItemBase["priority"] {
-    if (!hasValue(value)) {
-      return defaultPriority;
-    }
+    if (!hasValue(value)) return defaultPriority;
 
     const priority = normalizeWorkItemPriority(value);
     if (!priority) {
@@ -218,9 +212,7 @@ export class WorkItemParser {
 
     for (const field of WORK_ITEM_DATE_FIELDS) {
       const value = this.read(frontmatter, propertyMap, field);
-      if (!hasValue(value)) {
-        continue;
-      }
+      if (!hasValue(value)) continue;
 
       const normalized = normalizeWorkItemDate(value);
       if (!normalized) {
@@ -242,12 +234,10 @@ export class WorkItemParser {
 
   private parseOptionalReference(
     value: unknown,
-    property: "project" | "parent",
+    property: "project" | "parent" | "linkedBase",
     issues: WorkItemValidationIssue[]
   ): string | undefined {
-    if (!hasValue(value)) {
-      return undefined;
-    }
+    if (!hasValue(value)) return undefined;
 
     const reference = normalizeReference(value);
     if (!reference) {
@@ -265,9 +255,7 @@ export class WorkItemParser {
   }
 
   private parseDependsOn(value: unknown, issues: WorkItemValidationIssue[]): string[] {
-    if (!hasValue(value)) {
-      return [];
-    }
+    if (!hasValue(value)) return [];
 
     const references = normalizeReferenceList(value);
     if (!references) {
@@ -285,9 +273,7 @@ export class WorkItemParser {
   }
 
   private parseDuration(value: unknown, issues: WorkItemValidationIssue[]): number | undefined {
-    if (!hasValue(value)) {
-      return undefined;
-    }
+    if (!hasValue(value)) return undefined;
 
     const duration = normalizeDurationMinutes(value);
     if (duration === undefined) {
@@ -310,9 +296,7 @@ export class WorkItemParser {
     dates: WorkItemDates
   ): WorkItem | undefined {
     if (type === "milestone") {
-      if (!dates.due) {
-        return undefined;
-      }
+      if (!dates.due) return undefined;
 
       const item: MilestoneWorkItem = {
         ...base,
@@ -326,9 +310,7 @@ export class WorkItemParser {
     }
 
     if (type === "event") {
-      if (!dates.scheduled) {
-        return undefined;
-      }
+      if (!dates.scheduled) return undefined;
 
       const item: EventWorkItem = {
         ...base,
@@ -341,10 +323,7 @@ export class WorkItemParser {
       return item;
     }
 
-    return {
-      ...base,
-      type
-    };
+    return { ...base, type };
   }
 
   private read(
@@ -366,17 +345,12 @@ export class WorkItemParser {
 }
 
 function hasValue(value: unknown): boolean {
-  if (value === undefined || value === null) {
-    return false;
-  }
-
+  if (value === undefined || value === null) return false;
   return typeof value !== "string" || value.trim().length > 0;
 }
 
 function formatValue(value: unknown): string {
-  if (typeof value === "string") {
-    return `'${value}'`;
-  }
+  if (typeof value === "string") return `'${value}'`;
 
   try {
     return JSON.stringify(value) ?? String(value);
