@@ -10,6 +10,7 @@ import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
+import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
 import { WorkItemOpener } from "./services/work-items/WorkItemOpener";
@@ -75,6 +76,11 @@ export default class OnProgramPlugin extends Plugin {
       errorHandler
     );
     const calendarScrollState = new CalendarScrollStateService(this);
+    const workItemBadges = new WorkItemBadgeService(this, () => ({
+      badgeProperty: this.settings.badgeProperty,
+      badgeColor: this.settings.badgeColor,
+      badgeCustomColor: this.settings.badgeCustomColor
+    }));
 
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -88,6 +94,7 @@ export default class OnProgramPlugin extends Plugin {
       services.register(basesIntegration);
       services.register(calendarStatus);
       services.register(calendarScrollState);
+      services.register(workItemBadges);
       this.addSettingTab(new OnProgramSettingTab(this.app, this));
 
       new CommandRegistrar(this, logger, {
@@ -141,7 +148,10 @@ export default class OnProgramPlugin extends Plugin {
       taskFolderMode: this.settings.taskFolderMode,
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
-      defaultProject: this.settings.defaultProject
+      defaultProject: this.settings.defaultProject,
+      badgeProperty: this.settings.badgeProperty,
+      badgeColor: this.settings.badgeColor,
+      badgeCustomColor: this.settings.badgeCustomColor
     });
   }
 
