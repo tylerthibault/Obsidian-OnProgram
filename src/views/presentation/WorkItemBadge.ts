@@ -23,10 +23,18 @@ export function getWorkItemBadgeValue(
   item: WorkItem,
   property: string
 ): string | undefined {
+  return getFileBadgeValue(app, item.source.path, property);
+}
+
+export function getFileBadgeValue(
+  app: App,
+  path: string,
+  property: string
+): string | undefined {
   const key = property.trim();
   if (!key) return undefined;
 
-  const file = app.vault.getAbstractFileByPath(item.source.path);
+  const file = app.vault.getAbstractFileByPath(path);
   if (!(file instanceof TFile)) return undefined;
 
   const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
@@ -45,13 +53,20 @@ export function createWorkItemBadge(
     cls: "onprogram-work-item-badge"
   });
 
+  applyBadgeAppearance(badge, config);
+  return badge;
+}
+
+export function applyBadgeAppearance(
+  badge: HTMLElement,
+  config: WorkItemBadgeConfig
+): void {
   badge.dataset.badgeColor = config.color;
+  badge.style.removeProperty("--onprogram-badge-color");
 
   if (config.color === "custom" && config.customColor?.trim()) {
     badge.style.setProperty("--onprogram-badge-color", config.customColor.trim());
   }
-
-  return badge;
 }
 
 export function normalizeBadgeColor(value: unknown): WorkItemBadgeColor {
