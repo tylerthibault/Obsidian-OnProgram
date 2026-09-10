@@ -130,6 +130,16 @@ export class WorkItemWriter {
       );
     }
 
+    if (patch.linkedBase !== undefined) {
+      this.setProperty(
+        frontmatter,
+        propertyMap,
+        "linkedBase",
+        patch.linkedBase === null ? DELETE_PROPERTY : patch.linkedBase,
+        changed
+      );
+    }
+
     this.applyDatePatch(frontmatter, propertyMap, "start", patch.start, changed);
     this.applyDatePatch(frontmatter, propertyMap, "end", patch.end, changed);
     this.applyDatePatch(frontmatter, propertyMap, "due", patch.due, changed);
@@ -178,9 +188,7 @@ export class WorkItemWriter {
     value: WorkItemDateValue | null | undefined,
     changed: Set<WorkItemPropertyKey>
   ): void {
-    if (value === undefined) {
-      return;
-    }
+    if (value === undefined) return;
 
     this.setProperty(
       frontmatter,
@@ -208,9 +216,7 @@ export class WorkItemWriter {
       return;
     }
 
-    if (sameFrontmatterValue(frontmatter[mappedName], value)) {
-      return;
-    }
+    if (sameFrontmatterValue(frontmatter[mappedName], value)) return;
 
     frontmatter[mappedName] = value;
     changed.add(property);
@@ -237,6 +243,7 @@ export class WorkItemWriter {
 
     this.assertOptionalReference(patch.project, "project");
     this.assertOptionalReference(patch.parent, "parent");
+    this.assertOptionalReference(patch.linkedBase, "linkedBase");
     this.assertDateValue(patch.start, "start");
     this.assertDateValue(patch.end, "end");
     this.assertDateValue(patch.due, "due");
@@ -244,17 +251,11 @@ export class WorkItemWriter {
     this.assertDateValue(patch.completed, "completed");
 
     if (type === "milestone" && patch.due === null) {
-      throw new OnProgramError(
-        "A milestone must keep a due date.",
-        "required-work-item-property"
-      );
+      throw new OnProgramError("A milestone must keep a due date.", "required-work-item-property");
     }
 
     if (type === "event" && patch.scheduled === null) {
-      throw new OnProgramError(
-        "An event must keep a scheduled date/time.",
-        "required-work-item-property"
-      );
+      throw new OnProgramError("An event must keep a scheduled date/time.", "required-work-item-property");
     }
 
     if (
@@ -280,7 +281,7 @@ export class WorkItemWriter {
 
   private assertOptionalReference(
     value: string | null | undefined,
-    property: "project" | "parent"
+    property: "project" | "parent" | "linkedBase"
   ): void {
     if (value !== undefined && value !== null && !isNonEmptyString(value)) {
       throw new OnProgramError(
@@ -294,9 +295,7 @@ export class WorkItemWriter {
     value: WorkItemDateValue | null | undefined,
     property: "start" | "end" | "due" | "scheduled" | "completed"
   ): void {
-    if (value === undefined || value === null) {
-      return;
-    }
+    if (value === undefined || value === null) return;
 
     const normalized = normalizeWorkItemDate(value.iso);
     if (!normalized || normalized.kind !== value.kind) {
@@ -325,9 +324,7 @@ export class WorkItemWriter {
 
   private assertSafePropertyMap(propertyMap: WorkItemPropertyMap): void {
     const issues = validateWorkItemPropertyMap(propertyMap);
-    if (issues.length === 0) {
-      return;
-    }
+    if (issues.length === 0) return;
 
     throw new OnProgramError(
       `Cannot write with the current property mapping: ${issues.map((issue) => issue.message).join(" ")}`,
@@ -338,17 +335,12 @@ export class WorkItemWriter {
   private enqueue<T>(path: string, action: () => Promise<T>): Promise<T> {
     const previous = this.writeChains.get(path) ?? Promise.resolve();
     const run = previous.catch(() => undefined).then(action);
-    const settled = run.then(
-      () => undefined,
-      () => undefined
-    );
+    const settled = run.then(() => undefined, () => undefined);
 
     this.writeChains.set(path, settled);
 
     return run.finally(() => {
-      if (this.writeChains.get(path) === settled) {
-        this.writeChains.delete(path);
-      }
+      if (this.writeChains.get(path) === settled) this.writeChains.delete(path);
     });
   }
 }
