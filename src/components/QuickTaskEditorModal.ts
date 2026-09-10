@@ -7,6 +7,7 @@ import type {
   WorkItemEditorDraft,
   WorkItemEditorService
 } from "../services/work-items/WorkItemEditorService";
+import { OnProgramBasePickerModal } from "./OnProgramBasePickerModal";
 
 export class QuickTaskEditorModal extends Modal {
   private draft?: WorkItemEditorDraft;
@@ -70,6 +71,34 @@ export class QuickTaskEditorModal extends Modal {
         .setPlaceholder("Project reference")
         .setValue(draft.project)
         .onChange((value) => { draft.project = value; }));
+
+    let linkedBaseInput: HTMLInputElement | undefined;
+    const linkedBaseSetting = new Setting(this.contentEl)
+      .setName("Linked OnProgram Base")
+      .setDesc("Optional child Base opened when drilling into this task.");
+    linkedBaseSetting.addText((text) => {
+      linkedBaseInput = text.inputEl;
+      text
+        .setPlaceholder("Folder/Project.onprogram.base")
+        .setValue(draft.linkedBase)
+        .onChange((value) => { draft.linkedBase = value; });
+    });
+    linkedBaseSetting.addButton((button) => button
+      .setButtonText("Choose")
+      .onClick(() => {
+        new OnProgramBasePickerModal(this.app, (file) => {
+          draft.linkedBase = file.path;
+          if (linkedBaseInput) linkedBaseInput.value = file.path;
+        }).open();
+      }));
+    if (draft.linkedBase) {
+      linkedBaseSetting.addButton((button) => button
+        .setButtonText("Clear")
+        .onClick(() => {
+          draft.linkedBase = "";
+          if (linkedBaseInput) linkedBaseInput.value = "";
+        }));
+    }
 
     new Setting(this.contentEl)
       .setName("Priority")
