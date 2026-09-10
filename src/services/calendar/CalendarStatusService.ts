@@ -9,6 +9,7 @@ import type { ErrorHandler } from "../../core/ErrorHandler";
 
 const STATUS_BADGE_CLASS = "onprogram-calendar-status-badge";
 const STATUS_DATASET_KEY = "onprogramStatus";
+const BADGE_TRAY_CLASS = "onprogram-calendar-badge-tray";
 
 export class CalendarStatusService implements OnProgramService {
   readonly id = "calendar-status";
@@ -163,17 +164,34 @@ export class CalendarStatusService implements OnProgramService {
         `${item.title}\nStatus: ${humanize(item.status)}\nRight-click to change status. Double-click to open.`
       );
 
-      let badge = element.querySelector(`:scope > .${STATUS_BADGE_CLASS}`) as HTMLElement | null;
+      const tray = getOrCreateBadgeTray(element);
+      let badge = tray.querySelector(
+        `:scope > .${STATUS_BADGE_CLASS}`
+      ) as HTMLElement | null;
+
       if (item.status === "done" || item.status === "posted") {
-        if (!badge) {
-          badge = element.createSpan({ cls: STATUS_BADGE_CLASS });
-        }
+        if (!badge) badge = tray.createSpan({ cls: STATUS_BADGE_CLASS });
         badge.setText(humanize(item.status));
       } else {
         badge?.remove();
+        cleanupBadgeTray(element);
       }
     }
   }
+}
+
+function getOrCreateBadgeTray(element: HTMLElement): HTMLElement {
+  const existing = element.querySelector(
+    `:scope > .${BADGE_TRAY_CLASS}`
+  ) as HTMLElement | null;
+  return existing ?? element.createDiv({ cls: BADGE_TRAY_CLASS });
+}
+
+function cleanupBadgeTray(element: HTMLElement): void {
+  const tray = element.querySelector(
+    `:scope > .${BADGE_TRAY_CLASS}`
+  ) as HTMLElement | null;
+  if (tray && tray.children.length === 0) tray.remove();
 }
 
 function humanize(value: string): string {
@@ -188,62 +206,31 @@ const CALENDAR_STATUS_STYLES = `
   position: relative;
 }
 
-/* Timed items need visible overflow so the status pill can sit just outside
- * the corner. The title itself still clips/wraps inside its own box. */
+/* Timed cards allow the shared badge tray to float just outside the corner. */
 .onprogram-calendar-view .onprogram-calendar-timed-item {
   position: absolute;
   overflow: visible;
 }
 
-.onprogram-calendar-view .onprogram-calendar-timed-item .onprogram-calendar-timed-title {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 20px;
-  bottom: 10px;
-  width: auto;
-  max-width: none;
-  min-width: 0;
-  height: auto;
-  padding: 0 4px;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: normal;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  text-overflow: clip;
-  text-align: center;
-  line-height: 1.15;
-}
-
 .onprogram-calendar-status-badge {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  bottom: auto;
-  left: auto;
-  z-index: 12;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: auto;
   min-width: 0;
-  height: 18px;
-  min-height: 18px;
-  max-height: 18px;
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
   box-sizing: border-box;
   margin: 0;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 999px;
   color: var(--text-muted);
   background: var(--background-primary-alt);
   font-size: var(--font-ui-smallest);
   font-weight: var(--font-semibold);
-  line-height: 14px;
+  line-height: 16px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
