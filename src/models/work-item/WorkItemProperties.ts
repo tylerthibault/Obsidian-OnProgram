@@ -10,7 +10,8 @@ export const WORK_ITEM_PROPERTY_KEYS = [
   "duration",
   "completed",
   "parent",
-  "dependsOn"
+  "dependsOn",
+  "linkedBase"
 ] as const;
 
 export type WorkItemPropertyKey = (typeof WORK_ITEM_PROPERTY_KEYS)[number];
@@ -29,7 +30,8 @@ export const DEFAULT_WORK_ITEM_PROPERTY_MAP: WorkItemPropertyMap = {
   duration: "duration",
   completed: "completed",
   parent: "parent",
-  dependsOn: "depends_on"
+  dependsOn: "depends_on",
+  linkedBase: "onprogram_base"
 };
 
 export interface WorkItemPropertyMapIssue {
