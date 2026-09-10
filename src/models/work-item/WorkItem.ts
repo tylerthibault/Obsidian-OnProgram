@@ -19,6 +19,8 @@ export interface WorkItemBase {
   status: WorkItemStatus;
   priority: WorkItemPriority;
   project?: WorkItemReference;
+  /** Optional link to a child OnProgram Base used for drill-down navigation. */
+  linkedBase?: WorkItemReference;
   dates: WorkItemDates;
   /** Duration in minutes when the item represents scheduled work. */
   durationMinutes?: number;
