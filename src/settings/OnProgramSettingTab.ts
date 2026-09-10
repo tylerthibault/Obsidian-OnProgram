@@ -80,6 +80,56 @@ export class OnProgramSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Badge property")
+      .setDesc("Optional frontmatter property to display as a pill on Calendar items and Board cards, for example grade, priority, category, or owner.")
+      .addText((text) =>
+        text
+          .setPlaceholder("grade")
+          .setValue(this.host.settings.badgeProperty)
+          .onChange(async (value) => {
+            this.host.settings.badgeProperty = value.trim();
+            await this.host.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Badge color")
+      .setDesc("Choose a color for the work item badge.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("accent", "Accent")
+          .addOption("green", "Green")
+          .addOption("blue", "Blue")
+          .addOption("purple", "Purple")
+          .addOption("orange", "Orange")
+          .addOption("red", "Red")
+          .addOption("yellow", "Yellow")
+          .addOption("gray", "Gray")
+          .addOption("custom", "Custom")
+          .setValue(this.host.settings.badgeColor)
+          .onChange(async (value) => {
+            this.host.settings.badgeColor = value;
+            await this.host.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.host.settings.badgeColor === "custom") {
+      new Setting(containerEl)
+        .setName("Custom badge color")
+        .setDesc("Any valid CSS color, for example #ffffff, #4caf50, or rgb(120, 90, 255).")
+        .addText((text) =>
+          text
+            .setPlaceholder("#ffffff")
+            .setValue(this.host.settings.badgeCustomColor)
+            .onChange(async (value) => {
+              this.host.settings.badgeCustomColor = value.trim();
+              await this.host.saveSettings();
+            })
+        );
+    }
+
+    new Setting(containerEl)
       .setName("Open tasks side by side")
       .setDesc("When you double-click a task in Board, Calendar, or Timeline, open its Markdown file in a split pane to the right. Turn this off to open it in the current pane instead.")
       .addToggle((toggle) =>
