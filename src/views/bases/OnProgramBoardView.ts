@@ -117,12 +117,16 @@ export class OnProgramBoardView extends BasesView {
     card.draggable = true;
     card.dataset.path = item.source.path;
     card.setAttr("title", item.linkedBase
-      ? "Click the title to open the linked Base. Double-click the card to open the task note."
+      ? "Double-click to open the linked OnProgram Base. Right-click to open the task note or change the link."
       : "Double-click to open this task. Right-click to link an OnProgram Base.");
 
     card.addEventListener("dblclick", (event) => {
       event.stopPropagation();
-      this.openItem(item.source.path);
+      if (item.linkedBase) {
+        void this.openLinkedBase(item.linkedBase);
+      } else {
+        this.openItem(item.source.path);
+      }
     });
     card.addEventListener("contextmenu", (event) => {
       event.preventDefault();
