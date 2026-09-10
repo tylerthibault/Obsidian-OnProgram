@@ -163,7 +163,7 @@ export class CalendarStatusService implements OnProgramService {
         `${item.title}\nStatus: ${humanize(item.status)}\nRight-click to change status. Double-click to open.`
       );
 
-      let badge = element.querySelector(`.${STATUS_BADGE_CLASS}`) as HTMLElement | null;
+      let badge = element.querySelector(`:scope > .${STATUS_BADGE_CLASS}`) as HTMLElement | null;
       if (item.status === "done" || item.status === "posted") {
         if (!badge) {
           badge = element.createSpan({ cls: STATUS_BADGE_CLASS });
@@ -184,8 +184,15 @@ function humanize(value: string): string {
 }
 
 const CALENDAR_STATUS_STYLES = `
+.onprogram-calendar-view .onprogram-calendar-item {
+  position: relative;
+}
+
+/* Timed items need visible overflow so the status pill can sit just outside
+ * the corner. The title itself still clips/wraps inside its own box. */
 .onprogram-calendar-view .onprogram-calendar-timed-item {
   position: absolute;
+  overflow: visible;
 }
 
 .onprogram-calendar-view .onprogram-calendar-timed-item .onprogram-calendar-timed-title {
@@ -213,27 +220,34 @@ const CALENDAR_STATUS_STYLES = `
 }
 
 .onprogram-calendar-status-badge {
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding: 1px 5px;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  bottom: auto;
+  left: auto;
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1px 6px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 999px;
   color: var(--text-muted);
   background: var(--background-primary-alt);
   font-size: var(--font-ui-smallest);
   font-weight: var(--font-semibold);
-  line-height: 1.35;
+  line-height: 14px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
   pointer-events: none;
-}
-
-.onprogram-calendar-timed-item .onprogram-calendar-status-badge {
-  position: absolute;
-  top: 5px;
-  right: 6px;
-  z-index: 7;
-  margin: 0;
 }
 
 .onprogram-calendar-item[data-onprogram-status="done"] {
@@ -254,5 +268,6 @@ const CALENDAR_STATUS_STYLES = `
 .onprogram-calendar-item[data-onprogram-status="posted"] .onprogram-calendar-status-badge {
   color: var(--text-accent);
   border-color: var(--interactive-accent);
+  background: var(--background-primary);
 }
 `;
