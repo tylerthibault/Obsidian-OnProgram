@@ -1,9 +1,12 @@
-import { BasesView, Notice, type QueryController } from "obsidian";
+import { BasesView, Menu, Notice, type QueryController } from "obsidian";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
+import { OnProgramBasePickerModal } from "../../components/OnProgramBasePickerModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
+import type { WorkItem } from "../../models/work-item/WorkItem";
 import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import { resolveLinkedOnProgramBase } from "../../services/bases/LinkedOnProgramBase";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
@@ -86,11 +89,18 @@ export class OnProgramBoardView extends BasesView {
         const card = cards.createDiv({ cls: "onprogram-board-card" });
         card.draggable = true;
         card.dataset.path = item.source.path;
-        card.setAttr("title", "Double-click to open this task");
+        card.setAttr("title", item.linkedBase
+          ? "Click the title to open the linked Base. Double-click the card to open the task note."
+          : "Double-click to open this task. Right-click to link an OnProgram Base.");
 
         card.addEventListener("dblclick", (event) => {
           event.stopPropagation();
           this.openItem(item.source.path);
+        });
+        card.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.showCardMenu(event, item);
         });
         card.addEventListener("dragstart", (event) => {
           this.draggedPath = item.source.path;
@@ -105,14 +115,28 @@ export class OnProgramBoardView extends BasesView {
             .forEach((element) => element.removeClass("onprogram-board-drop-target"));
         });
 
-        card.createEl("button", {
+        const titleButton = card.createEl("button", {
           text: item.title,
           cls: "onprogram-board-card-title"
         });
 
+        if (item.linkedBase) {
+          card.addClass("onprogram-board-card-has-linked-base");
+          titleButton.addClass("onprogram-board-card-linked-title");
+          titleButton.setAttr("title", `Open linked OnProgram Base: ${item.linkedBase}`);
+          titleButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            void this.openLinkedBase(item.linkedBase);
+          });
+          titleButton.addEventListener("dblclick", (event) => event.stopPropagation());
+        }
+
         const meta = card.createDiv({ cls: "onprogram-board-card-meta" });
         meta.createSpan({ text: item.priority });
         if (item.project) meta.createSpan({ text: item.project });
+        if (item.linkedBase) {
+          meta.createSpan({ text: "Base ↗", cls: "onprogram-board-linked-base-indicator" });
+        }
         if (item.dates.due) meta.createSpan({ text: `Due ${item.dates.due.iso}` });
         if (item.dates.scheduled) meta.createSpan({ text: `Scheduled ${item.dates.scheduled.iso}` });
       }
@@ -142,6 +166,74 @@ export class OnProgramBoardView extends BasesView {
   private openItem(path: string): void {
     const entry = this.data.data.find((candidate) => candidate.file.path === path);
     if (entry) void this.workItemOpener.open(entry.file);
+  }
+
+  private async openLinkedBase(reference: string | undefined): Promise<void> {
+    const baseFile = resolveLinkedOnProgramBase(this.app, reference);
+    if (!baseFile) {
+      new Notice(`OnProgram: Linked Base was not found${reference ? `: ${reference}` : "."}`);
+      return;
+    }
+
+    await this.app.workspace.getLeaf(false).openFile(baseFile);
+  }
+
+  private showCardMenu(event: MouseEvent, item: WorkItem): void {
+    const menu = new Menu();
+
+    if (item.linkedBase) {
+      menu.addItem((menuItem) => menuItem
+        .setTitle("Open linked OnProgram Base")
+        .setIcon("layout-dashboard")
+        .onClick(() => void this.openLinkedBase(item.linkedBase)));
+
+      menu.addItem((menuItem) => menuItem
+        .setTitle("Change linked OnProgram Base…")
+        .setIcon("link")
+        .onClick(() => this.chooseLinkedBase(item)));
+
+      menu.addItem((menuItem) => menuItem
+        .setTitle("Remove linked OnProgram Base")
+        .setIcon("unlink")
+        .onClick(() => void this.setLinkedBase(item, null)));
+    } else {
+      menu.addItem((menuItem) => menuItem
+        .setTitle("Link to OnProgram Base…")
+        .setIcon("link")
+        .onClick(() => this.chooseLinkedBase(item)));
+    }
+
+    menu.addSeparator();
+    menu.addItem((menuItem) => menuItem
+      .setTitle("Open task note")
+      .setIcon("file-text")
+      .onClick(() => this.openItem(item.source.path)));
+
+    menu.showAtMouseEvent(event);
+  }
+
+  private chooseLinkedBase(item: WorkItem): void {
+    new OnProgramBasePickerModal(this.app, (baseFile) => {
+      void this.setLinkedBase(item, baseFile.path);
+    }).open();
+  }
+
+  private async setLinkedBase(item: WorkItem, linkedBase: string | null): Promise<void> {
+    if (this.writing) return;
+    this.writing = true;
+    this.hostEl.addClass("onprogram-is-busy");
+
+    try {
+      await this.writer.updateItem(item, { linkedBase });
+      new Notice(linkedBase
+        ? `OnProgram: linked ${item.title} to ${linkedBase}.`
+        : `OnProgram: removed linked Base from ${item.title}.`);
+    } catch (error) {
+      this.errorHandler.handle(error, "link board card to OnProgram Base", true);
+    } finally {
+      this.writing = false;
+      this.hostEl.removeClass("onprogram-is-busy");
+    }
   }
 
   private async moveDraggedItem(status: WorkItemStatus): Promise<void> {
