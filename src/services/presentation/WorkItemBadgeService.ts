@@ -1,4 +1,4 @@
-import type { Plugin } from "obsidian";
+import type { HoverParent, HoverPopover, Plugin } from "obsidian";
 import type { OnProgramService } from "../ServiceRegistry";
 import {
   applyBadgeAppearance,
@@ -18,9 +18,11 @@ const BADGE_SELECTOR = [
 ].join(", ");
 
 const SETTINGS_CHANGED_EVENT = "onprogram-settings-changed";
+const CALENDAR_BADGE_TRAY_CLASS = "onprogram-calendar-badge-tray";
 
-export class WorkItemBadgeService implements OnProgramService {
+export class WorkItemBadgeService implements OnProgramService, HoverParent {
   readonly id = "work-item-badges";
+  hoverPopover: HoverPopover | null = null;
 
   private container?: HTMLElement;
   private observer?: MutationObserver;
@@ -42,6 +44,7 @@ export class WorkItemBadgeService implements OnProgramService {
     this.container.ownerDocument.head.appendChild(this.styleEl);
 
     this.container.addEventListener(SETTINGS_CHANGED_EVENT, this.handleSettingsChanged);
+    this.container.addEventListener("mouseover", this.handleCalendarTitleHover);
 
     if (view) {
       this.observer = new view.MutationObserver(() => this.queueRefresh());
@@ -63,6 +66,7 @@ export class WorkItemBadgeService implements OnProgramService {
 
     if (this.container) {
       this.container.removeEventListener(SETTINGS_CHANGED_EVENT, this.handleSettingsChanged);
+      this.container.removeEventListener("mouseover", this.handleCalendarTitleHover);
     }
 
     this.styleEl?.remove();
@@ -79,6 +83,31 @@ export class WorkItemBadgeService implements OnProgramService {
 
   private readonly handleSettingsChanged = (): void => {
     this.queueRefresh();
+  };
+
+  private readonly handleCalendarTitleHover = (event: MouseEvent): void => {
+    const target = event.target as HTMLElement | null;
+    const titleEl = target?.closest(
+      ".onprogram-calendar-item-title"
+    ) as HTMLElement | null;
+    if (!titleEl) return;
+
+    const calendarItem = titleEl.closest(
+      ".onprogram-calendar-item[data-path]"
+    ) as HTMLElement | null;
+    const path = calendarItem?.dataset.path;
+    if (!path) return;
+
+    // Use native Page Preview primarily when the title has actually been truncated.
+    if (titleEl.scrollWidth <= titleEl.clientWidth) return;
+
+    this.plugin.app.workspace.trigger("hover-link", {
+      event,
+      source: "onprogram-calendar",
+      hoverParent: this,
+      targetEl: titleEl,
+      linktext: path
+    });
   };
 
   private queueRefresh(): void {
@@ -107,16 +136,22 @@ export class WorkItemBadgeService implements OnProgramService {
       const path = element.dataset.path;
       if (!path) continue;
 
-      const existing = element.querySelector(":scope > .onprogram-work-item-badge") as HTMLElement | null;
+      const isCalendarItem = element.classList.contains("onprogram-calendar-item");
+      const tray = isCalendarItem ? getOrCreateCalendarBadgeTray(element) : undefined;
+      const parent = tray ?? element;
+      const existing = parent.querySelector(
+        ":scope > .onprogram-work-item-badge"
+      ) as HTMLElement | null;
       const value = getFileBadgeValue(this.plugin.app, path, property);
 
       if (!value) {
         existing?.remove();
+        cleanupCalendarBadgeTray(element);
         element.removeClass("onprogram-has-work-item-badge");
         continue;
       }
 
-      const badge = existing ?? element.createSpan({ cls: "onprogram-work-item-badge" });
+      const badge = existing ?? parent.createSpan({ cls: "onprogram-work-item-badge" });
       if (badge.textContent !== value) badge.setText(value);
 
       applyBadgeAppearance(badge, {
@@ -127,6 +162,20 @@ export class WorkItemBadgeService implements OnProgramService {
       element.addClass("onprogram-has-work-item-badge");
     }
   }
+}
+
+function getOrCreateCalendarBadgeTray(element: HTMLElement): HTMLElement {
+  const existing = element.querySelector(
+    `:scope > .${CALENDAR_BADGE_TRAY_CLASS}`
+  ) as HTMLElement | null;
+  return existing ?? element.createDiv({ cls: CALENDAR_BADGE_TRAY_CLASS });
+}
+
+function cleanupCalendarBadgeTray(element: HTMLElement): void {
+  const tray = element.querySelector(
+    `:scope > .${CALENDAR_BADGE_TRAY_CLASS}`
+  ) as HTMLElement | null;
+  if (tray && tray.children.length === 0) tray.remove();
 }
 
 const BADGE_STYLES = `
@@ -173,21 +222,56 @@ const BADGE_STYLES = `
 .onprogram-work-item-badge[data-badge-color="yellow"] { --onprogram-badge-color: var(--color-yellow); }
 .onprogram-work-item-badge[data-badge-color="gray"] { --onprogram-badge-color: var(--text-muted); }
 
-/* Timed Calendar cards reserve a header row for the time + property badge. */
-.onprogram-calendar-timed-item.onprogram-has-work-item-badge .onprogram-calendar-timed-title,
-.onprogram-calendar-timed-item .onprogram-calendar-timed-title {
-  display: -webkit-box;
-  width: 100%;
+/* Calendar status + property badges share one horizontal floating row. */
+.onprogram-calendar-badge-tray {
+  position: absolute;
+  top: -8px;
+  right: -7px;
+  z-index: 14;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: calc(100% - 8px);
+  pointer-events: none;
+}
+
+.onprogram-calendar-badge-tray > .onprogram-work-item-badge,
+.onprogram-calendar-badge-tray > .onprogram-calendar-status-badge {
+  position: static !important;
+  inset: auto !important;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.onprogram-calendar-badge-tray > .onprogram-calendar-status-badge {
+  order: 1;
+}
+
+.onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+  order: 2;
+}
+
+/* Keep timed titles on one clean line; native Page Preview handles overflow detail. */
+.onprogram-calendar-view .onprogram-calendar-timed-item .onprogram-calendar-timed-title {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 22px;
+  bottom: 9px;
+  width: auto;
   max-width: none;
-  padding: 23px 8px 8px;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  min-width: 0;
+  height: auto;
+  margin: 0;
+  padding: 0 6px;
+  display: block;
+  white-space: nowrap;
   overflow: hidden;
-  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-align: center;
+  line-height: 1.3;
 }
 
 .onprogram-calendar-item:not(.onprogram-calendar-timed-item).onprogram-has-work-item-badge .onprogram-calendar-item-title {
