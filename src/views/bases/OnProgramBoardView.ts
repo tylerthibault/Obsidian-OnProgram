@@ -6,6 +6,11 @@ import type { WorkItem } from "../../models/work-item/WorkItem";
 import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import {
+  parseLinkedBaseBoardCards,
+  serializeLinkedBaseBoardCards,
+  type LinkedBaseBoardCard
+} from "../../services/bases/LinkedBaseBoardCard";
 import { resolveLinkedOnProgramBase } from "../../services/bases/LinkedOnProgramBase";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
@@ -13,9 +18,13 @@ import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
 
 export const ONPROGRAM_BOARD_VIEW_ID = "onprogram-board";
 
+type DraggedBoardItem =
+  | { kind: "work-item"; path: string }
+  | { kind: "linked-base"; basePath: string };
+
 export class OnProgramBoardView extends BasesView {
   type = ONPROGRAM_BOARD_VIEW_ID;
-  private draggedPath?: string;
+  private draggedItem?: DraggedBoardItem;
   private writing = false;
 
   constructor(
@@ -39,10 +48,13 @@ export class OnProgramBoardView extends BasesView {
     this.hostEl.addClass("onprogram-board-view");
 
     const result = this.adapter.adapt(this.data);
+    const linkedBases = this.getLinkedBaseCards();
+    const totalCards = result.items.length + linkedBases.length;
+
     const header = this.hostEl.createDiv({ cls: "onprogram-board-header" });
     header.createEl("h3", { text: "OnProgram Board" });
     header.createSpan({
-      text: `${result.items.length} ${result.items.length === 1 ? "card" : "cards"}`,
+      text: `${totalCards} ${totalCards === 1 ? "card" : "cards"}`,
       cls: "onprogram-board-count"
     });
 
@@ -53,19 +65,24 @@ export class OnProgramBoardView extends BasesView {
       });
     }
 
-    const addTask = header.createEl("button", { text: "+ New task" });
+    const addTask = header.createEl("button", { text: "+ Add" });
+    addTask.setAttr("title", "Add a task or link another OnProgram Base");
     addTask.addEventListener("click", () => this.createTask());
 
     const board = this.hostEl.createDiv({ cls: "onprogram-board" });
 
     for (const status of WORK_ITEM_STATUSES) {
       const items = result.items.filter((item) => item.status === status);
+      const baseCards = linkedBases.filter((card) => card.status === status);
       const column = board.createDiv({ cls: "onprogram-board-column" });
       column.dataset.status = status;
 
       const columnHeader = column.createDiv({ cls: "onprogram-board-column-header" });
       columnHeader.createEl("strong", { text: humanize(status) });
-      columnHeader.createSpan({ text: String(items.length), cls: "onprogram-board-column-count" });
+      columnHeader.createSpan({
+        text: String(items.length + baseCards.length),
+        cls: "onprogram-board-column-count"
+      });
 
       const cards = column.createDiv({ cls: "onprogram-board-cards" });
       cards.setAttr("title", `Double-click empty space to create a ${humanize(status)} task`);
@@ -76,7 +93,7 @@ export class OnProgramBoardView extends BasesView {
       });
       cards.addEventListener("dragover", (event) => {
         event.preventDefault();
-        if (this.draggedPath) column.addClass("onprogram-board-drop-target");
+        if (this.draggedItem) column.addClass("onprogram-board-drop-target");
       });
       cards.addEventListener("dragleave", () => column.removeClass("onprogram-board-drop-target"));
       cards.addEventListener("drop", (event) => {
@@ -86,61 +103,113 @@ export class OnProgramBoardView extends BasesView {
       });
 
       for (const item of items) {
-        const card = cards.createDiv({ cls: "onprogram-board-card" });
-        card.draggable = true;
-        card.dataset.path = item.source.path;
-        card.setAttr("title", item.linkedBase
-          ? "Click the title to open the linked Base. Double-click the card to open the task note."
-          : "Double-click to open this task. Right-click to link an OnProgram Base.");
+        this.renderWorkItemCard(cards, item);
+      }
 
-        card.addEventListener("dblclick", (event) => {
-          event.stopPropagation();
-          this.openItem(item.source.path);
-        });
-        card.addEventListener("contextmenu", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          this.showCardMenu(event, item);
-        });
-        card.addEventListener("dragstart", (event) => {
-          this.draggedPath = item.source.path;
-          card.addClass("onprogram-board-card-dragging");
-          event.dataTransfer?.setData("text/plain", item.source.path);
-          if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-        });
-        card.addEventListener("dragend", () => {
-          this.draggedPath = undefined;
-          card.removeClass("onprogram-board-card-dragging");
-          this.hostEl.querySelectorAll(".onprogram-board-drop-target")
-            .forEach((element) => element.removeClass("onprogram-board-drop-target"));
-        });
-
-        const titleButton = card.createEl("button", {
-          text: item.title,
-          cls: "onprogram-board-card-title"
-        });
-
-        if (item.linkedBase) {
-          card.addClass("onprogram-board-card-has-linked-base");
-          titleButton.addClass("onprogram-board-card-linked-title");
-          titleButton.setAttr("title", `Open linked OnProgram Base: ${item.linkedBase}`);
-          titleButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            void this.openLinkedBase(item.linkedBase);
-          });
-          titleButton.addEventListener("dblclick", (event) => event.stopPropagation());
-        }
-
-        const meta = card.createDiv({ cls: "onprogram-board-card-meta" });
-        meta.createSpan({ text: item.priority });
-        if (item.project) meta.createSpan({ text: item.project });
-        if (item.linkedBase) {
-          meta.createSpan({ text: "Base ↗", cls: "onprogram-board-linked-base-indicator" });
-        }
-        if (item.dates.due) meta.createSpan({ text: `Due ${item.dates.due.iso}` });
-        if (item.dates.scheduled) meta.createSpan({ text: `Scheduled ${item.dates.scheduled.iso}` });
+      for (const linkedBase of baseCards) {
+        this.renderLinkedBaseCard(cards, linkedBase);
       }
     }
+  }
+
+  private renderWorkItemCard(cards: HTMLElement, item: WorkItem): void {
+    const card = cards.createDiv({ cls: "onprogram-board-card" });
+    card.draggable = true;
+    card.dataset.path = item.source.path;
+    card.setAttr("title", item.linkedBase
+      ? "Click the title to open the linked Base. Double-click the card to open the task note."
+      : "Double-click to open this task. Right-click to link an OnProgram Base.");
+
+    card.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      this.openItem(item.source.path);
+    });
+    card.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.showCardMenu(event, item);
+    });
+    card.addEventListener("dragstart", (event) => {
+      this.draggedItem = { kind: "work-item", path: item.source.path };
+      card.addClass("onprogram-board-card-dragging");
+      event.dataTransfer?.setData("text/plain", item.source.path);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => this.finishDrag(card));
+
+    const titleButton = card.createEl("button", {
+      text: item.title,
+      cls: "onprogram-board-card-title"
+    });
+
+    if (item.linkedBase) {
+      card.addClass("onprogram-board-card-has-linked-base");
+      titleButton.addClass("onprogram-board-card-linked-title");
+      titleButton.setAttr("title", `Open linked OnProgram Base: ${item.linkedBase}`);
+      titleButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void this.openLinkedBase(item.linkedBase);
+      });
+      titleButton.addEventListener("dblclick", (event) => event.stopPropagation());
+    }
+
+    const meta = card.createDiv({ cls: "onprogram-board-card-meta" });
+    meta.createSpan({ text: item.priority });
+    if (item.project) meta.createSpan({ text: item.project });
+    if (item.linkedBase) {
+      meta.createSpan({ text: "Base ↗", cls: "onprogram-board-linked-base-indicator" });
+    }
+    if (item.dates.due) meta.createSpan({ text: `Due ${item.dates.due.iso}` });
+    if (item.dates.scheduled) meta.createSpan({ text: `Scheduled ${item.dates.scheduled.iso}` });
+  }
+
+  private renderLinkedBaseCard(cards: HTMLElement, linkedBase: LinkedBaseBoardCard): void {
+    const baseFile = resolveLinkedOnProgramBase(this.app, linkedBase.basePath);
+    const title = baseFile ? linkedBaseTitle(baseFile.name) : linkedBaseTitle(linkedBase.basePath);
+    const card = cards.createDiv({
+      cls: "onprogram-board-card onprogram-board-linked-base-card"
+    });
+    card.draggable = true;
+    card.dataset.linkedBasePath = linkedBase.basePath;
+    card.setAttr("role", "button");
+    card.setAttr("tabindex", "0");
+    card.setAttr(
+      "title",
+      baseFile
+        ? `Open OnProgram Base: ${linkedBase.basePath}`
+        : `Linked OnProgram Base not found: ${linkedBase.basePath}`
+    );
+
+    card.addEventListener("click", () => void this.openLinkedBase(linkedBase.basePath));
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      void this.openLinkedBase(linkedBase.basePath);
+    });
+    card.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.showLinkedBaseCardMenu(event, linkedBase);
+    });
+    card.addEventListener("dragstart", (event) => {
+      this.draggedItem = { kind: "linked-base", basePath: linkedBase.basePath };
+      card.addClass("onprogram-board-card-dragging");
+      event.dataTransfer?.setData("text/plain", linkedBase.basePath);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => this.finishDrag(card));
+
+    card.createDiv({ text: title, cls: "onprogram-board-card-title" });
+    const meta = card.createDiv({ cls: "onprogram-board-card-meta" });
+    meta.createSpan({ text: linkedBase.priority });
+    meta.createSpan({ text: "Base ↗", cls: "onprogram-board-linked-base-indicator" });
+  }
+
+  private finishDrag(card: HTMLElement): void {
+    this.draggedItem = undefined;
+    card.removeClass("onprogram-board-card-dragging");
+    this.hostEl.querySelectorAll(".onprogram-board-drop-target")
+      .forEach((element) => element.removeClass("onprogram-board-drop-target"));
   }
 
   private createTask(initialStatus?: WorkItemStatus): void {
@@ -154,13 +223,45 @@ export class OnProgramBoardView extends BasesView {
         });
         new Notice(`OnProgram: Created ${result.title}.`);
       },
-      onError: (error) => this.errorHandler.handle(error, "create board task", true)
+      onLinkBase: async (baseFile) => {
+        this.addLinkedBaseCard(baseFile.path, initialStatus ?? "todo");
+        new Notice(`OnProgram: Added linked Base ${linkedBaseTitle(baseFile.name)}.`);
+      },
+      onError: (error) => this.errorHandler.handle(error, "add board item", true)
     }).open();
   }
 
   private getConfiguredTaskFolder(): string | undefined {
     const value = this.config.get("taskFolder");
     return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  }
+
+  private getLinkedBaseCards(): LinkedBaseBoardCard[] {
+    return parseLinkedBaseBoardCards(this.config.get("linkedBases"));
+  }
+
+  private persistLinkedBaseCards(cards: LinkedBaseBoardCard[]): void {
+    this.config.set("linkedBases", serializeLinkedBaseBoardCards(cards));
+    this.render();
+  }
+
+  private addLinkedBaseCard(basePath: string, status: WorkItemStatus): void {
+    const cards = this.getLinkedBaseCards();
+    if (cards.some((card) => card.basePath === basePath)) {
+      new Notice("OnProgram: That Base is already linked on this Board.");
+      return;
+    }
+
+    this.persistLinkedBaseCards([
+      ...cards,
+      { basePath, status, priority: "normal" }
+    ]);
+  }
+
+  private removeLinkedBaseCard(basePath: string): void {
+    this.persistLinkedBaseCards(
+      this.getLinkedBaseCards().filter((card) => card.basePath !== basePath)
+    );
   }
 
   private openItem(path: string): void {
@@ -176,6 +277,19 @@ export class OnProgramBoardView extends BasesView {
     }
 
     await this.app.workspace.getLeaf(false).openFile(baseFile);
+  }
+
+  private showLinkedBaseCardMenu(event: MouseEvent, linkedBase: LinkedBaseBoardCard): void {
+    const menu = new Menu();
+    menu.addItem((item) => item
+      .setTitle("Open linked OnProgram Base")
+      .setIcon("layout-dashboard")
+      .onClick(() => void this.openLinkedBase(linkedBase.basePath)));
+    menu.addItem((item) => item
+      .setTitle("Remove from Board")
+      .setIcon("unlink")
+      .onClick(() => this.removeLinkedBaseCard(linkedBase.basePath)));
+    menu.showAtMouseEvent(event);
   }
 
   private showCardMenu(event: MouseEvent, item: WorkItem): void {
@@ -237,10 +351,25 @@ export class OnProgramBoardView extends BasesView {
   }
 
   private async moveDraggedItem(status: WorkItemStatus): Promise<void> {
-    if (this.writing || !this.draggedPath) return;
+    if (this.writing || !this.draggedItem) return;
 
+    if (this.draggedItem.kind === "linked-base") {
+      const basePath = this.draggedItem.basePath;
+      const cards = this.getLinkedBaseCards();
+      const card = cards.find((candidate) => candidate.basePath === basePath);
+      if (!card || card.status === status) return;
+
+      this.persistLinkedBaseCards(cards.map((candidate) =>
+        candidate.basePath === basePath ? { ...candidate, status } : candidate
+      ));
+      new Notice(`OnProgram: moved ${linkedBaseTitle(basePath)} to ${humanize(status)}.`);
+      this.draggedItem = undefined;
+      return;
+    }
+
+    const path = this.draggedItem.path;
     const result = this.adapter.adapt(this.data);
-    const item = result.items.find((candidate) => candidate.source.path === this.draggedPath);
+    const item = result.items.find((candidate) => candidate.source.path === path);
     if (!item || item.status === status) return;
 
     const schema = getWorkItemTypeSchema(item.type);
@@ -258,10 +387,15 @@ export class OnProgramBoardView extends BasesView {
       this.errorHandler.handle(error, "move board card", true);
     } finally {
       this.writing = false;
-      this.draggedPath = undefined;
+      this.draggedItem = undefined;
       this.hostEl.removeClass("onprogram-is-busy");
     }
   }
+}
+
+function linkedBaseTitle(pathOrName: string): string {
+  const name = pathOrName.split("/").pop() ?? pathOrName;
+  return name.replace(/\.onprogram\.base$/i, "").replace(/\.base$/i, "");
 }
 
 function humanize(value: string): string {
