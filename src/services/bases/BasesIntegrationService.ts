@@ -71,7 +71,7 @@ export class BasesIntegrationService implements OnProgramService {
     const boardRegistered = this.plugin.registerBasesView(ONPROGRAM_BOARD_VIEW_ID, {
       name: "OnProgram Board",
       icon: "columns-3",
-      options: baseTaskFolderOptions,
+      options: boardViewOptions,
       factory: (controller, containerEl) => new OnProgramBoardView(
         controller,
         containerEl,
@@ -149,6 +149,22 @@ function baseTaskFolderOptions() {
       type: "folder" as const,
       key: "taskFolder",
       displayName: "OnProgram task folder",
+      shouldHide: () => true
+    }
+  ];
+}
+
+function boardViewOptions() {
+  return [
+    ...baseTaskFolderOptions(),
+    {
+      // Virtual linked-Base cards are Board metadata, not Markdown work items.
+      // Keeping this as a registered hidden view option makes Bases persist the
+      // JSON safely inside the Board's own view configuration.
+      type: "text" as const,
+      key: "linkedBases",
+      displayName: "Linked OnProgram Bases",
+      default: "[]",
       shouldHide: () => true
     }
   ];
