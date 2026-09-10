@@ -28,7 +28,8 @@ const COMMON_OPTIONAL_PROPERTIES = [
   "duration",
   "completed",
   "parent",
-  "dependsOn"
+  "dependsOn",
+  "linkedBase"
 ] as const satisfies readonly WorkItemPropertyKey[];
 
 export const WORK_ITEM_TYPE_SCHEMAS: Readonly<Record<WorkItemType, WorkItemTypeSchema>> = {
