@@ -27,18 +27,11 @@ export interface CreateTaskRequest {
   project?: string;
   /** Optional status override used by contextual creation, such as Board columns. */
   initialStatus?: WorkItemStatus;
-  /**
-   * Optional destination hint supplied by a folder-scoped OnProgram Base view.
-   * In current-base mode, live Base context wins and this is a compatibility fallback.
-   */
+  /** Optional destination hint supplied by a folder-scoped OnProgram Base view. */
   targetFolder?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
-  /**
-   * Whether to navigate to the newly created note. Defaults to true for command
-   * compatibility. Interactive Bases views pass false so the planning surface
-   * stays visible after creation.
-   */
+  /** Whether to navigate to the newly created note. */
   openAfterCreate?: boolean;
 }
 
@@ -120,13 +113,9 @@ export class TaskCreator {
     const map = config.propertyMap;
 
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      // Type and initial status are canonical invariants for a newly created task.
       frontmatter[map.type] = "task";
       frontmatter[map.status] = request.initialStatus ?? DEFAULT_STATUS_BY_TYPE.task;
 
-      // Populate the complete OnProgram schema once. This means a task can move
-      // between Board, Calendar, Timeline, and future views without requiring a
-      // later migration just to add missing properties.
       setDefault(frontmatter, map.project, project || null);
       setDefault(frontmatter, map.priority, "normal");
       setDefault(frontmatter, map.start, null);
@@ -137,11 +126,9 @@ export class TaskCreator {
       setDefault(frontmatter, map.completed, null);
       setDefault(frontmatter, map.parent, null);
       setDefault(frontmatter, map.dependsOn, []);
+      setDefault(frontmatter, map.linkedBase, null);
 
-      if (project) {
-        // Explicit/default project configuration should win over a blank template value.
-        frontmatter[map.project] = project;
-      }
+      if (project) frontmatter[map.project] = project;
 
       if (request.initialDate) {
         frontmatter[map[request.initialDate.field]] = request.initialDate.value.iso;
@@ -151,9 +138,7 @@ export class TaskCreator {
 
   private async loadTemplate(templatePath: string): Promise<{ content: string; usedTemplate: boolean }> {
     const trimmed = templatePath.trim();
-    if (!trimmed) {
-      return { content: "", usedTemplate: false };
-    }
+    if (!trimmed) return { content: "", usedTemplate: false };
 
     const normalized = normalizeVaultPath(trimmed, "template path");
     const candidates = normalized.toLowerCase().endsWith(".md")
@@ -177,9 +162,7 @@ export class TaskCreator {
   }
 
   private async ensureFolder(folder: string): Promise<void> {
-    if (!folder) {
-      return;
-    }
+    if (!folder) return;
 
     const segments = folder.split("/").filter((segment) => segment.length > 0);
     let current = "";
@@ -207,15 +190,11 @@ export class TaskCreator {
       normalizePath(`${folder ? `${folder}/` : ""}${title}${suffix}.md`);
 
     const first = makePath("");
-    if (!this.app.vault.getAbstractFileByPath(first)) {
-      return first;
-    }
+    if (!this.app.vault.getAbstractFileByPath(first)) return first;
 
     for (let index = 2; index <= 9999; index += 1) {
       const candidate = makePath(` ${index}`);
-      if (!this.app.vault.getAbstractFileByPath(candidate)) {
-        return candidate;
-      }
+      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
     }
 
     throw new OnProgramError(
@@ -226,9 +205,7 @@ export class TaskCreator {
 
   private assertSafePropertyMap(propertyMap: WorkItemPropertyMap): void {
     const issues = validateWorkItemPropertyMap(propertyMap);
-    if (issues.length === 0) {
-      return;
-    }
+    if (issues.length === 0) return;
 
     throw new OnProgramError(
       `Cannot create a task with the current property mapping: ${issues.map((issue) => issue.message).join(" ")}`,
@@ -258,10 +235,7 @@ export function normalizeTaskTitle(value: string): string {
 
 export function normalizeTaskFolder(value: string): string {
   const trimmed = value.trim();
-  if (!trimmed || trimmed === "/") {
-    return "";
-  }
-
+  if (!trimmed || trimmed === "/") return "";
   return normalizeVaultPath(trimmed, "task folder");
 }
 
@@ -276,10 +250,7 @@ function normalizeVaultPath(value: string, label: string): string {
     );
   }
 
-  if (segments.length === 0) {
-    return "";
-  }
-
+  if (segments.length === 0) return "";
   return normalizePath(segments.join("/"));
 }
 
