@@ -45,18 +45,6 @@ const TIMELINE_ZOOM_OPTIONS: Record<string, string> = {
   quarter: "Quarter"
 };
 
-const BADGE_COLOR_OPTIONS: Record<string, string> = {
-  accent: "Accent",
-  green: "Green",
-  blue: "Blue",
-  purple: "Purple",
-  orange: "Orange",
-  red: "Red",
-  yellow: "Yellow",
-  gray: "Gray",
-  custom: "Custom"
-};
-
 export class BasesIntegrationService implements OnProgramService {
   readonly id = "bases-integration";
   private registered = false;
@@ -83,7 +71,7 @@ export class BasesIntegrationService implements OnProgramService {
     const boardRegistered = this.plugin.registerBasesView(ONPROGRAM_BOARD_VIEW_ID, {
       name: "OnProgram Board",
       icon: "columns-3",
-      options: boardViewOptions,
+      options: baseTaskFolderOptions,
       factory: (controller, containerEl) => new OnProgramBoardView(
         controller,
         containerEl,
@@ -166,37 +154,6 @@ function baseTaskFolderOptions() {
   ];
 }
 
-function badgeViewOptions() {
-  return [
-    {
-      type: "text" as const,
-      key: "badgeProperty",
-      displayName: "Badge property",
-      default: ""
-    },
-    {
-      type: "dropdown" as const,
-      key: "badgeColor",
-      displayName: "Badge color",
-      default: "accent",
-      options: BADGE_COLOR_OPTIONS
-    },
-    {
-      type: "text" as const,
-      key: "badgeCustomColor",
-      displayName: "Custom badge color",
-      default: ""
-    }
-  ];
-}
-
-function boardViewOptions() {
-  return [
-    ...baseTaskFolderOptions(),
-    ...badgeViewOptions()
-  ];
-}
-
 function calendarViewOptions() {
   return [
     ...baseTaskFolderOptions(),
@@ -213,8 +170,7 @@ function calendarViewOptions() {
       displayName: "Calendar date field",
       default: "scheduled",
       options: CALENDAR_FIELD_OPTIONS
-    },
-    ...badgeViewOptions()
+    }
   ];
 }
 
