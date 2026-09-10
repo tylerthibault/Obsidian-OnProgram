@@ -140,6 +140,13 @@ export default class OnProgramPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+
+    const container = this.app.workspace.containerEl;
+    const view = container.ownerDocument.defaultView;
+    if (view) {
+      container.dispatchEvent(new view.CustomEvent("onprogram-settings-changed"));
+    }
+
     this.logger?.debug("Settings saved", {
       debugMode: this.settings.debugMode,
       showStartupNotice: this.settings.showStartupNotice,
