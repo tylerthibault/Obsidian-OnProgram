@@ -23,6 +23,12 @@ export interface OnProgramSettings {
   taskTemplatePath: string;
   /** Optional default project reference assigned to newly created tasks. */
   defaultProject: string;
+  /** Optional frontmatter property shown as a badge on supported OnProgram views. */
+  badgeProperty: string;
+  /** Badge palette name. Custom uses badgeCustomColor. */
+  badgeColor: string;
+  /** CSS color used when badgeColor is custom, for example #ffffff or rgb(...). */
+  badgeCustomColor: string;
 }
 
 export const DEFAULT_SETTINGS: OnProgramSettings = {
@@ -33,5 +39,8 @@ export const DEFAULT_SETTINGS: OnProgramSettings = {
   taskFolderMode: "current-base",
   taskFolder: "OnProgram/Tasks",
   taskTemplatePath: "",
-  defaultProject: ""
+  defaultProject: "",
+  badgeProperty: "",
+  badgeColor: "accent",
+  badgeCustomColor: ""
 };
