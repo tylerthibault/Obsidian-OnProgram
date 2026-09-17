@@ -12,6 +12,7 @@ import { CalendarDayCountService } from "./services/calendar/CalendarDayCountSer
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
+import { CalendarProjectIndicatorService } from "./services/projects/CalendarProjectIndicatorService";
 import { ProjectAssignmentService } from "./services/projects/ProjectAssignmentService";
 import { ProjectCreator } from "./services/projects/ProjectCreator";
 import { CalendarPublishingService } from "./services/publishing/CalendarPublishingService";
@@ -92,6 +93,10 @@ export default class OnProgramPlugin extends Plugin {
     const calendarScrollState = new CalendarScrollStateService(this);
     const calendarDayCounts = new CalendarDayCountService(this);
     const calendarPublishing = new CalendarPublishingService(this, projectAssignment);
+    const calendarProjects = new CalendarProjectIndicatorService(
+      this,
+      () => this.settings.workItemProperties.project
+    );
     const workItemBadges = new WorkItemBadgeService(this, () => ({
       badgeProperty: this.settings.badgeProperty,
       badgeColor: this.settings.badgeColor,
@@ -115,6 +120,7 @@ export default class OnProgramPlugin extends Plugin {
       services.register(calendarScrollState);
       services.register(calendarDayCounts);
       services.register(calendarPublishing);
+      services.register(calendarProjects);
       services.register(workItemBadges);
       this.addSettingTab(new OnProgramSettingTab(this.app, this));
 
