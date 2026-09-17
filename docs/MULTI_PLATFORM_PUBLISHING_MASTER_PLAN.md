@@ -2,61 +2,64 @@
 
 ## Purpose
 
-OnProgram currently models a content item as one work item and can track a single overall workflow status such as `todo`, `scheduled`, `done`, or `posted`. That breaks down once one piece of content is reused across several distribution channels.
+OnProgram treats one piece of content as one work item. That work item may be reused across several distribution channels, so one overall task status is not enough to describe where the content has been distributed.
 
-The publishing feature separates **content workflow state** from **distribution state**.
+The publishing feature separates **content/workflow state** from **platform distribution state** while keeping one Markdown note as the source of truth.
 
-One Markdown note remains the canonical content item. Each publishing platform gets its own lightweight state and optional scheduling/posting timestamps. The Calendar then renders compact platform pills along the bottom edge of the task card.
+The guiding rules are:
 
-The feature must preserve OnProgram's core rule:
+> One content item, many platform states.
 
-> Markdown remains the source of truth. The GUI is a safe editing surface over readable frontmatter.
+> The Calendar's existing `scheduled` value is the single source of truth for when the content belongs on the schedule.
+
+> Platform state is controlled primarily through a right-click context menu; the pills at the bottom of the card are compact indicators.
 
 ---
 
 ## Product model
 
-### One content item, many distribution channels
-
-A content task remains a single Markdown file:
+A content task remains one Markdown file:
 
 ```yaml
 ---
 type: task
-status: done
+status: todo
 scheduled: 2026-09-17T08:00
 
 grade: 8.7
 views_24_hours: 530
 
 tiktok_state: posted
-tiktok_scheduled: 2026-09-17T08:00
 tiktok_posted: 2026-09-17T08:03
 
 youtube_state: scheduled
-youtube_scheduled: 2026-09-18T12:00
-
 instagram_state: planned
 ---
 ```
 
-The top-level `status` describes the work/content-production workflow. Platform-specific `*_state` properties describe distribution.
+The normal OnProgram work-item properties continue to describe the content item itself. Platform properties describe distribution only.
 
-### Initial supported platforms
+The initial supported platforms are:
 
-The first implementation supports:
-
-| Platform | ID | Calendar abbreviation |
+| Platform | Property prefix | Calendar pill |
 | --- | --- | --- |
 | TikTok | `tiktok` | `TT` |
 | YouTube | `youtube` | `YT` |
 | Instagram | `instagram` | `IG` |
 
-The implementation centralizes platform definitions so custom/configurable platforms can be added later without rewriting Calendar behavior.
+The platform registry is centralized so additional platforms can be introduced later.
 
-### Platform state values
+---
 
-The initial platform publishing states are:
+## Platform states
+
+Each active platform has one state property:
+
+```text
+<platform>_state
+```
+
+Supported values are:
 
 - `planned`
 - `scheduled`
@@ -64,50 +67,68 @@ The initial platform publishing states are:
 - `failed`
 - `skipped`
 
-A platform is considered **inactive for a task** when its `<platform>_state` property does not exist. Inactive platforms do not render a Calendar pill.
-
-This is intentional: the Calendar should only display distribution channels that are relevant to that content item.
-
----
-
-## Property contract
-
-Each active platform may use three properties:
-
-```text
-<platform>_state
-<platform>_scheduled
-<platform>_posted
-```
-
 Examples:
 
 ```yaml
 tiktok_state: posted
-tiktok_scheduled: 2026-09-17T08:00
-tiktok_posted: 2026-09-17T08:03
-```
-
-```yaml
 youtube_state: scheduled
-youtube_scheduled: 2026-09-18T12:00
-```
-
-```yaml
 instagram_state: planned
 ```
 
-The first version deliberately uses flat frontmatter properties. This keeps the values easy to inspect, query with Bases, filter, sort, and edit manually if needed.
+A platform is inactive when its state property does not exist or is empty. Inactive platforms do not render a pill on the Calendar card.
+
+This keeps the Calendar uncluttered. A task that only uses TikTok and YouTube should not show an Instagram indicator.
 
 ---
 
-## Calendar UX
+## Scheduling rule
 
-### Card structure
+Platform state does **not** create another scheduling timeline.
 
-Existing top badges remain unchanged. Grade and analytics continue to occupy the top area.
+The work item's canonical OnProgram property remains the single schedule source:
 
-Publishing indicators are rendered along the **bottom** of the task card:
+```yaml
+scheduled: 2026-09-17T08:00
+```
+
+If TikTok and YouTube are both marked `scheduled`, they are understood to be scheduled for the content item's Calendar placement unless a future product requirement explicitly introduces separate publishing events.
+
+The current GUI does not create or depend on:
+
+```text
+tiktok_scheduled
+youtube_scheduled
+instagram_scheduled
+```
+
+Early prototype values using those properties are treated as legacy data. When a platform is changed or removed through the current GUI, the corresponding legacy `*_scheduled` value is cleaned up.
+
+This prevents duplicate schedule information from drifting out of sync.
+
+---
+
+## Posted timestamps
+
+When a platform is marked Posted, OnProgram may record the actual local posting timestamp:
+
+```yaml
+tiktok_state: posted
+tiktok_posted: 2026-09-17T08:03
+```
+
+The posted timestamp is useful because the Calendar time describes when the content was planned, while the posted timestamp can describe when distribution actually occurred.
+
+Changing a platform away from Posted removes its `*_posted` timestamp.
+
+Removing a platform removes its state and any platform-owned legacy/posting metadata.
+
+---
+
+## Calendar card UX
+
+Grade, analytics, and other existing top badges remain at the top of the card.
+
+Publishing indicators live along the **bottom** of the card:
 
 ```text
 ┌────────────────────────────────┐
@@ -119,280 +140,187 @@ Publishing indicators are rendered along the **bottom** of the task card:
 └────────────────────────────────┘
 ```
 
-Platform pills only exist when the corresponding `<platform>_state` property exists.
+The compact state language is:
 
-### Compact symbols
-
-To keep cards readable:
-
-| State | Pill symbol | Visual meaning |
+| State | Symbol | Meaning |
 | --- | --- | --- |
-| Planned | `·` | Neutral / gray |
-| Scheduled | `◷` | Blue/accent |
-| Posted | `✓` | Green/success |
-| Failed | `!` | Red/error |
-| Skipped | `—` | Muted |
+| Planned | `·` | Intended for this platform |
+| Scheduled | `◷` | Scheduled/distribution queued |
+| Posted | `✓` | Published |
+| Failed | `!` | Distribution failed/problem |
+| Skipped | `—` | Deliberately not distributed |
 
-Examples:
+The pills are primarily **status indicators**, not precision interaction targets.
 
-```text
-TT ✓
-YT ◷
-IG ·
-```
-
-Hover text exposes the full platform name, full state, and scheduling/posting timestamp where available.
-
-### Responsive behavior
-
-The bottom platform tray must remain inside the task card. It must not float beyond neighboring Calendar columns.
-
-On narrow cards:
-
-- platform pills stay compact;
-- platform abbreviations remain visible;
-- the task title remains truncated rather than colliding with the tray;
-- pills may wrap if absolutely necessary, but should prefer one compact row.
+On narrow cards they remain compact and inside the card boundary. The title truncates rather than colliding with publishing indicators.
 
 ---
 
-## GUI workflows
+## Primary interaction: right-click menu
 
-Raw YAML editing must not be required for normal use.
+The Calendar card's right-click context menu is the publishing control center.
 
-### Activate a platform
+### No active platforms
 
-Right-clicking a Calendar task exposes an action:
+A task with no platform state properties shows:
 
 ```text
-Add publishing platform…
+Add TikTok
+Add YouTube
+Add Instagram
 ```
 
-The picker only shows platforms that are not already active for that task.
-
-Selecting a platform creates its state property with the default value:
+Selecting one adds that platform with the default state:
 
 ```yaml
 youtube_state: planned
 ```
 
-The corresponding pill immediately appears.
+The corresponding pill then appears immediately.
 
-### Edit a platform
+### Some active platforms
 
-Clicking a platform pill opens a small platform-specific menu:
-
-```text
-YouTube
-
-Mark planned
-Schedule…
-Mark posted
-Mark failed
-Mark skipped
-Remove platform
-```
-
-### Schedule a platform
-
-Choosing `Schedule…` opens a modal with a date/time control.
-
-Saving writes:
-
-```yaml
-youtube_state: scheduled
-youtube_scheduled: 2026-09-18T12:00
-```
-
-If a scheduling timestamp already exists, the modal opens pre-populated with that value.
-
-### Mark posted
-
-Choosing `Mark posted` writes:
-
-```yaml
-youtube_state: posted
-youtube_posted: <current local date-time>
-```
-
-The existing scheduled timestamp is preserved for history.
-
-### Remove a platform
-
-Choosing `Remove platform` removes all properties owned by that platform:
+If TikTok is already active while YouTube and Instagram are not, the menu becomes:
 
 ```text
-youtube_state
-youtube_scheduled
-youtube_posted
+TikTok — Planned     >
+----------------------
+Add YouTube
+Add Instagram
 ```
 
-The Calendar pill disappears immediately.
+Hovering the active TikTok entry opens a submenu:
+
+```text
+✓ Planned
+  Scheduled
+  Posted
+  Failed
+  Skipped
+----------------------
+  Remove TikTok
+```
+
+The current state is indicated with a check mark.
+
+### All platforms active
+
+If all three platforms are active, the top-level menu contains three platform submenus:
+
+```text
+TikTok — Posted      >
+YouTube — Scheduled  >
+Instagram — Planned  >
+```
+
+Each submenu controls only that platform.
 
 ---
 
-## Separation from overall task status
+## Why the context menu replaces the `+` button
 
-Platform distribution state must not replace OnProgram's top-level work-item status.
+The first prototype placed a small `+` control inside Calendar cards. This created several problems:
+
+- small timed cards left very little usable click space;
+- enlarging the control damaged card layout;
+- draggable Calendar cards competed with the button interaction;
+- the separate picker popup introduced another UI layer;
+- platform pills themselves were too small to be ideal primary controls.
+
+The right-click menu solves these problems by giving the user a large, native Obsidian menu target without consuming any Calendar-card space.
+
+The current design therefore removes:
+
+- the Calendar `+` publishing button;
+- the publishing platform picker popup;
+- the publishing schedule popup;
+- the extra interaction guard that existed only to make buttons reliable inside draggable cards.
+
+---
+
+## Separation from work-item status
+
+Publishing state and work-item status are separate concepts.
 
 Example:
 
 ```yaml
-status: done
+status: todo
+scheduled: 2026-09-17T08:00
 
 tiktok_state: posted
 youtube_state: scheduled
 instagram_state: planned
 ```
 
-This means the content itself is complete while distribution is still in progress.
+The content can therefore have its normal OnProgram workflow while distribution progresses independently.
 
-The existing global `posted` work-item status remains supported for backward compatibility, but new publishing behavior should not depend on it.
+The legacy Calendar right-click actions such as `Mark scheduled`, `Mark done`, and `Mark posted` have been removed from the Calendar interaction so they do not compete conceptually with platform publishing controls.
+
+Existing top-level statuses remain readable and continue to receive their existing visual treatment for backward compatibility.
 
 ---
 
 ## Architecture
 
-### Publishing model module
+### Publishing platform model
 
-A central module defines:
+`src/models/publishing/PublishingPlatform.ts` defines:
 
 - supported platform IDs;
-- display names;
-- abbreviations;
-- state values;
+- names and abbreviations;
+- publishing states;
 - property-key helpers;
-- validation helpers;
-- state-to-symbol helpers.
+- state normalization;
+- state labels and compact symbols.
 
 ### Calendar publishing service
 
-A dedicated long-running service is responsible for:
+`src/services/publishing/CalendarPublishingService.ts` owns the Calendar publishing UX.
 
-- reading platform state from Markdown frontmatter;
-- decorating rendered Calendar cards;
-- creating/removing the bottom platform tray;
-- handling platform-pill clicks;
-- adding the Calendar context-menu action for activating platforms;
-- writing platform state safely through Obsidian's frontmatter processor;
-- refreshing after metadata/DOM changes.
+Responsibilities include:
 
-This keeps multi-platform behavior out of the core Calendar renderer and avoids coupling publishing logic to Calendar layout code.
+- reading platform state from frontmatter;
+- rendering the bottom status tray;
+- rendering only active platforms;
+- opening the right-click publishing menu;
+- creating native hover submenus for active platforms;
+- adding inactive platforms;
+- changing platform states;
+- removing platforms;
+- recording/removing posted timestamps;
+- cleaning prototype per-platform schedule fields;
+- refreshing after metadata and Calendar DOM changes.
 
-### Schedule modal
-
-A dedicated scheduling modal handles platform date/time input and validation.
-
----
-
-## Phase plan
-
-### Phase 1 — Data model and core platform definitions
-
-Milestones:
-
-- define TikTok, YouTube, and Instagram platform definitions;
-- define publishing states;
-- define property naming helpers;
-- define compact state symbols and labels;
-- document the Markdown contract.
-
-Acceptance gate:
-
-- any task can represent independent TikTok, YouTube, and Instagram states using readable frontmatter.
-
-### Phase 2 — Calendar platform pills
-
-Milestones:
-
-- render pills at the bottom of Calendar items;
-- only render platforms whose `*_state` exists;
-- provide distinct state styling;
-- preserve existing top grade/views/status badges;
-- support narrow Calendar cards.
-
-Acceptance gate:
-
-- a task with TikTok and YouTube state but no Instagram state shows exactly two platform pills.
-
-### Phase 3 — GUI platform management
-
-Milestones:
-
-- right-click task → Add publishing platform…;
-- platform picker excludes active platforms;
-- clicking a pill opens the platform-state menu;
-- mark planned / posted / failed / skipped;
-- remove platform.
-
-Acceptance gate:
-
-- a user can activate, change, and remove a platform without editing YAML.
-
-### Phase 4 — Per-platform scheduling
-
-Milestones:
-
-- Schedule… action;
-- date/time modal;
-- pre-population of existing scheduling value;
-- write `*_state: scheduled` and `*_scheduled`;
-- posted timestamp when marking posted.
-
-Acceptance gate:
-
-- YouTube can be scheduled for a different time from TikTok on the same content task.
-
-### Phase 5 — Help and documentation
-
-Milestones:
-
-- add publishing properties to OnProgram Help;
-- document state meanings;
-- document activation/removal behavior;
-- add examples.
-
-Acceptance gate:
-
-- Command Palette → OnProgram Help explains the publishing fields without requiring external documentation.
+The service intentionally sits outside the core Calendar renderer so publishing behavior stays modular.
 
 ---
 
-## Follow-up phases after the first branch
+## Help/documentation behavior
 
-These are deliberately deferred until the first interaction model proves itself.
+`OnProgram: Help` documents the publishing state fields.
 
-### Publishing Calendar mode
-
-A future Calendar mode can expand one content item into multiple platform-specific scheduled placements.
-
-Example:
+Primary current properties are:
 
 ```text
-Monday 8:00 AM — TikTok — Content A
-Monday 12:00 PM — YouTube — Content A
-Tuesday 9:00 AM — Instagram — Content A
+tiktok_state
+youtube_state
+instagram_state
+
+tiktok_posted
+youtube_posted
+instagram_posted
 ```
 
-The source remains one Markdown file.
+The canonical task `scheduled` property remains the schedule source.
 
-### Platform-specific analytics
+---
 
-Future properties may include:
+## Future phases
 
-```text
-tiktok_views_24_hours
-youtube_views_24_hours
-instagram_views_24_hours
-```
+### Additional/configurable platforms
 
-and matching week/month fields.
-
-Aggregate `views_24_hours`, `views_1_week`, and `views_1_month` may remain useful as cross-platform totals.
-
-### Configurable/custom platforms
-
-A later Settings interface can allow platform definitions such as:
+A later Settings interface may add:
 
 - Facebook
 - LinkedIn
@@ -401,30 +329,52 @@ A later Settings interface can allow platform definitions such as:
 - YouTube Shorts
 - Newsletter
 - Website
-- custom user-defined platforms
+- custom user-defined channels
 
-The first implementation's platform registry is designed to make this extension straightforward.
+The current platform registry is designed to make this extension straightforward.
+
+### Platform-specific analytics
+
+Future analytics may include fields such as:
+
+```text
+tiktok_views_24_hours
+youtube_views_24_hours
+instagram_views_24_hours
+```
+
+with matching week/month measurements.
+
+Existing aggregate analytics may remain useful for total cross-platform performance.
+
+### Separate publishing events, only if genuinely needed
+
+A future publishing-specific Calendar could represent separate platform placements if the workflow eventually requires TikTok, YouTube, and Instagram to publish at materially different dates/times.
+
+That should be introduced as an explicit new product model rather than duplicating schedule timestamps prematurely.
 
 ### External integrations
 
-Actual publishing integrations, API connections, and automated analytics retrieval are intentionally outside the initial feature. The deterministic local workflow should be excellent before external services are connected.
+Actual API publishing, scheduled posting, and analytics retrieval are intentionally deferred until the local workflow is stable and useful on its own.
 
 ---
 
-## Definition of done for the feature branch
+## Definition of done for this feature branch
 
-The initial multi-platform publishing branch is ready for merge into `dev` when all of the following are true:
+The multi-platform publishing feature is ready to merge into `dev` when:
 
-1. TikTok, YouTube, and Instagram can be activated independently on a task.
-2. A platform with no state property creates no Calendar pill.
-3. Platform pills render at the bottom of Calendar cards.
-4. Pills visually distinguish planned, scheduled, posted, failed, and skipped.
-5. Clicking a pill exposes platform-specific GUI controls.
-6. A platform can be scheduled with a GUI date/time picker.
-7. A platform can be marked posted and receive a posted timestamp.
-8. A platform can be removed and its platform-owned properties deleted.
-9. Existing grade/views/status badges remain intact at the top of cards.
-10. Existing Calendar drag, resize, hover preview, status, and scroll-preservation behavior continues to work.
-11. OnProgram Help documents the platform properties and states.
-12. TypeScript and production esbuild complete successfully.
-13. `dev` has not been modified; all work remains isolated on `feature/multi-platform-publishing` until explicitly merged.
+1. TikTok, YouTube, and Instagram can be independently activated from a Calendar card's right-click menu.
+2. A platform with no state property produces no Calendar pill.
+3. Platform pills remain at the bottom of Calendar cards and do not interfere with top badges.
+4. Active platforms appear as hover submenus in the right-click menu.
+5. Each submenu supports Planned, Scheduled, Posted, Failed, Skipped, and Remove.
+6. Inactive platforms appear as direct `Add <platform>` actions.
+7. Marking Scheduled does not ask for a second date/time.
+8. The task's canonical `scheduled` value remains the only Calendar schedule source.
+9. Marking Posted can record a platform-specific posted timestamp.
+10. Removing a platform removes its owned publishing metadata and its pill.
+11. The Calendar `+` publishing button and obsolete publishing popups are gone.
+12. Existing Calendar drag, resize, scroll preservation, date counts, grade/views badges, and note opening continue to work.
+13. OnProgram Help reflects the current property model.
+14. TypeScript and production esbuild pass successfully.
+15. `dev` remains unchanged until this feature branch is explicitly merged.
