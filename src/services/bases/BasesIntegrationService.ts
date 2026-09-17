@@ -128,6 +128,7 @@ export class BasesIntegrationService implements OnProgramService {
         containerEl,
         adapter,
         this.projectCreator,
+        this.taskCreator,
         this.writer,
         this.workItemOpener,
         this.errorHandler
@@ -230,7 +231,5 @@ function timelineViewOptions() {
 }
 
 function projectsViewOptions() {
-  return [
-    ...baseTaskFolderOptions()
-  ];
+  return baseTaskFolderOptions();
 }
