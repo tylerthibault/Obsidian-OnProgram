@@ -79,7 +79,10 @@ export default class OnProgramPlugin extends Plugin {
     const workItemBadges = new WorkItemBadgeService(this, () => ({
       badgeProperty: this.settings.badgeProperty,
       badgeColor: this.settings.badgeColor,
-      badgeCustomColor: this.settings.badgeCustomColor
+      badgeCustomColor: this.settings.badgeCustomColor,
+      viewsBadgeMetric: this.settings.viewsBadgeMetric,
+      viewsBadgeColor: this.settings.viewsBadgeColor,
+      viewsBadgeCustomColor: this.settings.viewsBadgeCustomColor
     }));
 
     this.logger = logger;
@@ -158,7 +161,10 @@ export default class OnProgramPlugin extends Plugin {
       defaultProject: this.settings.defaultProject,
       badgeProperty: this.settings.badgeProperty,
       badgeColor: this.settings.badgeColor,
-      badgeCustomColor: this.settings.badgeCustomColor
+      badgeCustomColor: this.settings.badgeCustomColor,
+      viewsBadgeMetric: this.settings.viewsBadgeMetric,
+      viewsBadgeColor: this.settings.viewsBadgeColor,
+      viewsBadgeCustomColor: this.settings.viewsBadgeCustomColor
     });
   }
 
