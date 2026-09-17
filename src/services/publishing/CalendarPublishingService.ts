@@ -368,7 +368,7 @@ const PUBLISHING_STYLES = `
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
   z-index: 12;
 }
@@ -377,7 +377,8 @@ const PUBLISHING_STYLES = `
   position: absolute;
   left: 7px;
   right: 7px;
-  bottom: 4px;
+  bottom: 2px;
+  min-height: 28px;
   justify-content: flex-start;
   overflow: hidden;
   pointer-events: none;
@@ -385,6 +386,7 @@ const PUBLISHING_STYLES = `
 
 .onprogram-calendar-item:not(.onprogram-calendar-timed-item) > .onprogram-calendar-publishing-tray {
   margin-top: 4px;
+  min-height: 28px;
   justify-content: flex-start;
 }
 
@@ -395,23 +397,23 @@ const PUBLISHING_STYLES = `
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  height: 18px;
-  min-height: 18px;
   margin: 0;
-  padding: 0 6px;
   border-radius: 999px;
-  font-size: 10px;
   font-weight: var(--font-semibold);
-  line-height: 16px;
   white-space: nowrap;
   pointer-events: auto;
 }
 
 .onprogram-calendar-publishing-pill {
   min-width: 34px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0 6px;
   border: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
   background: var(--background-primary-alt);
+  font-size: 10px;
+  line-height: 16px;
 }
 
 .onprogram-calendar-publishing-pill[data-state="planned"] {
@@ -444,24 +446,35 @@ const PUBLISHING_STYLES = `
   color: var(--text-faint);
 }
 
+/* Keep the plus visually compact, but give it a proper touch/click target. */
 .onprogram-calendar-publishing-add {
-  width: 18px;
-  min-width: 18px;
+  width: 30px;
+  min-width: 30px;
+  height: 28px;
+  min-height: 28px;
   padding: 0;
-  border: 1px dashed var(--background-modifier-border);
+  border: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
-  background: var(--background-primary-alt);
-  opacity: 0;
-  transition: opacity 100ms ease;
+  background: color-mix(in srgb, var(--background-primary-alt) 88%, transparent);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 100ms ease, border-color 100ms ease, background 100ms ease, color 100ms ease;
 }
 
 .onprogram-calendar-item:hover .onprogram-calendar-publishing-add,
+.onprogram-calendar-publishing-add:hover,
 .onprogram-calendar-publishing-add:focus-visible {
   opacity: 1;
+  color: var(--text-accent);
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
 }
 
-.onprogram-calendar-timed-item.onprogram-has-publishing .onprogram-calendar-timed-title {
-  bottom: 25px !important;
+/* Reserve enough room for the larger add-platform target at the bottom. */
+.onprogram-calendar-timed-item:has(> .onprogram-calendar-publishing-tray) .onprogram-calendar-timed-title {
+  bottom: 33px !important;
 }
 
 @container onprogram-calendar-card (max-width: 170px) {
@@ -474,15 +487,17 @@ const PUBLISHING_STYLES = `
     line-height: 14px;
   }
 
+  /* Do not shrink the click target on narrow cards. */
   .onprogram-calendar-publishing-add {
-    width: 16px;
-    min-width: 16px;
-    height: 16px;
-    min-height: 16px;
+    width: 28px;
+    min-width: 28px;
+    height: 26px;
+    min-height: 26px;
+    font-size: 17px;
   }
 
-  .onprogram-calendar-timed-item.onprogram-has-publishing .onprogram-calendar-timed-title {
-    bottom: 23px !important;
+  .onprogram-calendar-timed-item:has(> .onprogram-calendar-publishing-tray) .onprogram-calendar-timed-title {
+    bottom: 31px !important;
   }
 }
 `;
