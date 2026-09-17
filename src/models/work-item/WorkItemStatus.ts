@@ -4,6 +4,7 @@ export const WORK_ITEM_STATUSES = [
   "inbox",
   "todo",
   "planned",
+  "scheduled",
   "in-progress",
   "blocked",
   "waiting",
@@ -31,9 +32,9 @@ export const DEFAULT_STATUS_BY_TYPE: Readonly<Record<WorkItemType, WorkItemStatu
 
 export const ALLOWED_STATUSES_BY_TYPE: Readonly<Record<WorkItemType, readonly WorkItemStatus[]>> = {
   task: WORK_ITEM_STATUSES,
-  project: ["planned", "in-progress", "blocked", "waiting", "done", "cancelled", "archived"],
-  milestone: ["planned", "in-progress", "blocked", "done", "cancelled", "archived"],
-  event: ["planned", "in-progress", "done", "posted", "cancelled", "archived"]
+  project: ["planned", "scheduled", "in-progress", "blocked", "waiting", "done", "cancelled", "archived"],
+  milestone: ["planned", "scheduled", "in-progress", "blocked", "done", "cancelled", "archived"],
+  event: ["planned", "scheduled", "in-progress", "done", "posted", "cancelled", "archived"]
 };
 
 export function isWorkItemStatus(value: unknown): value is WorkItemStatus {
