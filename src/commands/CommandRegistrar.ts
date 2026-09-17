@@ -1,8 +1,10 @@
 import { Notice, Plugin } from "obsidian";
 import { CreateTaskModal } from "../components/CreateTaskModal";
+import { OnProgramHelpModal } from "../components/OnProgramHelpModal";
 import { QuickTaskEditorModal } from "../components/QuickTaskEditorModal";
 import type { ErrorHandler } from "../core/ErrorHandler";
 import type { LifecycleManager } from "../core/LifecycleManager";
+import { DEFAULT_WORK_ITEM_PROPERTY_MAP } from "../models/work-item/WorkItemProperties";
 import type { RuntimeService } from "../services/RuntimeService";
 import type { OnProgramBaseContext } from "../services/bases/OnProgramBaseContext";
 import type { TaskCreator } from "../services/work-items/TaskCreator";
@@ -30,6 +32,17 @@ export class CommandRegistrar {
   ) {}
 
   registerCoreCommands(): void {
+    this.plugin.addCommand({
+      id: "onprogram-help",
+      name: "Help",
+      callback: () => {
+        new OnProgramHelpModal(
+          this.plugin.app,
+          () => DEFAULT_WORK_ITEM_PROPERTY_MAP
+        ).open();
+      }
+    });
+
     this.plugin.addCommand({
       id: "onprogram-test",
       name: "Test OnProgram",
