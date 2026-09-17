@@ -502,7 +502,7 @@ export class OnProgramProjectsView extends BasesView {
     for (const { task, date } of entries.slice(0, 10)) {
       const row = list.createDiv({ cls: "onprogram-project-schedule-row" });
       const when = row.createDiv({ cls: "onprogram-project-schedule-date" });
-      when.createStrong({ text: formatDateTime(date.value.iso) });
+      when.createEl("strong", { text: formatDateTime(date.value.iso) });
       when.createSpan({ text: date.label });
       const title = row.createEl("button", { text: task.title, cls: "onprogram-project-schedule-title" });
       title.addEventListener("click", () => this.openWorkItem(task));
@@ -937,7 +937,7 @@ function renderMetric(parent: HTMLElement, value: string, label: string): void {
 function renderDetail(parent: HTMLElement, label: string, value: string): void {
   const item = parent.createDiv({ cls: "onprogram-project-detail-property" });
   item.createSpan({ text: label });
-  item.createStrong({ text: value });
+  item.createEl("strong", { text: value });
 }
 
 function projectReferenceForWrite(project: ProjectWorkItem): string {
