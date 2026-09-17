@@ -13,6 +13,7 @@ import { CalendarScrollStateService } from "./services/calendar/CalendarScrollSt
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
 import { CalendarProjectIndicatorService } from "./services/projects/CalendarProjectIndicatorService";
+import { MilestoneCreator } from "./services/projects/MilestoneCreator";
 import { ProjectAssignmentService } from "./services/projects/ProjectAssignmentService";
 import { ProjectCreator } from "./services/projects/ProjectCreator";
 import { CalendarPublishingService } from "./services/publishing/CalendarPublishingService";
@@ -62,6 +63,7 @@ export default class OnProgramPlugin extends Plugin {
     });
     const taskCreator = new TaskCreator(this.app, creationConfig);
     const projectCreator = new ProjectCreator(this.app, creationConfig);
+    const milestoneCreator = new MilestoneCreator(this.app, creationConfig);
     const projectAssignment = new ProjectAssignmentService(
       this.app,
       workItemParser,
@@ -80,7 +82,9 @@ export default class OnProgramPlugin extends Plugin {
       workItemWriter,
       taskCreator,
       projectCreator,
+      milestoneCreator,
       projectAssignment,
+      workItemEditor,
       workItemOpener,
       errorHandler
     );
