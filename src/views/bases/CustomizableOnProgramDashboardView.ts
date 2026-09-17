@@ -742,6 +742,7 @@ const LAYOUT_STYLES = `
 
 .onprogram-dashboard-item-title {
   min-width: 0;
+  padding-inline: 8px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
