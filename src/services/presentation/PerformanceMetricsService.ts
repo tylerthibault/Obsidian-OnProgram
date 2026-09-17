@@ -91,18 +91,22 @@ class PerformanceMetricsModal extends Modal {
     const frontmatter = this.app.metadataCache.getFileCache(this.file)?.frontmatter ?? {};
     const badgeProperty = this.settings.badgeProperty.trim() || "grade";
 
-    this.fixedMetrics = dedupeMetrics([
-      {
+    const excludedKeys = new Set(this.settings.corePropertyNames);
+    const primaryMetric: MetricDefinition[] = excludedKeys.has(badgeProperty)
+      ? []
+      : [{
         key: badgeProperty,
         label: badgeProperty === "grade" ? "Grade / score" : `Badge — ${badgeProperty}`,
         description: "The primary badge value shown on supported OnProgram cards.",
         numeric: false
-      },
+      }];
+
+    this.fixedMetrics = dedupeMetrics([
+      ...primaryMetric,
       ...VIEW_METRICS
     ]);
 
     const fixedKeys = new Set(this.fixedMetrics.map((metric) => metric.key));
-    const excludedKeys = new Set(this.settings.corePropertyNames);
 
     for (const metric of this.fixedMetrics) {
       this.values.set(metric.key, frontmatterValue(frontmatter[metric.key]));
