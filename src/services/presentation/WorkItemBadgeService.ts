@@ -10,7 +10,21 @@ interface BadgeSettings {
   badgeProperty: string;
   badgeColor: string;
   badgeCustomColor: string;
+  viewsBadgeMetric: "off" | "24-hours" | "1-week" | "1-month";
+  viewsBadgeColor: string;
+  viewsBadgeCustomColor: string;
 }
+
+interface ViewsMetricDefinition {
+  property: string;
+  label: string;
+}
+
+const VIEWS_METRICS: Record<Exclude<BadgeSettings["viewsBadgeMetric"], "off">, ViewsMetricDefinition> = {
+  "24-hours": { property: "views_24_hours", label: "24h" },
+  "1-week": { property: "views_1_week", label: "1 week" },
+  "1-month": { property: "views_1_month", label: "1 month" }
+};
 
 const BADGE_SELECTOR = [
   ".onprogram-calendar-item[data-path]",
@@ -130,6 +144,7 @@ export class WorkItemBadgeService implements OnProgramService, HoverParent {
     // other frontmatter property (priority, category, owner, etc.).
     const property = settings.badgeProperty.trim() || "grade";
     const color = normalizeBadgeColor(settings.badgeColor);
+    const viewsColor = normalizeBadgeColor(settings.viewsBadgeColor);
 
     for (const rawElement of Array.from(container.querySelectorAll(BADGE_SELECTOR))) {
       const element = rawElement as HTMLElement;
@@ -139,29 +154,76 @@ export class WorkItemBadgeService implements OnProgramService, HoverParent {
       const isCalendarItem = element.classList.contains("onprogram-calendar-item");
       const tray = isCalendarItem ? getOrCreateCalendarBadgeTray(element) : undefined;
       const parent = tray ?? element;
-      const existing = parent.querySelector(
-        ":scope > .onprogram-work-item-badge"
-      ) as HTMLElement | null;
-      const value = getFileBadgeValue(this.plugin.app, path, property);
 
-      if (!value) {
-        existing?.remove();
-        cleanupCalendarBadgeTray(element);
-        element.removeClass("onprogram-has-work-item-badge");
-        continue;
+      const value = getFileBadgeValue(this.plugin.app, path, property);
+      const primaryBadge = getOrCreateBadge(parent, "onprogram-primary-badge", Boolean(value));
+
+      if (value && primaryBadge) {
+        if (primaryBadge.textContent !== value) primaryBadge.setText(value);
+        primaryBadge.removeAttribute("title");
+        primaryBadge.removeAttribute("aria-label");
+        applyBadgeAppearance(primaryBadge, {
+          property,
+          color,
+          customColor: settings.badgeCustomColor
+        });
       }
 
-      const badge = existing ?? parent.createSpan({ cls: "onprogram-work-item-badge" });
-      if (badge.textContent !== value) badge.setText(value);
+      const viewsMetric = settings.viewsBadgeMetric;
+      const selectedViews = viewsMetric === "off"
+        ? undefined
+        : VIEWS_METRICS[viewsMetric];
+      const selectedViewsValue = selectedViews
+        ? getFileBadgeValue(this.plugin.app, path, selectedViews.property)
+        : undefined;
+      const viewsBadge = getOrCreateBadge(parent, "onprogram-views-badge", Boolean(selectedViewsValue));
 
-      applyBadgeAppearance(badge, {
-        property,
-        color,
-        customColor: settings.badgeCustomColor
-      });
-      element.addClass("onprogram-has-work-item-badge");
+      if (selectedViews && selectedViewsValue && viewsBadge) {
+        const compact = formatCompactMetric(selectedViewsValue);
+        if (viewsBadge.textContent !== compact) viewsBadge.setText(compact);
+
+        const breakdown = buildViewsBreakdown(path, this.plugin, selectedViews);
+        const tooltip = breakdown || `Views ${selectedViews.label}: ${selectedViewsValue}`;
+        viewsBadge.setAttr("title", tooltip);
+        viewsBadge.setAttr("aria-label", tooltip);
+        viewsBadge.dataset.metric = viewsMetric;
+
+        applyBadgeAppearance(viewsBadge, {
+          property: selectedViews.property,
+          color: viewsColor,
+          customColor: settings.viewsBadgeCustomColor
+        });
+      }
+
+      cleanupCalendarBadgeTray(element);
+
+      const hasAnyBadge = Boolean(value || selectedViewsValue);
+      element.toggleClass("onprogram-has-work-item-badge", hasAnyBadge);
     }
   }
+}
+
+function getOrCreateBadge(
+  parent: HTMLElement,
+  specificClass: string,
+  shouldExist: boolean
+): HTMLElement | undefined {
+  let badge = parent.querySelector(
+    `:scope > .${specificClass}`
+  ) as HTMLElement | null;
+
+  if (!shouldExist) {
+    badge?.remove();
+    return undefined;
+  }
+
+  if (!badge) {
+    badge = parent.createSpan({
+      cls: `onprogram-work-item-badge ${specificClass}`
+    });
+  }
+
+  return badge;
 }
 
 function getOrCreateCalendarBadgeTray(element: HTMLElement): HTMLElement {
@@ -176,6 +238,51 @@ function cleanupCalendarBadgeTray(element: HTMLElement): void {
     `:scope > .${CALENDAR_BADGE_TRAY_CLASS}`
   ) as HTMLElement | null;
   if (tray && tray.children.length === 0) tray.remove();
+}
+
+function buildViewsBreakdown(
+  path: string,
+  plugin: Plugin,
+  selected: ViewsMetricDefinition
+): string {
+  const parts: string[] = [];
+
+  for (const definition of Object.values(VIEWS_METRICS)) {
+    const value = getFileBadgeValue(plugin.app, path, definition.property);
+    if (!value) continue;
+    parts.push(`${definition.label}: ${formatFullMetric(value)}`);
+  }
+
+  if (parts.length === 0) {
+    const selectedValue = getFileBadgeValue(plugin.app, path, selected.property);
+    return selectedValue ? `Views ${selected.label}: ${selectedValue}` : "";
+  }
+
+  return `Views — ${parts.join(" • ")}`;
+}
+
+function formatCompactMetric(value: string): string {
+  const numeric = parseMetricNumber(value);
+  if (numeric === undefined) return value;
+
+  return new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 1
+  }).format(numeric);
+}
+
+function formatFullMetric(value: string): string {
+  const numeric = parseMetricNumber(value);
+  if (numeric === undefined) return value;
+  return new Intl.NumberFormat().format(numeric);
+}
+
+function parseMetricNumber(value: string): number | undefined {
+  const normalized = value.replace(/,/g, "").trim();
+  if (!normalized) return undefined;
+
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : undefined;
 }
 
 const BADGE_STYLES = `
@@ -222,7 +329,13 @@ const BADGE_STYLES = `
 .onprogram-work-item-badge[data-badge-color="yellow"] { --onprogram-badge-color: var(--color-yellow); }
 .onprogram-work-item-badge[data-badge-color="gray"] { --onprogram-badge-color: var(--text-muted); }
 
-/* Calendar status + property badges share one horizontal floating row. */
+.onprogram-views-badge {
+  min-width: 34px;
+  pointer-events: auto;
+  cursor: help;
+}
+
+/* Calendar status + property + views badges share one horizontal floating row. */
 .onprogram-calendar-badge-tray {
   position: absolute;
   top: -8px;
@@ -249,8 +362,22 @@ const BADGE_STYLES = `
   order: 1;
 }
 
-.onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+.onprogram-calendar-badge-tray > .onprogram-primary-badge {
   order: 2;
+}
+
+.onprogram-calendar-badge-tray > .onprogram-views-badge {
+  order: 3;
+  pointer-events: auto;
+}
+
+/* Board cards do not have a shared tray yet, so offset a second badge inward. */
+.onprogram-board-card > .onprogram-primary-badge {
+  right: 6px;
+}
+
+.onprogram-board-card > .onprogram-views-badge {
+  right: 54px;
 }
 
 /* Keep timed titles on one clean line; native Page Preview handles overflow detail. */
@@ -279,6 +406,6 @@ const BADGE_STYLES = `
 }
 
 .onprogram-board-card.onprogram-has-work-item-badge .onprogram-board-card-title {
-  padding-right: 58px;
+  padding-right: 104px;
 }
 `;
