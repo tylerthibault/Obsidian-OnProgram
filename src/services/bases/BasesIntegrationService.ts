@@ -14,10 +14,15 @@ import {
   OnProgramCalendarView
 } from "../../views/bases/OnProgramCalendarView";
 import {
+  ONPROGRAM_PROJECTS_VIEW_ID,
+  OnProgramProjectsView
+} from "../../views/bases/OnProgramProjectsView";
+import {
   ONPROGRAM_TIMELINE_VIEW_ID,
   OnProgramTimelineView
 } from "../../views/bases/OnProgramTimelineView";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { ProjectCreator } from "../projects/ProjectCreator";
 import type { TaskCreator } from "../work-items/TaskCreator";
 import type { WorkItemOpener } from "../work-items/WorkItemOpener";
 import type { WorkItemParser } from "../work-items/WorkItemParser";
@@ -55,6 +60,7 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly parser: WorkItemParser,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly projectCreator: ProjectCreator,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {}
@@ -113,7 +119,26 @@ export class BasesIntegrationService implements OnProgramService {
       )
     });
 
-    this.registered = inspectorRegistered && boardRegistered && calendarRegistered && timelineRegistered;
+    const projectsRegistered = this.plugin.registerBasesView(ONPROGRAM_PROJECTS_VIEW_ID, {
+      name: "OnProgram Projects",
+      icon: "folder-kanban",
+      options: projectsViewOptions,
+      factory: (controller, containerEl) => new OnProgramProjectsView(
+        controller,
+        containerEl,
+        adapter,
+        this.projectCreator,
+        this.writer,
+        this.workItemOpener,
+        this.errorHandler
+      )
+    });
+
+    this.registered = inspectorRegistered
+      && boardRegistered
+      && calendarRegistered
+      && timelineRegistered
+      && projectsRegistered;
 
     if (this.registered) {
       this.logger.info("Native Bases views registered", {
@@ -121,7 +146,8 @@ export class BasesIntegrationService implements OnProgramService {
           ONPROGRAM_BASES_VIEW_ID,
           ONPROGRAM_BOARD_VIEW_ID,
           ONPROGRAM_CALENDAR_VIEW_ID,
-          ONPROGRAM_TIMELINE_VIEW_ID
+          ONPROGRAM_TIMELINE_VIEW_ID,
+          ONPROGRAM_PROJECTS_VIEW_ID
         ]
       });
     } else {
@@ -200,5 +226,11 @@ function timelineViewOptions() {
       default: "week",
       options: TIMELINE_ZOOM_OPTIONS
     }
+  ];
+}
+
+function projectsViewOptions() {
+  return [
+    ...baseTaskFolderOptions()
   ];
 }
