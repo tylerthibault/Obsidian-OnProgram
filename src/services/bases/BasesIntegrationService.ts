@@ -104,7 +104,6 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.taskCreator,
         this.projectAssignment,
-        this.performanceMetrics,
         this.workItemOpener,
         this.errorHandler
       )
@@ -121,6 +120,7 @@ export class BasesIntegrationService implements OnProgramService {
         this.writer,
         this.taskCreator,
         this.projectAssignment,
+        this.performanceMetrics,
         this.workItemOpener,
         this.errorHandler
       )
