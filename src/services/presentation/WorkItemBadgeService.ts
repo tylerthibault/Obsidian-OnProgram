@@ -1,5 +1,6 @@
 import type { HoverParent, HoverPopover, Plugin } from "obsidian";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { PerformanceMetricsService } from "./PerformanceMetricsService";
 import {
   applyBadgeAppearance,
   getFileBadgeValue,
@@ -45,7 +46,8 @@ export class WorkItemBadgeService implements OnProgramService, HoverParent {
 
   constructor(
     private readonly plugin: Plugin,
-    private readonly getSettings: () => BadgeSettings
+    private readonly getSettings: () => BadgeSettings,
+    private readonly performanceMetrics: PerformanceMetricsService
   ) {}
 
   start(): void {
@@ -59,6 +61,7 @@ export class WorkItemBadgeService implements OnProgramService, HoverParent {
 
     this.container.addEventListener(SETTINGS_CHANGED_EVENT, this.handleSettingsChanged);
     this.container.addEventListener("mouseover", this.handleCalendarTitleHover);
+    this.container.addEventListener("click", this.handleBadgeClick);
 
     if (view) {
       this.observer = new view.MutationObserver(() => this.queueRefresh());
@@ -81,6 +84,7 @@ export class WorkItemBadgeService implements OnProgramService, HoverParent {
     if (this.container) {
       this.container.removeEventListener(SETTINGS_CHANGED_EVENT, this.handleSettingsChanged);
       this.container.removeEventListener("mouseover", this.handleCalendarTitleHover);
+      this.container.removeEventListener("click", this.handleBadgeClick);
     }
 
     this.styleEl?.remove();
@@ -97,6 +101,22 @@ export class WorkItemBadgeService implements OnProgramService, HoverParent {
 
   private readonly handleSettingsChanged = (): void => {
     this.queueRefresh();
+  };
+
+  private readonly handleBadgeClick = (event: MouseEvent): void => {
+    const target = event.target as HTMLElement | null;
+    const badge = target?.closest(".onprogram-work-item-badge") as HTMLElement | null;
+    if (!badge) return;
+
+    const card = badge.closest(
+      ".onprogram-calendar-item[data-path], .onprogram-board-card[data-path]"
+    ) as HTMLElement | null;
+    const path = card?.dataset.path;
+    if (!path) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.performanceMetrics.open(path);
   };
 
   private readonly handleCalendarTitleHover = (event: MouseEvent): void => {
@@ -325,7 +345,8 @@ const BADGE_STYLES = `
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .onprogram-work-item-badge[data-badge-color="green"] { --onprogram-badge-color: var(--color-green); }
@@ -339,7 +360,7 @@ const BADGE_STYLES = `
 .onprogram-views-badge {
   min-width: 34px;
   pointer-events: auto;
-  cursor: help;
+  cursor: pointer;
 }
 
 /* Calendar status + property + views badges share one horizontal floating row. */
