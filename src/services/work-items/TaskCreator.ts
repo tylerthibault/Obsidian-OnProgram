@@ -128,6 +128,13 @@ export class TaskCreator {
       setDefault(frontmatter, map.dependsOn, []);
       setDefault(frontmatter, map.linkedBase, null);
 
+      // Optional content-performance metrics. These are deliberately plain
+      // frontmatter properties so external publishing/analytics workflows can
+      // update them without going through the OnProgram writer.
+      setDefault(frontmatter, "views_24_hours", null);
+      setDefault(frontmatter, "views_1_week", null);
+      setDefault(frontmatter, "views_1_month", null);
+
       if (project) frontmatter[map.project] = project;
 
       if (request.initialDate) {
