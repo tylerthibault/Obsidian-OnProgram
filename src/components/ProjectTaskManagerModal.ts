@@ -225,7 +225,6 @@ export class ProjectTaskManagerModal extends Modal {
       this.createdTasks.push({ title });
       this.newTaskTitle = "";
       new Notice(`OnProgram: Added ${title} to ${this.options.project.title}.`);
-      this.render();
     });
   }
 
@@ -241,7 +240,6 @@ export class ProjectTaskManagerModal extends Modal {
     await this.run(async () => {
       await this.options.onAttachTask(task);
       this.attachedPaths.add(task.source.path);
-      this.render();
     });
   }
 
@@ -251,7 +249,6 @@ export class ProjectTaskManagerModal extends Modal {
       await this.options.onDetachTask(task);
       this.attachedPaths.delete(task.source.path);
       this.optimisticComplete.delete(task.source.path);
-      this.render();
     });
   }
 
@@ -260,12 +257,13 @@ export class ProjectTaskManagerModal extends Modal {
     await this.run(async () => {
       await this.options.onToggleComplete(task, completed);
       this.optimisticComplete.set(task.source.path, completed);
-      this.render();
     });
   }
 
   private async run(action: () => Promise<void>): Promise<void> {
     if (this.busy) return;
+
+    const scrollTop = this.contentEl.scrollTop;
     this.busy = true;
     this.modalEl.addClass("onprogram-is-busy");
     try {
@@ -273,8 +271,13 @@ export class ProjectTaskManagerModal extends Modal {
     } catch (error) {
       this.options.onError(error);
     } finally {
+      // Clear the busy state before rebuilding the controls. Rendering while
+      // busy creates a fresh DOM whose buttons/checkboxes remain disabled even
+      // after this.busy is later reset.
       this.busy = false;
       this.modalEl.removeClass("onprogram-is-busy");
+      this.render();
+      this.contentEl.scrollTop = scrollTop;
     }
   }
 }
