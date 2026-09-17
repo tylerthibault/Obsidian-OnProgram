@@ -556,12 +556,61 @@
   max-height: 64px;
 }
 
-/* Calendar badges are outlines only so they never paint over event content. */
-.onprogram-calendar-view .onprogram-calendar-badge-tray > .onprogram-work-item-badge,
-.onprogram-calendar-view .onprogram-calendar-badge-tray > .onprogram-calendar-status-badge,
+/*
+ * Calendar pills use opaque, theme-aware fills derived from their semantic
+ * colors. This keeps grid lines from showing through while retaining readable
+ * text in both light and dark themes.
+ */
+.onprogram-calendar-view .onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+  background: color-mix(in srgb, var(--onprogram-badge-color) 72%, var(--background-primary)) !important;
+  color: var(--text-normal) !important;
+}
+
+.onprogram-calendar-view .onprogram-calendar-status-badge {
+  --onprogram-status-pill-color: var(--text-muted);
+  background: color-mix(in srgb, var(--onprogram-status-pill-color) 72%, var(--background-primary)) !important;
+  border-color: var(--onprogram-status-pill-color) !important;
+  color: var(--text-normal) !important;
+}
+
+.onprogram-calendar-view .onprogram-calendar-item[data-onprogram-status="scheduled"] .onprogram-calendar-status-badge {
+  --onprogram-status-pill-color: var(--color-blue);
+}
+
+.onprogram-calendar-view .onprogram-calendar-item[data-onprogram-status="posted"] .onprogram-calendar-status-badge {
+  --onprogram-status-pill-color: var(--interactive-accent);
+}
+
+.onprogram-calendar-view .onprogram-calendar-item[data-onprogram-status="done"] .onprogram-calendar-status-badge {
+  --onprogram-status-pill-color: var(--text-muted);
+}
+
 .onprogram-calendar-view .onprogram-calendar-publishing-pill {
-  background: transparent !important;
-  background-color: transparent !important;
+  --onprogram-publishing-pill-color: var(--text-muted);
+  background: color-mix(in srgb, var(--onprogram-publishing-pill-color) 72%, var(--background-primary)) !important;
+  border-color: var(--onprogram-publishing-pill-color) !important;
+  color: var(--text-normal) !important;
+}
+
+.onprogram-calendar-view .onprogram-calendar-publishing-pill[data-state="planned"] {
+  --onprogram-publishing-pill-color: var(--text-muted);
+}
+
+.onprogram-calendar-view .onprogram-calendar-publishing-pill[data-state="scheduled"] {
+  --onprogram-publishing-pill-color: var(--color-blue);
+}
+
+.onprogram-calendar-view .onprogram-calendar-publishing-pill[data-state="posted"] {
+  --onprogram-publishing-pill-color: var(--color-green);
+}
+
+.onprogram-calendar-view .onprogram-calendar-publishing-pill[data-state="failed"],
+.onprogram-calendar-view .onprogram-calendar-publishing-pill[data-state="invalid"] {
+  --onprogram-publishing-pill-color: var(--color-red);
+}
+
+.onprogram-calendar-view .onprogram-calendar-publishing-pill[data-state="skipped"] {
+  --onprogram-publishing-pill-color: var(--text-faint);
 }
 
 /* Obsidian button/theme styles must not add an opaque strip behind task titles. */
