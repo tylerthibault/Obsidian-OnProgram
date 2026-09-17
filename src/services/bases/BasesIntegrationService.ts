@@ -13,6 +13,8 @@ import {
   ONPROGRAM_CALENDAR_VIEW_ID,
   OnProgramCalendarView
 } from "../../views/bases/OnProgramCalendarView";
+import { CustomizableOnProgramDashboardView } from "../../views/bases/CustomizableOnProgramDashboardView";
+import { ONPROGRAM_DASHBOARD_VIEW_ID } from "../../views/bases/OnProgramDashboardView";
 import {
   ONPROGRAM_PROJECTS_VIEW_ID,
   OnProgramProjectsView
@@ -53,6 +55,11 @@ const TIMELINE_ZOOM_OPTIONS: Record<string, string> = {
   quarter: "Quarter"
 };
 
+const DASHBOARD_WIDTH_OPTIONS: Record<string, string> = {
+  centered: "Centered",
+  full: "Full width"
+};
+
 export class BasesIntegrationService implements OnProgramService {
   readonly id = "bases-integration";
   private registered = false;
@@ -82,6 +89,21 @@ export class BasesIntegrationService implements OnProgramService {
         containerEl,
         adapter,
         this.projectAssignment
+      )
+    });
+
+    const dashboardRegistered = this.plugin.registerBasesView(ONPROGRAM_DASHBOARD_VIEW_ID, {
+      name: "OnProgram Dashboard",
+      icon: "layout-dashboard",
+      options: dashboardViewOptions,
+      factory: (controller, containerEl) => new CustomizableOnProgramDashboardView(
+        controller,
+        containerEl,
+        adapter,
+        this.taskCreator,
+        this.projectAssignment,
+        this.workItemOpener,
+        this.errorHandler
       )
     });
 
@@ -151,6 +173,7 @@ export class BasesIntegrationService implements OnProgramService {
     });
 
     this.registered = inspectorRegistered
+      && dashboardRegistered
       && boardRegistered
       && calendarRegistered
       && timelineRegistered
@@ -160,6 +183,7 @@ export class BasesIntegrationService implements OnProgramService {
       this.logger.info("Native Bases views registered", {
         viewIds: [
           ONPROGRAM_BASES_VIEW_ID,
+          ONPROGRAM_DASHBOARD_VIEW_ID,
           ONPROGRAM_BOARD_VIEW_ID,
           ONPROGRAM_CALENDAR_VIEW_ID,
           ONPROGRAM_TIMELINE_VIEW_ID,
@@ -186,6 +210,26 @@ function baseTaskFolderOptions() {
       type: "folder" as const,
       key: "taskFolder",
       displayName: "OnProgram task folder",
+      shouldHide: () => true
+    }
+  ];
+}
+
+function dashboardViewOptions() {
+  return [
+    ...baseTaskFolderOptions(),
+    {
+      type: "dropdown" as const,
+      key: "dashboardWidth",
+      displayName: "Dashboard width",
+      default: "centered",
+      options: DASHBOARD_WIDTH_OPTIONS
+    },
+    {
+      type: "text" as const,
+      key: "dashboardLayout",
+      displayName: "Dashboard layout",
+      default: "",
       shouldHide: () => true
     }
   ];

@@ -29,6 +29,7 @@ import {
 } from "./settings/OnProgramSettings";
 import { OnProgramSettingTab } from "./settings/OnProgramSettingTab";
 import { Logger } from "./utils/Logger";
+import { installOnProgramViewPolish } from "./views/presentation/OnProgramViewPolish";
 
 export default class OnProgramPlugin extends Plugin {
   settings: OnProgramSettings = {
@@ -43,6 +44,7 @@ export default class OnProgramPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
+    installOnProgramViewPolish(this);
 
     const logger = new Logger("OnProgram", () => this.settings.debugMode);
     const errorHandler = new ErrorHandler(logger);

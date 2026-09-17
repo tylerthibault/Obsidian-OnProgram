@@ -21,7 +21,7 @@ export interface OnProgramBaseCreationResult {
  *   Tasks/
  *
  * The generated Base is permanently scoped to the local Tasks/ directory and
- * ships with Board, Calendar, Timeline, and Projects views already configured.
+ * ships with Dashboard, Board, Calendar, Timeline, and Projects views already configured.
  */
 export class OnProgramBaseCreator {
   constructor(
@@ -143,6 +143,7 @@ export function buildOnProgramBaseConfig(
   ]);
 
   const viewLines = [
+    ...baseView("onprogram-dashboard", "Dashboard", filesFolder, visibleOrder),
     ...baseView("onprogram-board", "Board", filesFolder, visibleOrder),
     ...baseView("onprogram-calendar", "Calendar", filesFolder, visibleOrder),
     ...baseView("onprogram-timeline", "Timeline", filesFolder, visibleOrder),
