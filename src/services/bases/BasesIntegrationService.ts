@@ -14,6 +14,10 @@ import {
   OnProgramCalendarView
 } from "../../views/bases/OnProgramCalendarView";
 import {
+  ONPROGRAM_DASHBOARD_VIEW_ID,
+  OnProgramDashboardView
+} from "../../views/bases/OnProgramDashboardView";
+import {
   ONPROGRAM_PROJECTS_VIEW_ID,
   OnProgramProjectsView
 } from "../../views/bases/OnProgramProjectsView";
@@ -85,6 +89,21 @@ export class BasesIntegrationService implements OnProgramService {
       )
     });
 
+    const dashboardRegistered = this.plugin.registerBasesView(ONPROGRAM_DASHBOARD_VIEW_ID, {
+      name: "OnProgram Dashboard",
+      icon: "layout-dashboard",
+      options: dashboardViewOptions,
+      factory: (controller, containerEl) => new OnProgramDashboardView(
+        controller,
+        containerEl,
+        adapter,
+        this.taskCreator,
+        this.projectAssignment,
+        this.workItemOpener,
+        this.errorHandler
+      )
+    });
+
     const boardRegistered = this.plugin.registerBasesView(ONPROGRAM_BOARD_VIEW_ID, {
       name: "OnProgram Board",
       icon: "columns-3",
@@ -151,6 +170,7 @@ export class BasesIntegrationService implements OnProgramService {
     });
 
     this.registered = inspectorRegistered
+      && dashboardRegistered
       && boardRegistered
       && calendarRegistered
       && timelineRegistered
@@ -160,6 +180,7 @@ export class BasesIntegrationService implements OnProgramService {
       this.logger.info("Native Bases views registered", {
         viewIds: [
           ONPROGRAM_BASES_VIEW_ID,
+          ONPROGRAM_DASHBOARD_VIEW_ID,
           ONPROGRAM_BOARD_VIEW_ID,
           ONPROGRAM_CALENDAR_VIEW_ID,
           ONPROGRAM_TIMELINE_VIEW_ID,
@@ -189,6 +210,10 @@ function baseTaskFolderOptions() {
       shouldHide: () => true
     }
   ];
+}
+
+function dashboardViewOptions() {
+  return baseTaskFolderOptions();
 }
 
 function boardViewOptions() {
