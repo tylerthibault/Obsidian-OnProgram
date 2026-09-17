@@ -4,6 +4,7 @@ import {
 } from "../models/work-item/WorkItemProperties";
 
 export type TaskFolderMode = "current-base" | "custom";
+export type ViewsBadgeMetric = "off" | "24-hours" | "1-week" | "1-month";
 
 export interface OnProgramSettings {
   debugMode: boolean;
@@ -29,6 +30,12 @@ export interface OnProgramSettings {
   badgeColor: string;
   /** CSS color used when badgeColor is custom, for example #ffffff or rgb(...). */
   badgeCustomColor: string;
+  /** Which views metric is shown as the compact analytics badge. */
+  viewsBadgeMetric: ViewsBadgeMetric;
+  /** Views badge palette name. Custom uses viewsBadgeCustomColor. */
+  viewsBadgeColor: string;
+  /** CSS color used when viewsBadgeColor is custom. */
+  viewsBadgeCustomColor: string;
 }
 
 export const DEFAULT_SETTINGS: OnProgramSettings = {
@@ -42,5 +49,8 @@ export const DEFAULT_SETTINGS: OnProgramSettings = {
   defaultProject: "",
   badgeProperty: "",
   badgeColor: "accent",
-  badgeCustomColor: ""
+  badgeCustomColor: "",
+  viewsBadgeMetric: "24-hours",
+  viewsBadgeColor: "blue",
+  viewsBadgeCustomColor: ""
 };
