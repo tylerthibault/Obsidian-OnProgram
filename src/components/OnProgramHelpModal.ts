@@ -6,7 +6,7 @@ interface HelpAttribute {
   property: string;
   description: string;
   example: string;
-  group: "Core" | "Scheduling" | "Relationships" | "Analytics";
+  group: "Core" | "Scheduling" | "Relationships" | "Publishing" | "Analytics";
 }
 
 export class OnProgramHelpModal extends Modal {
@@ -33,7 +33,7 @@ export class OnProgramHelpModal extends Modal {
       .setName("Search attributes")
       .addSearch((search) => {
         search
-          .setPlaceholder("status, scheduled, views…")
+          .setPlaceholder("status, scheduled, publishing, views…")
           .onChange((value) => {
             this.query = value.trim().toLowerCase();
             this.renderAttributes();
@@ -94,7 +94,7 @@ export class OnProgramHelpModal extends Modal {
 function buildAttributes(map: WorkItemPropertyMap): HelpAttribute[] {
   return [
     { canonical: "type", property: map.type, group: "Core", description: "Work item type. Tasks normally use task.", example: "task" },
-    { canonical: "status", property: map.status, group: "Core", description: "Workflow state used by Board columns and calendar status styling.", example: "todo" },
+    { canonical: "status", property: map.status, group: "Core", description: "Workflow state used by Board columns and calendar status styling. Publishing platforms use their own separate state fields.", example: "todo" },
     { canonical: "project", property: map.project, group: "Core", description: "Optional project or initiative reference.", example: "OnProgram" },
     { canonical: "priority", property: map.priority, group: "Core", description: "Priority value displayed by supported views.", example: "high" },
 
@@ -108,6 +108,16 @@ function buildAttributes(map: WorkItemPropertyMap): HelpAttribute[] {
     { canonical: "parent", property: map.parent, group: "Relationships", description: "Optional parent work item reference.", example: "[[Parent Task]]" },
     { canonical: "depends_on", property: map.dependsOn, group: "Relationships", description: "One or more work items this item depends on.", example: "[\"[[Design]]\", \"[[Approval]]\"]" },
     { canonical: "onprogram_base", property: map.linkedBase, group: "Relationships", description: "Links a Markdown work item to another OnProgram Base. Linked Base cards can also exist directly on a Board without a note.", example: "GCC/SMP/SMP.onprogram.base" },
+
+    { canonical: "tiktok_state", property: "tiktok_state", group: "Publishing", description: "TikTok distribution state. The Calendar TT pill appears only when this property has a value. Supported values: planned, scheduled, posted, failed, skipped.", example: "scheduled" },
+    { canonical: "tiktok_scheduled", property: "tiktok_scheduled", group: "Publishing", description: "TikTok-specific planned publish date/time. The Calendar publishing GUI writes this when TikTok is scheduled.", example: "2026-09-17T08:00" },
+    { canonical: "tiktok_posted", property: "tiktok_posted", group: "Publishing", description: "Timestamp recorded when TikTok is marked Posted.", example: "2026-09-17T08:03" },
+    { canonical: "youtube_state", property: "youtube_state", group: "Publishing", description: "YouTube distribution state. The Calendar YT pill appears only when this property has a value.", example: "scheduled" },
+    { canonical: "youtube_scheduled", property: "youtube_scheduled", group: "Publishing", description: "YouTube-specific planned publish date/time.", example: "2026-09-18T12:00" },
+    { canonical: "youtube_posted", property: "youtube_posted", group: "Publishing", description: "Timestamp recorded when YouTube is marked Posted.", example: "2026-09-18T12:04" },
+    { canonical: "instagram_state", property: "instagram_state", group: "Publishing", description: "Instagram distribution state. The Calendar IG pill appears only when this property has a value.", example: "planned" },
+    { canonical: "instagram_scheduled", property: "instagram_scheduled", group: "Publishing", description: "Instagram-specific planned publish date/time.", example: "2026-09-19T09:00" },
+    { canonical: "instagram_posted", property: "instagram_posted", group: "Publishing", description: "Timestamp recorded when Instagram is marked Posted.", example: "2026-09-19T09:02" },
 
     { canonical: "grade", property: "grade", group: "Analytics", description: "Common badge property for a score or grade. The generic Badge property setting can point at any frontmatter key.", example: "8.5" },
     { canonical: "views_24_hours", property: "views_24_hours", group: "Analytics", description: "View count measured in the first 24 hours.", example: "1250" },
