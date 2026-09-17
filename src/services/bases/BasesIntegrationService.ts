@@ -22,6 +22,7 @@ import {
   OnProgramTimelineView
 } from "../../views/bases/OnProgramTimelineView";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { ProjectAssignmentService } from "../projects/ProjectAssignmentService";
 import type { ProjectCreator } from "../projects/ProjectCreator";
 import type { TaskCreator } from "../work-items/TaskCreator";
 import type { WorkItemOpener } from "../work-items/WorkItemOpener";
@@ -61,6 +62,7 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
     private readonly projectCreator: ProjectCreator,
+    private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {}
@@ -71,7 +73,12 @@ export class BasesIntegrationService implements OnProgramService {
     const inspectorRegistered = this.plugin.registerBasesView(ONPROGRAM_BASES_VIEW_ID, {
       name: "OnProgram Inspector",
       icon: "compass",
-      factory: (controller, containerEl) => new OnProgramBasesView(controller, containerEl, adapter)
+      factory: (controller, containerEl) => new OnProgramBasesView(
+        controller,
+        containerEl,
+        adapter,
+        this.projectAssignment
+      )
     });
 
     const boardRegistered = this.plugin.registerBasesView(ONPROGRAM_BOARD_VIEW_ID, {
@@ -84,6 +91,7 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.writer,
         this.taskCreator,
+        this.projectAssignment,
         this.workItemOpener,
         this.errorHandler
       )
@@ -114,6 +122,7 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.writer,
         this.taskCreator,
+        this.projectAssignment,
         this.workItemOpener,
         this.errorHandler
       )
