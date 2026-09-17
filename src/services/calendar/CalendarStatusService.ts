@@ -79,6 +79,15 @@ export class CalendarStatusService implements OnProgramService {
     const menu = new Menu();
     const schema = getWorkItemTypeSchema(workItem.type);
 
+    if (workItem.status !== "scheduled" && schema.allowedStatuses.includes("scheduled")) {
+      menu.addItem((item) => {
+        item
+          .setTitle("Mark scheduled")
+          .setIcon("calendar-clock")
+          .onClick(() => void this.setStatus(workItem, "scheduled"));
+      });
+    }
+
     if (workItem.status !== "done" && schema.allowedStatuses.includes("done")) {
       menu.addItem((item) => {
         item
@@ -97,7 +106,7 @@ export class CalendarStatusService implements OnProgramService {
       });
     }
 
-    if (workItem.status === "done" || workItem.status === "posted") {
+    if (workItem.status === "done" || workItem.status === "posted" || workItem.status === "scheduled") {
       menu.addSeparator();
       menu.addItem((item) => {
         item
@@ -169,7 +178,7 @@ export class CalendarStatusService implements OnProgramService {
         `:scope > .${STATUS_BADGE_CLASS}`
       ) as HTMLElement | null;
 
-      if (item.status === "done" || item.status === "posted") {
+      if (item.status === "done" || item.status === "posted" || item.status === "scheduled") {
         if (!badge) badge = tray.createSpan({ cls: STATUS_BADGE_CLASS });
         badge.setText(humanize(item.status));
       } else {
@@ -235,6 +244,16 @@ const CALENDAR_STATUS_STYLES = `
   letter-spacing: 0.04em;
   white-space: nowrap;
   pointer-events: none;
+}
+
+.onprogram-calendar-item[data-onprogram-status="scheduled"] {
+  box-shadow: inset 4px 0 0 var(--color-blue), var(--shadow-s);
+}
+
+.onprogram-calendar-item[data-onprogram-status="scheduled"] .onprogram-calendar-status-badge {
+  color: var(--color-blue);
+  border-color: var(--color-blue);
+  background: var(--background-primary);
 }
 
 .onprogram-calendar-item[data-onprogram-status="done"] {
