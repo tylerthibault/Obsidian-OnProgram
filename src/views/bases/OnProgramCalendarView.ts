@@ -400,8 +400,8 @@ export class OnProgramCalendarView extends BasesView {
     element.addEventListener("dragend", () => {
       this.draggedPath = undefined;
       element.removeClass("onprogram-calendar-item-dragging");
-      this.hostEl.querySelectorAll(".onprogram-calendar-drop-target")
-        .forEach((candidate) => candidate.removeClass("onprogram-calendar-drop-target"));
+      this.hostEl.querySelectorAll<HTMLElement>(".onprogram-calendar-drop-target")
+        .forEach((candidate) => this.clearDropTargetPreview(candidate));
     });
   }
 
@@ -506,19 +506,32 @@ export class OnProgramCalendarView extends BasesView {
   private makeDropTarget(element: HTMLElement, dayIso: string, hour?: number): void {
     element.addEventListener("dragover", (event) => {
       event.preventDefault();
-      if (this.draggedPath) element.addClass("onprogram-calendar-drop-target");
+      if (!this.draggedPath) return;
+
+      element.addClass("onprogram-calendar-drop-target");
+      if (hour !== undefined) {
+        const minute = minuteFromPointer(element, event);
+        element.dataset.onprogramDropMinute = String(minute);
+        element.dataset.onprogramDropTime = formatMinuteOfDay(hour * 60 + minute);
+      }
     });
 
     element.addEventListener("dragleave", () => {
-      element.removeClass("onprogram-calendar-drop-target");
+      this.clearDropTargetPreview(element);
     });
 
     element.addEventListener("drop", (event) => {
       event.preventDefault();
-      element.removeClass("onprogram-calendar-drop-target");
       const minute = hour === undefined ? undefined : minuteFromPointer(element, event);
+      this.clearDropTargetPreview(element);
       void this.moveDraggedItem(dayIso, hour, minute);
     });
+  }
+
+  private clearDropTargetPreview(element: HTMLElement): void {
+    element.removeClass("onprogram-calendar-drop-target");
+    delete element.dataset.onprogramDropMinute;
+    delete element.dataset.onprogramDropTime;
   }
 
   private async moveDraggedItem(
@@ -728,6 +741,37 @@ const TIMED_CALENDAR_STYLES = `
   opacity: 0.72;
   pointer-events: none;
   z-index: 0;
+}
+
+.onprogram-calendar-week-cell:not(.onprogram-calendar-all-day).onprogram-calendar-drop-target::before,
+.onprogram-calendar-day-slot.onprogram-calendar-drop-target::before {
+  content: attr(data-onprogram-drop-time);
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: calc(50% - 2px);
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 62%, var(--background-modifier-border));
+  border-top-width: 2px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  line-height: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.onprogram-calendar-week-cell.onprogram-calendar-drop-target[data-onprogram-drop-minute="0"]::before,
+.onprogram-calendar-day-slot.onprogram-calendar-drop-target[data-onprogram-drop-minute="0"]::before {
+  top: 2px;
+}
+
+.onprogram-calendar-week-cell.onprogram-calendar-drop-target[data-onprogram-drop-minute="30"]::before,
+.onprogram-calendar-day-slot.onprogram-calendar-drop-target[data-onprogram-drop-minute="30"]::before {
+  top: calc(50% + 1px);
 }
 
 .onprogram-calendar-timed-item {
