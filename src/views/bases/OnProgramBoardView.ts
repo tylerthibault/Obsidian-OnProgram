@@ -13,6 +13,7 @@ import {
 } from "../../services/bases/LinkedBaseBoardCard";
 import { resolveLinkedOnProgramBase } from "../../services/bases/LinkedOnProgramBase";
 import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
+import type { PerformanceMetricsService } from "../../services/presentation/PerformanceMetricsService";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
@@ -35,6 +36,7 @@ export class OnProgramBoardView extends BasesView {
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
     private readonly projectAssignment: ProjectAssignmentService,
+    private readonly performanceMetrics: PerformanceMetricsService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {
@@ -303,8 +305,9 @@ export class OnProgramBoardView extends BasesView {
 
     if (item.type !== "project") {
       this.projectAssignment.addProjectMenuItem(menu, item);
-      menu.addSeparator();
     }
+    this.performanceMetrics.addMenuItemForPath(menu, item.source.path);
+    menu.addSeparator();
 
     if (item.linkedBase) {
       menu.addItem((menuItem) => menuItem
