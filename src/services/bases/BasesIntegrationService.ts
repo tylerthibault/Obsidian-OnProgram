@@ -26,6 +26,7 @@ import {
 import type { OnProgramService } from "../ServiceRegistry";
 import type { MilestoneCreator } from "../projects/MilestoneCreator";
 import type { ProjectAssignmentService } from "../projects/ProjectAssignmentService";
+import type { PerformanceMetricsService } from "../presentation/PerformanceMetricsService";
 import type { ProjectCreator } from "../projects/ProjectCreator";
 import type { TaskCreator } from "../work-items/TaskCreator";
 import type { WorkItemEditorService } from "../work-items/WorkItemEditorService";
@@ -73,6 +74,7 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly projectCreator: ProjectCreator,
     private readonly milestoneCreator: MilestoneCreator,
     private readonly projectAssignment: ProjectAssignmentService,
+    private readonly performanceMetrics: PerformanceMetricsService,
     private readonly workItemEditor: WorkItemEditorService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
@@ -102,6 +104,7 @@ export class BasesIntegrationService implements OnProgramService {
         adapter,
         this.taskCreator,
         this.projectAssignment,
+        this.performanceMetrics,
         this.workItemOpener,
         this.errorHandler
       )
