@@ -12,6 +12,7 @@ import { CalendarDayCountService } from "./services/calendar/CalendarDayCountSer
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
+import { ProjectCreator } from "./services/projects/ProjectCreator";
 import { CalendarPublishingService } from "./services/publishing/CalendarPublishingService";
 import { TaskCreator } from "./services/work-items/TaskCreator";
 import { WorkItemEditorService } from "./services/work-items/WorkItemEditorService";
@@ -50,13 +51,15 @@ export default class OnProgramPlugin extends Plugin {
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
     const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
     const workItemOpener = new WorkItemOpener(this.app, () => this.settings.openItemsInSplit);
-    const taskCreator = new TaskCreator(this.app, () => ({
+    const creationConfig = () => ({
       taskFolderMode: this.settings.taskFolderMode,
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
       defaultProject: this.settings.defaultProject,
       propertyMap: this.settings.workItemProperties
-    }));
+    });
+    const taskCreator = new TaskCreator(this.app, creationConfig);
+    const projectCreator = new ProjectCreator(this.app, creationConfig);
     const baseContext = new OnProgramBaseContext(this.app);
     const baseCreator = new OnProgramBaseCreator(
       this.app,
@@ -68,6 +71,7 @@ export default class OnProgramPlugin extends Plugin {
       workItemParser,
       workItemWriter,
       taskCreator,
+      projectCreator,
       workItemOpener,
       errorHandler
     );
