@@ -8,6 +8,7 @@ import { ServiceRegistry } from "./services/ServiceRegistry";
 import { BasesIntegrationService } from "./services/bases/BasesIntegrationService";
 import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
+import { CalendarDayCountService } from "./services/calendar/CalendarDayCountService";
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
@@ -76,6 +77,7 @@ export default class OnProgramPlugin extends Plugin {
       errorHandler
     );
     const calendarScrollState = new CalendarScrollStateService(this);
+    const calendarDayCounts = new CalendarDayCountService(this);
     const workItemBadges = new WorkItemBadgeService(this, () => ({
       badgeProperty: this.settings.badgeProperty,
       badgeColor: this.settings.badgeColor,
@@ -97,6 +99,7 @@ export default class OnProgramPlugin extends Plugin {
       services.register(basesIntegration);
       services.register(calendarStatus);
       services.register(calendarScrollState);
+      services.register(calendarDayCounts);
       services.register(workItemBadges);
       this.addSettingTab(new OnProgramSettingTab(this.app, this));
 
