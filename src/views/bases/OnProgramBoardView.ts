@@ -12,6 +12,7 @@ import {
   type LinkedBaseBoardCard
 } from "../../services/bases/LinkedBaseBoardCard";
 import { resolveLinkedOnProgramBase } from "../../services/bases/LinkedOnProgramBase";
+import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
@@ -33,6 +34,7 @@ export class OnProgramBoardView extends BasesView {
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {
@@ -117,8 +119,8 @@ export class OnProgramBoardView extends BasesView {
     card.draggable = true;
     card.dataset.path = item.source.path;
     card.setAttr("title", item.linkedBase
-      ? "Double-click to open the linked OnProgram Base. Right-click to open the task note or change the link."
-      : "Double-click to open this task. Right-click to link an OnProgram Base.");
+      ? "Double-click to open the linked OnProgram Base. Right-click for project and Base actions."
+      : "Double-click to open this task. Right-click for project and Base actions.");
 
     card.addEventListener("dblclick", (event) => {
       event.stopPropagation();
@@ -298,6 +300,11 @@ export class OnProgramBoardView extends BasesView {
 
   private showCardMenu(event: MouseEvent, item: WorkItem): void {
     const menu = new Menu();
+
+    if (item.type !== "project") {
+      this.projectAssignment.addProjectMenuItem(menu, item);
+      menu.addSeparator();
+    }
 
     if (item.linkedBase) {
       menu.addItem((menuItem) => menuItem

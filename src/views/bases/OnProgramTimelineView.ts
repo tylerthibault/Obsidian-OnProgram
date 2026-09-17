@@ -1,9 +1,10 @@
-import { BasesView, Notice, type QueryController } from "obsidian";
+import { BasesView, Menu, Notice, type QueryController } from "obsidian";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWritePatch } from "../../services/work-items/WorkItemWritePatch";
@@ -48,6 +49,7 @@ export class OnProgramTimelineView extends BasesView {
     private readonly adapter: BasesWorkItemAdapter,
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
+    private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {
@@ -137,11 +139,12 @@ export class OnProgramTimelineView extends BasesView {
     const list = details.createDiv({ cls: "onprogram-timeline-unscheduled-list" });
     for (const item of items) {
       const button = list.createEl("button", { text: item.title });
-      button.setAttr("title", "Double-click to open this task");
+      button.setAttr("title", "Double-click to open. Right-click to assign a project.");
       button.addEventListener("dblclick", (event) => {
         event.stopPropagation();
         this.openItem(item);
       });
+      this.attachProjectMenu(button, item);
     }
   }
 
@@ -270,11 +273,12 @@ export class OnProgramTimelineView extends BasesView {
     const row = this.hostEl.doc.createElement("div");
     row.addClass("onprogram-timeline-label-row");
     const button = row.createEl("button", { text: placement.item.title });
-    button.setAttr("title", `${placement.item.title} · ${timelinePlacementLabel(placement)} · Double-click to open`);
+    button.setAttr("title", `${placement.item.title} · ${timelinePlacementLabel(placement)} · Double-click to open · Right-click to assign project`);
     button.addEventListener("dblclick", (event) => {
       event.stopPropagation();
       this.openItem(placement.item);
     });
+    this.attachProjectMenu(row, placement.item);
     row.createSpan({
       text: placement.item.status,
       cls: "onprogram-timeline-label-meta"
@@ -292,7 +296,7 @@ export class OnProgramTimelineView extends BasesView {
       placement.kind === "point" ? "point" : "start"
     );
     const left = pixelsBetween(timelineStart, startDate, this.zoom);
-    const title = `${placement.item.title} · ${timelinePlacementLabel(placement)} · Double-click to open`;
+    const title = `${placement.item.title} · ${timelinePlacementLabel(placement)} · Double-click to open · Right-click to assign project`;
 
     if (placement.kind === "point") {
       const point = row.createDiv({ cls: "onprogram-timeline-point" });
@@ -302,6 +306,7 @@ export class OnProgramTimelineView extends BasesView {
         event.stopPropagation();
         this.openItem(placement.item);
       });
+      this.attachProjectMenu(point, placement.item);
       this.attachPointDrag(point, placement);
       return;
     }
@@ -316,6 +321,7 @@ export class OnProgramTimelineView extends BasesView {
       event.stopPropagation();
       this.openItem(placement.item);
     });
+    this.attachProjectMenu(bar, placement.item);
 
     const leftHandle = bar.createDiv({
       cls: "onprogram-timeline-resize onprogram-timeline-resize-start"
@@ -330,6 +336,17 @@ export class OnProgramTimelineView extends BasesView {
     this.attachRangeDrag(bar, placement);
     this.attachResize(leftHandle, placement, "start");
     this.attachResize(rightHandle, placement, "end");
+  }
+
+  private attachProjectMenu(element: HTMLElement, item: WorkItem): void {
+    if (item.type === "project") return;
+    element.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = new Menu();
+      this.projectAssignment.addProjectMenuItem(menu, item);
+      menu.showAtMouseEvent(event);
+    });
   }
 
   private attachRangeDrag(bar: HTMLElement, placement: TimelinePlacement): void {

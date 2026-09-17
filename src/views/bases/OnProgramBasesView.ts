@@ -1,5 +1,6 @@
-import { BasesView, type QueryController } from "obsidian";
+import { BasesView, Menu, type QueryController } from "obsidian";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
 
 export const ONPROGRAM_BASES_VIEW_ID = "onprogram";
 
@@ -10,7 +11,8 @@ export class OnProgramBasesView extends BasesView {
   constructor(
     controller: QueryController,
     private readonly hostEl: HTMLElement,
-    private readonly adapter: BasesWorkItemAdapter
+    private readonly adapter: BasesWorkItemAdapter,
+    private readonly projectAssignment: ProjectAssignmentService
   ) {
     super(controller);
   }
@@ -68,6 +70,14 @@ export class OnProgramBasesView extends BasesView {
     const list = this.hostEl.createDiv({ cls: "onprogram-bases-list" });
     for (const item of adapted.items) {
       const row = list.createDiv({ cls: "onprogram-bases-row" });
+      row.addEventListener("contextmenu", (event) => {
+        if (item.type === "project") return;
+        event.preventDefault();
+        const menu = new Menu();
+        this.projectAssignment.addProjectMenuItem(menu, item);
+        menu.showAtMouseEvent(event);
+      });
+
       const button = row.createEl("button", {
         text: item.title,
         cls: "onprogram-bases-file"
