@@ -11,6 +11,7 @@ import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { CalendarDayCountService } from "./services/calendar/CalendarDayCountService";
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
+import { PerformanceMetricsService } from "./services/presentation/PerformanceMetricsService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
 import { CalendarProjectIndicatorService } from "./services/projects/CalendarProjectIndicatorService";
 import { MilestoneCreator } from "./services/projects/MilestoneCreator";
@@ -72,6 +73,10 @@ export default class OnProgramPlugin extends Plugin {
       workItemWriter,
       errorHandler
     );
+    const performanceMetrics = new PerformanceMetricsService(this.app, () => ({
+      badgeProperty: this.settings.badgeProperty,
+      corePropertyNames: Object.values(this.settings.workItemProperties)
+    }));
     const baseContext = new OnProgramBaseContext(this.app);
     const baseCreator = new OnProgramBaseCreator(
       this.app,
@@ -86,6 +91,7 @@ export default class OnProgramPlugin extends Plugin {
       projectCreator,
       milestoneCreator,
       projectAssignment,
+      performanceMetrics,
       workItemEditor,
       workItemOpener,
       errorHandler
@@ -98,7 +104,11 @@ export default class OnProgramPlugin extends Plugin {
     );
     const calendarScrollState = new CalendarScrollStateService(this);
     const calendarDayCounts = new CalendarDayCountService(this);
-    const calendarPublishing = new CalendarPublishingService(this, projectAssignment);
+    const calendarPublishing = new CalendarPublishingService(
+      this,
+      projectAssignment,
+      performanceMetrics
+    );
     const calendarProjects = new CalendarProjectIndicatorService(
       this,
       () => this.settings.workItemProperties.project
@@ -110,7 +120,7 @@ export default class OnProgramPlugin extends Plugin {
       viewsBadgeMetric: this.settings.viewsBadgeMetric,
       viewsBadgeColor: this.settings.viewsBadgeColor,
       viewsBadgeCustomColor: this.settings.viewsBadgeCustomColor
-    }));
+    }), performanceMetrics);
 
     this.logger = logger;
     this.errorHandler = errorHandler;
