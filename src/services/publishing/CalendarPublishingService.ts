@@ -1,24 +1,19 @@
 import { Menu, Notice, TFile, type Plugin } from "obsidian";
-import { PublishingPlatformPickerModal } from "../../components/PublishingPlatformPickerModal";
-import { PublishingScheduleModal } from "../../components/PublishingScheduleModal";
 import {
   PUBLISHING_PLATFORMS,
   PUBLISHING_STATES,
-  getPublishingPlatform,
   getPublishingPropertyKeys,
   hasPublishingStateValue,
   normalizePublishingState,
   publishingStateLabel,
   publishingStateSymbol,
   type PublishingPlatformDefinition,
-  type PublishingPlatformId,
   type PublishingState
 } from "../../models/publishing/PublishingPlatform";
 import type { OnProgramService } from "../ServiceRegistry";
 
 const TRAY_CLASS = "onprogram-calendar-publishing-tray";
 const PILL_CLASS = "onprogram-calendar-publishing-pill";
-const ADD_CLASS = "onprogram-calendar-publishing-add";
 
 export class CalendarPublishingService implements OnProgramService {
   readonly id = "calendar-publishing";
@@ -32,7 +27,7 @@ export class CalendarPublishingService implements OnProgramService {
 
   start(): void {
     this.container = this.plugin.app.workspace.containerEl;
-    this.container.addEventListener("click", this.handleClick);
+    this.container.addEventListener("contextmenu", this.handleContextMenu);
 
     const doc = this.container.ownerDocument;
     const win = doc.defaultView;
@@ -59,7 +54,9 @@ export class CalendarPublishingService implements OnProgramService {
   }
 
   stop(): void {
-    if (this.container) this.container.removeEventListener("click", this.handleClick);
+    if (this.container) {
+      this.container.removeEventListener("contextmenu", this.handleContextMenu);
+    }
     this.observer?.disconnect();
     this.observer = undefined;
     this.styleEl?.remove();
@@ -74,123 +71,92 @@ export class CalendarPublishingService implements OnProgramService {
     this.container = undefined;
   }
 
-  private readonly handleClick = (event: MouseEvent): void => {
+  private readonly handleContextMenu = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
-    if (!target) return;
-
-    const pill = target.closest(`.${PILL_CLASS}`) as HTMLElement | null;
-    if (pill) {
-      const card = pill.closest(".onprogram-calendar-item[data-path]") as HTMLElement | null;
-      const path = card?.dataset.path;
-      const platform = getPublishingPlatform(pill.dataset.platform);
-      if (!path || !platform) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      this.showPlatformMenu(event, path, platform);
-      return;
-    }
-
-    const add = target.closest(`.${ADD_CLASS}`) as HTMLElement | null;
-    if (!add) return;
-
-    const card = add.closest(".onprogram-calendar-item[data-path]") as HTMLElement | null;
+    const card = target?.closest(
+      ".onprogram-calendar-item[data-path]"
+    ) as HTMLElement | null;
     const path = card?.dataset.path;
     if (!path) return;
 
+    const frontmatter = this.getFrontmatter(path);
+    if (!frontmatter) return;
+
     event.preventDefault();
     event.stopPropagation();
-    this.openPlatformPicker(path);
-  };
 
-  private openPlatformPicker(path: string): void {
-    const frontmatter = this.getFrontmatter(path);
-    if (!frontmatter) return;
+    const active: Array<{
+      platform: PublishingPlatformDefinition;
+      state: PublishingState | undefined;
+    }> = [];
+    const inactive: PublishingPlatformDefinition[] = [];
 
-    const active = new Set<PublishingPlatformId>();
     for (const platform of PUBLISHING_PLATFORMS) {
       const keys = getPublishingPropertyKeys(platform);
-      if (hasPublishingStateValue(frontmatter[keys.state])) active.add(platform.id);
+      const rawState = frontmatter[keys.state];
+      if (hasPublishingStateValue(rawState)) {
+        active.push({ platform, state: normalizePublishingState(rawState) });
+      } else {
+        inactive.push(platform);
+      }
     }
 
-    new PublishingPlatformPickerModal(this.plugin.app, active, (platform) => {
-      void this.setPlatformState(path, platform, "planned");
-    }).open();
-  }
-
-  private showPlatformMenu(
-    event: MouseEvent,
-    path: string,
-    platform: PublishingPlatformDefinition
-  ): void {
-    const frontmatter = this.getFrontmatter(path);
-    if (!frontmatter) return;
-
-    const keys = getPublishingPropertyKeys(platform);
-    const current = normalizePublishingState(frontmatter[keys.state]);
-    const scheduled = stringValue(frontmatter[keys.scheduled]);
     const menu = new Menu();
 
-    for (const state of PUBLISHING_STATES) {
-      if (state === "scheduled") {
-        menu.addItem((item) => {
-          item
-            .setTitle(current === "scheduled" ? "Reschedule…" : "Schedule…")
-            .setIcon(current === "scheduled" ? "check" : "calendar-clock")
-            .onClick(() => this.openScheduleModal(path, platform, scheduled));
-        });
-        continue;
-      }
+    for (const entry of active) {
+      this.addPlatformSubmenu(menu, path, entry.platform, entry.state);
+    }
 
+    if (active.length > 0 && inactive.length > 0) menu.addSeparator();
+
+    for (const platform of inactive) {
       menu.addItem((item) => {
         item
-          .setTitle(`Mark ${publishingStateLabel(state).toLowerCase()}`)
-          .setIcon(current === state ? "check" : stateIcon(state))
-          .onClick(() => void this.setPlatformState(path, platform, state));
+          .setTitle(`Add ${platform.name}`)
+          .setIcon("plus-circle")
+          .onClick(() => void this.setPlatformState(path, platform, "planned"));
       });
     }
 
-    menu.addSeparator();
+    menu.showAtMouseEvent(event);
+  };
+
+  private addPlatformSubmenu(
+    menu: Menu,
+    path: string,
+    platform: PublishingPlatformDefinition,
+    current: PublishingState | undefined
+  ): void {
     menu.addItem((item) => {
       item
-        .setTitle(`Remove ${platform.name}`)
-        .setIcon("trash-2")
-        .onClick(() => void this.removePlatform(path, platform));
+        .setTitle(
+          `${platform.name} — ${current ? publishingStateLabel(current) : "Invalid state"}`
+        )
+        .setIcon(platformIcon(platform));
+
+      // setSubmenu is available in supported Obsidian versions, but some
+      // obsidian typings releases do not expose it on MenuItem.
+      const submenu = (
+        item as unknown as { setSubmenu(): Menu }
+      ).setSubmenu();
+
+      for (const state of PUBLISHING_STATES) {
+        submenu.addItem((subItem) => {
+          subItem
+            .setTitle(publishingStateLabel(state))
+            .setIcon(current === state ? "check" : stateIcon(state))
+            .onClick(() => void this.setPlatformState(path, platform, state));
+        });
+      }
+
+      submenu.addSeparator();
+      submenu.addItem((subItem) => {
+        subItem
+          .setTitle(`Remove ${platform.name}`)
+          .setIcon("trash-2")
+          .onClick(() => void this.removePlatform(path, platform));
+      });
     });
-
-    menu.showAtMouseEvent(event);
-  }
-
-  private openScheduleModal(
-    path: string,
-    platform: PublishingPlatformDefinition,
-    initialValue: string | undefined
-  ): void {
-    new PublishingScheduleModal(
-      this.plugin.app,
-      platform,
-      initialValue,
-      (value) => void this.schedulePlatform(path, platform, value)
-    ).open();
-  }
-
-  private async schedulePlatform(
-    path: string,
-    platform: PublishingPlatformDefinition,
-    scheduled: string
-  ): Promise<void> {
-    const file = this.getFile(path);
-    if (!file) return;
-    const keys = getPublishingPropertyKeys(platform);
-
-    await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-      frontmatter[keys.state] = "scheduled";
-      frontmatter[keys.scheduled] = scheduled;
-      delete frontmatter[keys.posted];
-    });
-
-    new Notice(`OnProgram: ${platform.name} scheduled for ${formatDateTime(scheduled)}.`);
-    this.queueRefresh();
   }
 
   private async setPlatformState(
@@ -204,6 +170,11 @@ export class CalendarPublishingService implements OnProgramService {
 
     await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
       frontmatter[keys.state] = state;
+
+      // Platform scheduling uses the work item's canonical scheduled property.
+      // Remove prototype per-platform schedule timestamps whenever this platform
+      // is changed through the current GUI.
+      delete frontmatter[keys.scheduled];
 
       if (state === "posted") {
         frontmatter[keys.posted] = localDateTimeIso(new Date());
@@ -262,35 +233,42 @@ export class CalendarPublishingService implements OnProgramService {
     const frontmatter = this.getFrontmatter(path);
     if (!frontmatter) return;
 
-    let tray = card.querySelector(`:scope > .${TRAY_CLASS}`) as HTMLElement | null;
-    if (!tray) tray = card.createDiv({ cls: TRAY_CLASS });
-    tray.empty();
+    const active: Array<{
+      platform: PublishingPlatformDefinition;
+      state: PublishingState | undefined;
+    }> = [];
 
-    let activeCount = 0;
     for (const platform of PUBLISHING_PLATFORMS) {
       const keys = getPublishingPropertyKeys(platform);
       const rawState = frontmatter[keys.state];
       if (!hasPublishingStateValue(rawState)) continue;
+      active.push({ platform, state: normalizePublishingState(rawState) });
+    }
 
-      activeCount += 1;
-      const state = normalizePublishingState(rawState);
-      const pill = tray.createEl("button", {
-        text: `${platform.abbreviation} ${publishingStateSymbol(state)}`,
+    let tray = card.querySelector(`:scope > .${TRAY_CLASS}`) as HTMLElement | null;
+
+    if (active.length === 0) {
+      tray?.remove();
+      card.removeClass("onprogram-has-publishing");
+      return;
+    }
+
+    if (!tray) tray = card.createDiv({ cls: TRAY_CLASS });
+    tray.empty();
+
+    for (const entry of active) {
+      const pill = tray.createSpan({
+        text: `${entry.platform.abbreviation} ${publishingStateSymbol(entry.state)}`,
         cls: PILL_CLASS
       });
-      pill.dataset.platform = platform.id;
-      pill.dataset.state = state ?? "invalid";
-      pill.setAttr("aria-label", buildTooltip(platform, state, frontmatter));
-      pill.setAttr("title", buildTooltip(platform, state, frontmatter));
+      pill.dataset.platform = entry.platform.id;
+      pill.dataset.state = entry.state ?? "invalid";
+      const tooltip = buildTooltip(entry.platform, entry.state, frontmatter);
+      pill.setAttr("aria-label", tooltip);
+      pill.setAttr("title", tooltip);
     }
 
-    if (activeCount < PUBLISHING_PLATFORMS.length) {
-      const add = tray.createEl("button", { text: "+", cls: ADD_CLASS });
-      add.setAttr("aria-label", "Add publishing platform");
-      add.setAttr("title", "Add publishing platform");
-    }
-
-    card.toggleClass("onprogram-has-publishing", activeCount > 0);
+    card.addClass("onprogram-has-publishing");
   }
 
   private getFile(path: string): TFile | undefined {
@@ -320,11 +298,9 @@ function buildTooltip(
     `${platform.name} — ${state ? publishingStateLabel(state) : "Invalid state"}`
   ];
 
-  const scheduled = stringValue(frontmatter[keys.scheduled]);
   const posted = stringValue(frontmatter[keys.posted]);
-  if (scheduled) parts.push(`Scheduled: ${formatDateTime(scheduled)}`);
   if (posted) parts.push(`Posted: ${formatDateTime(posted)}`);
-  parts.push("Click to update");
+  parts.push("Right-click this card to update publishing state");
   return parts.join("\n");
 }
 
@@ -337,10 +313,18 @@ function stringValue(value: unknown): string | undefined {
 function stateIcon(state: PublishingState): string {
   switch (state) {
     case "planned": return "circle";
+    case "scheduled": return "calendar-clock";
     case "posted": return "check-circle-2";
     case "failed": return "circle-alert";
     case "skipped": return "minus-circle";
-    default: return "circle";
+  }
+}
+
+function platformIcon(platform: PublishingPlatformDefinition): string {
+  switch (platform.id) {
+    case "youtube": return "youtube";
+    case "instagram": return "instagram";
+    default: return "send";
   }
 }
 
@@ -368,52 +352,47 @@ const PUBLISHING_STYLES = `
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
   z-index: 12;
+  pointer-events: none;
 }
 
 .onprogram-calendar-timed-item > .onprogram-calendar-publishing-tray {
   position: absolute;
   left: 7px;
   right: 7px;
-  bottom: 2px;
-  min-height: 28px;
+  bottom: 3px;
+  min-height: 18px;
   justify-content: flex-start;
   overflow: hidden;
-  pointer-events: none;
 }
 
 .onprogram-calendar-item:not(.onprogram-calendar-timed-item) > .onprogram-calendar-publishing-tray {
   margin-top: 4px;
-  min-height: 28px;
+  min-height: 18px;
   justify-content: flex-start;
 }
 
-.onprogram-calendar-publishing-pill,
-.onprogram-calendar-publishing-add {
+.onprogram-calendar-publishing-pill {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  margin: 0;
-  border-radius: 999px;
-  font-weight: var(--font-semibold);
-  white-space: nowrap;
-  pointer-events: auto;
-}
-
-.onprogram-calendar-publishing-pill {
   min-width: 34px;
   height: 18px;
   min-height: 18px;
+  margin: 0;
   padding: 0 6px;
   border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
   color: var(--text-muted);
   background: var(--background-primary-alt);
   font-size: 10px;
+  font-weight: var(--font-semibold);
   line-height: 16px;
+  white-space: nowrap;
 }
 
 .onprogram-calendar-publishing-pill[data-state="planned"] {
@@ -446,35 +425,12 @@ const PUBLISHING_STYLES = `
   color: var(--text-faint);
 }
 
-/* Keep the plus visually compact, but give it a proper touch/click target. */
-.onprogram-calendar-publishing-add {
-  width: 30px;
-  min-width: 30px;
-  height: 28px;
-  min-height: 28px;
-  padding: 0;
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-muted);
-  background: color-mix(in srgb, var(--background-primary-alt) 88%, transparent);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 100ms ease, border-color 100ms ease, background 100ms ease, color 100ms ease;
+.onprogram-calendar-view .onprogram-calendar-timed-item:not(.onprogram-has-publishing) .onprogram-calendar-timed-title {
+  bottom: 9px !important;
 }
 
-.onprogram-calendar-item:hover .onprogram-calendar-publishing-add,
-.onprogram-calendar-publishing-add:hover,
-.onprogram-calendar-publishing-add:focus-visible {
-  opacity: 1;
-  color: var(--text-accent);
-  border-color: var(--interactive-accent);
-  background: var(--background-modifier-hover);
-}
-
-/* Reserve enough room for the larger add-platform target at the bottom. */
-.onprogram-calendar-timed-item:has(> .onprogram-calendar-publishing-tray) .onprogram-calendar-timed-title {
-  bottom: 33px !important;
+.onprogram-calendar-view .onprogram-calendar-timed-item.onprogram-has-publishing .onprogram-calendar-timed-title {
+  bottom: 25px !important;
 }
 
 @container onprogram-calendar-card (max-width: 170px) {
@@ -487,17 +443,8 @@ const PUBLISHING_STYLES = `
     line-height: 14px;
   }
 
-  /* Do not shrink the click target on narrow cards. */
-  .onprogram-calendar-publishing-add {
-    width: 28px;
-    min-width: 28px;
-    height: 26px;
-    min-height: 26px;
-    font-size: 17px;
-  }
-
-  .onprogram-calendar-timed-item:has(> .onprogram-calendar-publishing-tray) .onprogram-calendar-timed-title {
-    bottom: 31px !important;
+  .onprogram-calendar-view .onprogram-calendar-timed-item.onprogram-has-publishing .onprogram-calendar-timed-title {
+    bottom: 23px !important;
   }
 }
 `;
