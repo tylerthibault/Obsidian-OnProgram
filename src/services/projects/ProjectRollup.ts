@@ -1,4 +1,9 @@
-import type { ProjectWorkItem, WorkItem } from "../../models/work-item/WorkItem";
+import type {
+  ProjectWorkItem,
+  TaskWorkItem,
+  WorkItem
+} from "../../models/work-item/WorkItem";
+import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 
 export interface ProjectProgress {
   completed: number;
@@ -6,22 +11,40 @@ export interface ProjectProgress {
   percentage: number;
 }
 
-const COMPLETE_STATUSES = new Set(["done", "posted"]);
-const EXCLUDED_STATUSES = new Set(["cancelled", "archived"]);
+const COMPLETE_STATUSES = new Set<WorkItemStatus>(["done", "posted"]);
+const EXCLUDED_STATUSES = new Set<WorkItemStatus>(["cancelled", "archived"]);
+
+/** All task work items that currently point at this project, including closed work. */
+export function getLinkedProjectTasks(
+  project: ProjectWorkItem,
+  items: readonly WorkItem[]
+): TaskWorkItem[] {
+  return items.filter((item): item is TaskWorkItem =>
+    item.type === "task"
+      && Boolean(item.project)
+      && projectReferenceMatches(item.project ?? "", project)
+  );
+}
+
+/** Posted content is completed work for project rollups, just like Done. */
+export function isProjectTaskComplete(status: WorkItemStatus): boolean {
+  return COMPLETE_STATUSES.has(status);
+}
+
+/** Cancelled and archived work does not change the current-work denominator. */
+export function isProjectTaskExcluded(status: WorkItemStatus): boolean {
+  return EXCLUDED_STATUSES.has(status);
+}
 
 export function calculateProjectProgress(
   project: ProjectWorkItem,
   items: readonly WorkItem[]
 ): ProjectProgress {
-  const linkedTasks = items.filter((item) =>
-    item.type === "task"
-      && Boolean(item.project)
-      && projectReferenceMatches(item.project ?? "", project)
-      && !EXCLUDED_STATUSES.has(item.status)
-  );
+  const currentTasks = getLinkedProjectTasks(project, items)
+    .filter((item) => !isProjectTaskExcluded(item.status));
 
-  const completed = linkedTasks.filter((item) => COMPLETE_STATUSES.has(item.status)).length;
-  const total = linkedTasks.length;
+  const completed = currentTasks.filter((item) => isProjectTaskComplete(item.status)).length;
+  const total = currentTasks.length;
 
   return {
     completed,
