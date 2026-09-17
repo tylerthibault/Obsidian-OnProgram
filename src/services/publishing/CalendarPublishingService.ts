@@ -11,6 +11,7 @@ import {
   type PublishingState
 } from "../../models/publishing/PublishingPlatform";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { ProjectAssignmentService } from "../projects/ProjectAssignmentService";
 
 const TRAY_CLASS = "onprogram-calendar-publishing-tray";
 const PILL_CLASS = "onprogram-calendar-publishing-pill";
@@ -23,7 +24,10 @@ export class CalendarPublishingService implements OnProgramService {
   private refreshFrame?: number;
   private styleEl?: HTMLStyleElement;
 
-  constructor(private readonly plugin: Plugin) {}
+  constructor(
+    private readonly plugin: Plugin,
+    private readonly projectAssignment: ProjectAssignmentService
+  ) {}
 
   start(): void {
     this.container = this.plugin.app.workspace.containerEl;
@@ -102,6 +106,8 @@ export class CalendarPublishingService implements OnProgramService {
     }
 
     const menu = new Menu();
+    const workItem = this.projectAssignment.addProjectMenuItemForPath(menu, path);
+    if (workItem && workItem.type !== "project") menu.addSeparator();
 
     for (const entry of active) {
       this.addPlatformSubmenu(menu, path, entry.platform, entry.state);
