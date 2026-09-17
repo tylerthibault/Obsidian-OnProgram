@@ -1,19 +1,29 @@
-import type { Plugin } from "obsidian";
+import { Menu, Notice, TFile, type Plugin } from "obsidian";
+import {
+  PUBLISHING_STATES,
+  getPublishingPlatform,
+  getPublishingPropertyKeys,
+  normalizePublishingState,
+  publishingStateLabel,
+  type PublishingPlatformDefinition,
+  type PublishingState
+} from "../../models/publishing/PublishingPlatform";
 import type { OnProgramService } from "../ServiceRegistry";
 
 const PUBLISHING_TRAY_SELECTOR = ".onprogram-calendar-publishing-tray";
+const PUBLISHING_PILL_SELECTOR = ".onprogram-calendar-publishing-pill";
 const PUBLISHING_CONTROL_SELECTOR = [
-  ".onprogram-calendar-publishing-pill",
+  PUBLISHING_PILL_SELECTOR,
   ".onprogram-calendar-publishing-add"
 ].join(", ");
 
 /**
- * Keeps publishing controls interactive inside draggable Calendar cards.
+ * Keeps publishing controls interactive inside draggable Calendar cards and
+ * owns the lightweight platform-state menu.
  *
- * Timed Calendar cards use native HTML drag/drop. A pointer gesture that starts
- * on a button inside a draggable ancestor can otherwise become a card drag
- * before the button receives a reliable click. Track the pointer origin during
- * capture and cancel only those drag starts that began on publishing controls.
+ * The Calendar item's canonical `scheduled` property is the single source of
+ * truth for date/time. Platform publishing fields only describe distribution
+ * state (planned/scheduled/posted/etc.); they do not maintain a second schedule.
  */
 export class PublishingInteractionService implements OnProgramService {
   readonly id = "publishing-interactions";
@@ -32,6 +42,9 @@ export class PublishingInteractionService implements OnProgramService {
     this.container.addEventListener("pointerup", this.handlePointerEnd, true);
     this.container.addEventListener("pointercancel", this.handlePointerEnd, true);
     this.container.addEventListener("dragstart", this.handleDragStart, true);
+    // Capture platform-pill clicks before CalendarPublishingService's legacy
+    // bubble listener so Scheduled can be a one-click state change.
+    this.container.addEventListener("click", this.handlePublishingClick, true);
 
     this.styleEl = doc.createElement("style");
     this.styleEl.dataset.onprogramPublishingInteractionStyles = "true";
@@ -45,6 +58,7 @@ export class PublishingInteractionService implements OnProgramService {
       this.container.removeEventListener("pointerup", this.handlePointerEnd, true);
       this.container.removeEventListener("pointercancel", this.handlePointerEnd, true);
       this.container.removeEventListener("dragstart", this.handleDragStart, true);
+      this.container.removeEventListener("click", this.handlePublishingClick, true);
     }
 
     this.styleEl?.remove();
@@ -80,6 +94,125 @@ export class PublishingInteractionService implements OnProgramService {
     event.stopPropagation();
     this.pointerStartedOnPublishingControl = false;
   };
+
+  private readonly handlePublishingClick = (event: MouseEvent): void => {
+    const target = event.target as HTMLElement | null;
+    const pill = target?.closest(PUBLISHING_PILL_SELECTOR) as HTMLElement | null;
+    if (!pill) return;
+
+    const card = pill.closest(".onprogram-calendar-item[data-path]") as HTMLElement | null;
+    const path = card?.dataset.path;
+    const platform = getPublishingPlatform(pill.dataset.platform);
+    if (!path || !platform) return;
+
+    // Prevent the older publishing listener from opening the date/time modal.
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    this.showPlatformMenu(event, path, platform);
+  };
+
+  private showPlatformMenu(
+    event: MouseEvent,
+    path: string,
+    platform: PublishingPlatformDefinition
+  ): void {
+    const frontmatter = this.getFrontmatter(path);
+    if (!frontmatter) return;
+
+    const keys = getPublishingPropertyKeys(platform);
+    const current = normalizePublishingState(frontmatter[keys.state]);
+    const menu = new Menu();
+
+    for (const state of PUBLISHING_STATES) {
+      menu.addItem((item) => {
+        item
+          .setTitle(`Mark ${publishingStateLabel(state).toLowerCase()}`)
+          .setIcon(current === state ? "check" : stateIcon(state))
+          .onClick(() => void this.setPlatformState(path, platform, state));
+      });
+    }
+
+    menu.addSeparator();
+    menu.addItem((item) => {
+      item
+        .setTitle(`Remove ${platform.name}`)
+        .setIcon("trash-2")
+        .onClick(() => void this.removePlatform(path, platform));
+    });
+
+    menu.showAtMouseEvent(event);
+  }
+
+  private async setPlatformState(
+    path: string,
+    platform: PublishingPlatformDefinition,
+    state: PublishingState
+  ): Promise<void> {
+    const file = this.getFile(path);
+    if (!file) return;
+    const keys = getPublishingPropertyKeys(platform);
+
+    await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      frontmatter[keys.state] = state;
+
+      // Platform-specific schedule timestamps were part of the first prototype.
+      // The Calendar item's `scheduled` value already owns the date/time, so
+      // clean the redundant legacy field whenever the platform is changed.
+      delete frontmatter[keys.scheduled];
+
+      if (state === "posted") {
+        frontmatter[keys.posted] = localDateTimeIso(new Date());
+      } else {
+        delete frontmatter[keys.posted];
+      }
+    });
+
+    new Notice(`OnProgram: ${platform.name} marked ${publishingStateLabel(state)}.`);
+  }
+
+  private async removePlatform(
+    path: string,
+    platform: PublishingPlatformDefinition
+  ): Promise<void> {
+    const file = this.getFile(path);
+    if (!file) return;
+    const keys = getPublishingPropertyKeys(platform);
+
+    await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      delete frontmatter[keys.state];
+      delete frontmatter[keys.scheduled];
+      delete frontmatter[keys.posted];
+    });
+
+    new Notice(`OnProgram: removed ${platform.name} from this content item.`);
+  }
+
+  private getFile(path: string): TFile | undefined {
+    const file = this.plugin.app.vault.getAbstractFileByPath(path);
+    return file instanceof TFile ? file : undefined;
+  }
+
+  private getFrontmatter(path: string): Record<string, unknown> | undefined {
+    const file = this.getFile(path);
+    if (!file) return undefined;
+    return this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+  }
+}
+
+function stateIcon(state: PublishingState): string {
+  switch (state) {
+    case "planned": return "circle";
+    case "scheduled": return "calendar-check";
+    case "posted": return "check-circle-2";
+    case "failed": return "circle-alert";
+    case "skipped": return "minus-circle";
+  }
+}
+
+function localDateTimeIso(date: Date): string {
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 const INTERACTION_STYLES = `
