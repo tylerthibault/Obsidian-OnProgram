@@ -28,7 +28,10 @@ export class CalendarStatusService implements OnProgramService {
 
   start(): void {
     this.container = this.plugin.app.workspace.containerEl;
-    this.container.addEventListener("contextmenu", this.handleContextMenu);
+
+    // Publishing state now belongs to the platform pills. Keep legacy workflow
+    // status styling for existing notes, but do not expose a competing Calendar
+    // right-click status menu.
 
     const doc = this.container.ownerDocument;
     this.styleEl = doc.createElement("style");
@@ -62,6 +65,11 @@ export class CalendarStatusService implements OnProgramService {
     this.container = undefined;
   }
 
+  /**
+   * Retained as an internal compatibility path while old status values remain
+   * supported by the work-item model. It is intentionally not registered as a
+   * Calendar context-menu listener.
+   */
   private readonly handleContextMenu = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
     const calendarItem = target?.closest(".onprogram-calendar-item[data-path]") as HTMLElement | null;
@@ -170,7 +178,7 @@ export class CalendarStatusService implements OnProgramService {
       element.dataset[STATUS_DATASET_KEY] = item.status;
       element.setAttr(
         "title",
-        `${item.title}\nStatus: ${humanize(item.status)}\nRight-click to change status. Double-click to open.`
+        `${item.title}\nStatus: ${humanize(item.status)}\nDouble-click to open.`
       );
 
       const tray = getOrCreateBadgeTray(element);
