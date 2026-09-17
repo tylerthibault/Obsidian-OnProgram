@@ -12,6 +12,7 @@ import {
 } from "../../models/publishing/PublishingPlatform";
 import type { OnProgramService } from "../ServiceRegistry";
 import type { ProjectAssignmentService } from "../projects/ProjectAssignmentService";
+import type { PerformanceMetricsService } from "../presentation/PerformanceMetricsService";
 
 const TRAY_CLASS = "onprogram-calendar-publishing-tray";
 const PILL_CLASS = "onprogram-calendar-publishing-pill";
@@ -26,7 +27,8 @@ export class CalendarPublishingService implements OnProgramService {
 
   constructor(
     private readonly plugin: Plugin,
-    private readonly projectAssignment: ProjectAssignmentService
+    private readonly projectAssignment: ProjectAssignmentService,
+    private readonly performanceMetrics: PerformanceMetricsService
   ) {}
 
   start(): void {
@@ -108,6 +110,9 @@ export class CalendarPublishingService implements OnProgramService {
     const menu = new Menu();
     const workItem = this.projectAssignment.addProjectMenuItemForPath(menu, path);
     if (workItem && workItem.type !== "project") menu.addSeparator();
+
+    this.performanceMetrics.addMenuItemForPath(menu, path);
+    if (active.length > 0 || inactive.length > 0) menu.addSeparator();
 
     for (const entry of active) {
       this.addPlatformSubmenu(menu, path, entry.platform, entry.state);
