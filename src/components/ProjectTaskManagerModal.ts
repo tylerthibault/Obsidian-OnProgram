@@ -28,9 +28,10 @@ const LOCKED_COMPLETE_STATUSES = new Set(["posted", "cancelled", "archived"]);
 export class ProjectTaskManagerModal extends Modal {
   private newTaskTitle = "";
   private search = "";
-  private busy = false;
+  private operationQueue: Promise<void> = Promise.resolve();
   private readonly attachedPaths = new Set<string>();
   private readonly optimisticComplete = new Map<string, boolean>();
+  private readonly projectOverrides = new Map<string, string | undefined>();
   private readonly createdTasks: Array<{ title: string }> = [];
 
   constructor(
@@ -123,7 +124,7 @@ export class ProjectTaskManagerModal extends Modal {
       const optimistic = this.optimisticComplete.get(task.source.path);
       const completed = optimistic ?? COMPLETE_STATUSES.has(task.status);
       checkbox.checked = completed;
-      checkbox.disabled = this.busy || LOCKED_COMPLETE_STATUSES.has(task.status);
+      checkbox.disabled = LOCKED_COMPLETE_STATUSES.has(task.status);
       checkbox.setAttr("aria-label", `${completed ? "Reopen" : "Complete"} ${task.title}`);
       checkbox.addEventListener("change", () => {
         void this.toggleComplete(task, checkbox.checked);
@@ -143,7 +144,6 @@ export class ProjectTaskManagerModal extends Modal {
 
       const detach = row.createEl("button", { text: "Remove" });
       detach.setAttr("title", "Remove this task from the project without deleting it");
-      detach.disabled = this.busy;
       detach.addEventListener("click", () => void this.detachTask(task));
     }
 
@@ -196,20 +196,20 @@ export class ProjectTaskManagerModal extends Modal {
 
     const list = section.createDiv({ cls: "onprogram-project-task-picker" });
     for (const task of available) {
+      const currentProject = this.projectFor(task);
       const row = list.createDiv({ cls: "onprogram-project-task-picker-row" });
       const info = row.createDiv({ cls: "onprogram-project-task-row-text" });
       info.createDiv({ text: task.title, cls: "onprogram-project-task-title" });
       info.createDiv({
-        text: task.project ? `Currently: ${task.project}` : "Unassigned",
+        text: currentProject ? `Currently: ${displayReference(currentProject)}` : "Unassigned",
         cls: "onprogram-project-task-status"
       });
 
-      const add = row.createEl("button", { text: task.project ? "Move here" : "Add" });
-      add.disabled = this.busy;
+      const add = row.createEl("button", { text: currentProject ? "Move here" : "Add" });
       add.setAttr(
         "title",
-        task.project
-          ? `Move this task from '${task.project}' to ${this.options.project.title}`
+        currentProject
+          ? `Move this task from '${displayReference(currentProject)}' to ${this.options.project.title}`
           : `Add this task to ${this.options.project.title}`
       );
       add.addEventListener("click", () => void this.attachTask(task));
@@ -218,7 +218,7 @@ export class ProjectTaskManagerModal extends Modal {
 
   private async createTask(): Promise<void> {
     const title = this.newTaskTitle.trim();
-    if (!title || this.busy) return;
+    if (!title) return;
 
     await this.run(async () => {
       await this.options.onCreateTask(title);
@@ -229,10 +229,14 @@ export class ProjectTaskManagerModal extends Modal {
   }
 
   private async attachTask(task: TaskWorkItem): Promise<void> {
-    if (this.busy) return;
-    if (task.project) {
+    const currentProject = this.projectFor(task);
+    const alreadyHere = Boolean(
+      currentProject && projectReferenceMatches(currentProject, this.options.project)
+    );
+
+    if (currentProject && !alreadyHere) {
       const confirmed = window.confirm(
-        `'${task.title}' is currently assigned to ${task.project}. Move it to ${this.options.project.title}?`
+        `'${task.title}' is currently assigned to ${displayReference(currentProject)}. Move it to ${this.options.project.title}?`
       );
       if (!confirmed) return;
     }
@@ -240,46 +244,66 @@ export class ProjectTaskManagerModal extends Modal {
     await this.run(async () => {
       await this.options.onAttachTask(task);
       this.attachedPaths.add(task.source.path);
+      this.projectOverrides.set(task.source.path, this.options.project.title);
     });
   }
 
   private async detachTask(task: TaskWorkItem): Promise<void> {
-    if (this.busy) return;
     await this.run(async () => {
       await this.options.onDetachTask(task);
       this.attachedPaths.delete(task.source.path);
       this.optimisticComplete.delete(task.source.path);
+      this.projectOverrides.set(task.source.path, undefined);
     });
   }
 
   private async toggleComplete(task: TaskWorkItem, completed: boolean): Promise<void> {
-    if (this.busy) return;
     await this.run(async () => {
       await this.options.onToggleComplete(task, completed);
       this.optimisticComplete.set(task.source.path, completed);
     });
   }
 
-  private async run(action: () => Promise<void>): Promise<void> {
-    if (this.busy) return;
-
-    const scrollTop = this.contentEl.scrollTop;
-    this.busy = true;
-    this.modalEl.addClass("onprogram-is-busy");
-    try {
-      await action();
-    } catch (error) {
-      this.options.onError(error);
-    } finally {
-      // Clear the busy state before rebuilding the controls. Rendering while
-      // busy creates a fresh DOM whose buttons/checkboxes remain disabled even
-      // after this.busy is later reset.
-      this.busy = false;
-      this.modalEl.removeClass("onprogram-is-busy");
-      this.render();
-      this.contentEl.scrollTop = scrollTop;
+  private projectFor(task: TaskWorkItem): string | undefined {
+    if (this.projectOverrides.has(task.source.path)) {
+      return this.projectOverrides.get(task.source.path);
     }
+    return task.project;
   }
+
+  /**
+   * Serialize mutations without disabling the modal. WorkItemWriter already
+   * serializes writes per file; this queue also keeps the modal's optimistic
+   * UI state ordered while allowing the next control to remain clickable.
+   */
+  private async run(action: () => Promise<void>): Promise<void> {
+    const scrollTop = this.contentEl.scrollTop;
+
+    const operation = this.operationQueue
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          await action();
+        } catch (error) {
+          this.options.onError(error);
+        } finally {
+          this.render();
+          this.contentEl.scrollTop = scrollTop;
+        }
+      });
+
+    this.operationQueue = operation.then(() => undefined, () => undefined);
+    await operation;
+  }
+}
+
+function displayReference(reference: string): string {
+  return reference
+    .replace(/^\[\[/, "")
+    .replace(/\]\]$/, "")
+    .replace(/\.md$/i, "")
+    .split("/")
+    .pop() ?? reference;
 }
 
 function humanize(value: string): string {
