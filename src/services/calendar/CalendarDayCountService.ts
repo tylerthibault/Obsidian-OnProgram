@@ -80,25 +80,29 @@ export class CalendarDayCountService implements OnProgramService {
     ) as HTMLElement[];
     if (headers.length !== 7) return;
 
-    const dayPaths = Array.from({ length: 7 }, () => new Set<string>());
+    const dayPaths: Array<Set<string>> = Array.from({ length: 7 }, () => new Set<string>());
     const cells = Array.from(
       calendar.querySelectorAll(":scope > .onprogram-calendar-week-cell")
     ) as HTMLElement[];
 
     for (let index = 0; index < cells.length; index += 1) {
-      const dayIndex = index % 7;
+      const cell = cells[index];
+      const paths = dayPaths[index % 7];
+      if (!cell || !paths) continue;
+
       const items = Array.from(
-        cells[index].querySelectorAll(".onprogram-calendar-item[data-path]")
+        cell.querySelectorAll(".onprogram-calendar-item[data-path]")
       ) as HTMLElement[];
 
       for (const item of items) {
         const path = item.dataset.path;
-        if (path) dayPaths[dayIndex].add(path);
+        if (path) paths.add(path);
       }
     }
 
     headers.forEach((header, index) => {
-      updateCountBadge(header, dayPaths[index].size, "week");
+      const paths = dayPaths[index];
+      updateCountBadge(header, paths ? paths.size : 0, "week");
     });
   }
 
