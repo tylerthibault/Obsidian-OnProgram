@@ -486,6 +486,13 @@ Right-click to change status. Double-click to open.`);let a=Do(r),s=a.querySelec
   position: relative;
 }
 
+/* Timed cards are their own responsive containers, so badge layout can react
+   to the actual card width instead of the overall Obsidian pane width. */
+.onprogram-calendar-view .onprogram-calendar-timed-item {
+  container-type: inline-size;
+  container-name: onprogram-calendar-card;
+}
+
 .onprogram-work-item-badge {
   --onprogram-badge-color: var(--interactive-accent);
   position: absolute;
@@ -602,6 +609,71 @@ Right-click to change status. Double-click to open.`);let a=Do(r),s=a.querySelec
 
 .onprogram-board-card.onprogram-has-work-item-badge .onprogram-board-card-title {
   padding-right: 104px;
+}
+
+/* Compact timed cards: keep badges inside the card. The posted/done state is
+   already communicated by the card treatment, so the full status pill is
+   hidden when horizontal room is scarce. */
+@container onprogram-calendar-card (max-width: 210px) {
+  .onprogram-calendar-badge-tray {
+    top: 4px;
+    right: 4px;
+    max-width: calc(100% - 8px);
+    gap: 3px;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-calendar-status-badge {
+    display: none !important;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+    min-width: 24px;
+    height: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    max-width: 58px;
+    padding: 0 5px;
+    font-size: 10px;
+    line-height: 16px;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-views-badge {
+    min-width: 28px;
+  }
+
+  .onprogram-calendar-item-time {
+    max-width: calc(100% - 72px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .onprogram-calendar-timed-title {
+    top: 24px !important;
+    left: 5px !important;
+    right: 5px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+}
+
+@container onprogram-calendar-card (max-width: 145px) {
+  .onprogram-calendar-badge-tray {
+    gap: 2px;
+    right: 3px;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+    min-width: 22px;
+    max-width: 48px;
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 9px;
+  }
+
+  .onprogram-calendar-item-time {
+    font-size: 10px;
+    max-width: calc(100% - 58px);
+  }
 }
 `;var Y=require("obsidian");var Je=class{constructor(t,e){this.app=t;this.getConfig=e}async createTask(t){let e=this.getConfig();this.assertSafePropertyMap(e.propertyMap);let r=Lt(t.title),n=this.resolveDestinationFolder(e,t);await this.ensureFolder(n);let{content:i,usedTemplate:a}=await this.loadTemplate(e.taskTemplatePath),s=this.findAvailablePath(n,r),d=await this.app.vault.create(s,i);try{await this.initializeTaskFrontmatter(d,e,t)}catch(l){try{await this.app.vault.delete(d)}catch{}throw l}return t.openAfterCreate!==!1&&await this.app.workspace.getLeaf(!1).openFile(d),{file:d,path:d.path,title:d.basename,usedTemplate:a}}resolveDestinationFolder(t,e){if(t.taskFolderMode==="custom")return wr(t.taskFolder);let r=pr(this.app,e.targetFolder);if(!r)throw new h("OnProgram could not determine the current Base folder. Focus the Base and try again, or choose Custom vault folder in OnProgram settings.","task-base-folder-unresolved");return wr(r)}async initializeTaskFrontmatter(t,e,r){let n=r.project?.trim(),i=e.defaultProject.trim(),a=n||i,s=e.propertyMap;await this.app.fileManager.processFrontMatter(t,d=>{d[s.type]="task",d[s.status]=r.initialStatus??H.task,T(d,s.project,a||null),T(d,s.priority,"normal"),T(d,s.start,null),T(d,s.end,null),T(d,s.due,null),T(d,s.scheduled,null),T(d,s.duration,null),T(d,s.completed,null),T(d,s.parent,null),T(d,s.dependsOn,[]),T(d,s.linkedBase,null),T(d,"views_24_hours",null),T(d,"views_1_week",null),T(d,"views_1_month",null),a&&(d[s.project]=a),r.initialDate&&(d[s[r.initialDate.field]]=r.initialDate.value.iso)})}async loadTemplate(t){let e=t.trim();if(!e)return{content:"",usedTemplate:!1};let r=br(e,"template path"),n=r.toLowerCase().endsWith(".md")?[r]:[r,`${r}.md`];for(let i of n){let a=this.app.vault.getAbstractFileByPath(i);if(a instanceof Y.TFile)return{content:await this.app.vault.read(a),usedTemplate:!0}}throw new h(`Task template was not found: ${e}`,"task-template-not-found")}async ensureFolder(t){if(!t)return;let e=t.split("/").filter(n=>n.length>0),r="";for(let n of e){r=r?`${r}/${n}`:n;let i=this.app.vault.getAbstractFileByPath(r);if(!i){await this.app.vault.createFolder(r);continue}if(!(i instanceof Y.TFolder))throw new h(`Cannot create task folder because '${r}' is a file.`,"task-folder-conflict")}}findAvailablePath(t,e){let r=i=>(0,Y.normalizePath)(`${t?`${t}/`:""}${e}${i}.md`),n=r("");if(!this.app.vault.getAbstractFileByPath(n))return n;for(let i=2;i<=9999;i+=1){let a=r(` ${i}`);if(!this.app.vault.getAbstractFileByPath(a))return a}throw new h(`Unable to find an available filename for '${e}'.`,"task-filename-exhausted")}assertSafePropertyMap(t){let e=Z(t);if(e.length!==0)throw new h(`Cannot create a task with the current property mapping: ${e.map(r=>r.message).join(" ")}`,"invalid-work-item-property-map")}};function Lt(o){let t=o.trim();if(!t)throw new h("Task title cannot be empty.","empty-task-title");let e=t.replace(/[\\/:*?"<>|\u0000-\u001F]/g,"-").replace(/\s+/g," ").replace(/[. ]+$/g,"").trim();if(!e)throw new h("Task title does not contain a usable filename.","invalid-task-title");return e}function wr(o){let t=o.trim();return!t||t==="/"?"":br(t,"task folder")}function br(o,t){let r=o.replace(/\\/g,"/").replace(/^\/+|\/+$/g,"").split("/").filter(n=>n.length>0);if(r.some(n=>n==="."||n===".."))throw new h(`The ${t} cannot contain '.' or '..' path segments.`,"invalid-vault-path");return r.length===0?"":(0,Y.normalizePath)(r.join("/"))}function T(o,t,e){Object.prototype.hasOwnProperty.call(o,t)||(o[t]=e)}var U=require("obsidian");var Ao=["task","project","milestone","event"];function Ir(o){return typeof o=="string"&&Ao.includes(o)}var Ro=/^(\d{4})-(\d{2})-(\d{2})$/,$o=/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})?$/;function tt(o){if(typeof o!="string")return;let t=o.trim().toLowerCase();return Ir(t)?t:void 0}function Tr(o){if(typeof o!="string")return;let t=o.trim().toLowerCase().replace(/[\s_]+/g,"-");return G(t)?t:void 0}function xr(o){if(typeof o!="string")return;let t=o.trim().toLowerCase();return q(t)?t:void 0}function Ft(o){if(typeof o!="string")return;let t=o.trim();return t.length>0?t:void 0}function Dr(o){if(o==null||o==="")return[];let t=Array.isArray(o)?o:[o],e=[];for(let r of t){let n=Ft(r);if(!n)return;e.includes(n)||e.push(n)}return e}function rt(o){if(typeof o=="number")return et(o)?Math.round(o):void 0;if(typeof o!="string")return;let t=o.trim().toLowerCase();if(t.length===0)return;if(/^\d+(?:\.\d+)?$/.test(t)){let n=Number(t);return et(n)?Math.round(n):void 0}let e=t.match(/^(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes)$/);if(e?.[1]){let n=Number(e[1]);return et(n)?Math.round(n):void 0}let r=t.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)(?:\s+(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes))?$/);if(r?.[1]){let n=Number(r[1]),i=r[2]?Number(r[2]):0,a=n*60+i;return et(a)?Math.round(a):void 0}}function K(o){if(o instanceof Date)return Number.isNaN(o.getTime())?void 0:{kind:"date-time",iso:No(o)};if(typeof o!="string")return;let t=o.trim();if(t.length===0)return;let e=t.match(Ro);if(e?.[1]&&e[2]&&e[3]){let p=Number(e[1]),m=Number(e[2]),u=Number(e[3]);return Pr(p,m,u)?{kind:"date",iso:t}:void 0}let r=t.match($o);if(!r?.[1]||!r[2]||!r[3]||!r[4]||!r[5])return;let n=Number(r[1]),i=Number(r[2]),a=Number(r[3]),s=Number(r[4]),d=Number(r[5]),l=r[6]?Number(r[6]):0,c=r[8];if(!(!Pr(n,i,a)||s>23||d>59||l>59)&&!(c&&c!=="Z"&&!_o(c)))return{kind:"date-time",iso:t.replace(" ","T")}}function et(o){return Number.isFinite(o)&&o>0}function Pr(o,t,e){if(t<1||t>12||e<1)return!1;let r=new Date(Date.UTC(o,t,0)).getUTCDate();return e<=r}function _o(o){let t=o.match(/^([+-])(\d{2}):(\d{2})$/);if(!t?.[2]||!t[3])return!1;let e=Number(t[2]),r=Number(t[3]);return e<=14&&r<=59}function No(o){let t=o.getFullYear(),e=de(o.getMonth()+1),r=de(o.getDate()),n=de(o.getHours()),i=de(o.getMinutes()),a=o.getSeconds();return`${t}-${e}-${r}T${n}:${i}${a>0?`:${de(a)}`:""}`}function de(o){return o.toString().padStart(2,"0")}var ot=class{constructor(t,e){this.app=t;this.writer=e}async loadDraft(t){let e=this.resolveFile(t.source.path),r=await this.app.vault.read(e);return{title:t.title,status:t.status,project:t.project??"",linkedBase:t.linkedBase??"",priority:t.priority,start:t.dates.start?.iso??"",due:t.dates.due?.iso??"",scheduled:t.dates.scheduled?.iso??"",duration:t.durationMinutes?String(t.durationMinutes):"",notes:Ot(r)}}async save(t){let{item:e,draft:r}=t,n=this.resolveFile(e.source.path),i=await this.app.vault.read(n);if(n.stat.mtime!==e.source.mtime)throw new h(`The file changed after OnProgram opened the editor. Reload before saving: ${n.path}`,"work-item-edit-conflict");let a=Lt(r.title),s=this.validateRenameTarget(n,a),d=this.buildPatch(e,r);await this.writer.updateItem(e,d);let l=this.resolveFile(e.source.path);await this.writeNotes(l,Ot(i),r.notes);let c=s!==l.path;return c&&(await this.app.fileManager.renameFile(l,s),l=this.resolveFile(s)),{file:l,path:l.path,renamed:c}}async archive(t){await this.writer.updateItem(t,{status:"archived"})}async trash(t){let e=this.resolveFile(t.source.path);if(e.stat.mtime!==t.source.mtime)throw new h(`The file changed after OnProgram read it. Reload before moving it to Trash: ${e.path}`,"work-item-edit-conflict");await this.app.fileManager.trashFile(e)}async openSource(t){let e=this.resolveFile(t.source.path);await this.app.workspace.getLeaf(!1).openFile(e)}validateRenameTarget(t,e){if(e===t.basename)return t.path;let r=t.parent?.path??"",n=(0,U.normalizePath)(`${r?`${r}/`:""}${e}.md`),i=this.app.vault.getAbstractFileByPath(n);if(i&&i!==t)throw new h(`A note named '${e}.md' already exists in this folder.`,"work-item-rename-conflict");return n}buildPatch(t,e){return{status:e.status,priority:e.priority,project:Er(e.project),linkedBase:Er(e.linkedBase),start:Vo(e.start,"start"),due:this.requiredAwareDate(t.type==="milestone",e.due,"due"),scheduled:this.requiredAwareDate(t.type==="event",e.scheduled,"scheduled"),durationMinutes:Ho(e.duration)}}requiredAwareDate(t,e,r){let n=e.trim();if(!n){if(t)throw new h(`${r==="due"?"Due":"Scheduled"} is required for this work item.`,"required-work-item-property");return null}return Wr(n,r)}async writeNotes(t,e,r){if(r===e)return;let n=await this.app.vault.read(t);if(Ot(n)!==e)throw new h(`The note body changed while the editor was open. Reload before saving: ${t.path}`,"work-item-edit-conflict");await this.app.vault.process(t,i=>{let a=(0,U.getFrontMatterInfo)(i);return a.exists?`${i.slice(0,a.contentStart).replace(/\s*$/,"")}
 
