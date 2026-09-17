@@ -13,10 +13,8 @@ import {
   ONPROGRAM_CALENDAR_VIEW_ID,
   OnProgramCalendarView
 } from "../../views/bases/OnProgramCalendarView";
-import {
-  ONPROGRAM_DASHBOARD_VIEW_ID,
-  OnProgramDashboardView
-} from "../../views/bases/OnProgramDashboardView";
+import { CustomizableOnProgramDashboardView } from "../../views/bases/CustomizableOnProgramDashboardView";
+import { ONPROGRAM_DASHBOARD_VIEW_ID } from "../../views/bases/OnProgramDashboardView";
 import {
   ONPROGRAM_PROJECTS_VIEW_ID,
   OnProgramProjectsView
@@ -57,6 +55,11 @@ const TIMELINE_ZOOM_OPTIONS: Record<string, string> = {
   quarter: "Quarter"
 };
 
+const DASHBOARD_WIDTH_OPTIONS: Record<string, string> = {
+  centered: "Centered",
+  full: "Full width"
+};
+
 export class BasesIntegrationService implements OnProgramService {
   readonly id = "bases-integration";
   private registered = false;
@@ -93,7 +96,7 @@ export class BasesIntegrationService implements OnProgramService {
       name: "OnProgram Dashboard",
       icon: "layout-dashboard",
       options: dashboardViewOptions,
-      factory: (controller, containerEl) => new OnProgramDashboardView(
+      factory: (controller, containerEl) => new CustomizableOnProgramDashboardView(
         controller,
         containerEl,
         adapter,
@@ -213,7 +216,23 @@ function baseTaskFolderOptions() {
 }
 
 function dashboardViewOptions() {
-  return baseTaskFolderOptions();
+  return [
+    ...baseTaskFolderOptions(),
+    {
+      type: "dropdown" as const,
+      key: "dashboardWidth",
+      displayName: "Dashboard width",
+      default: "centered",
+      options: DASHBOARD_WIDTH_OPTIONS
+    },
+    {
+      type: "text" as const,
+      key: "dashboardLayout",
+      displayName: "Dashboard layout",
+      default: "",
+      shouldHide: () => true
+    }
+  ];
 }
 
 function boardViewOptions() {
