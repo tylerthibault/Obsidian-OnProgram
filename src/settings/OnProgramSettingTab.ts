@@ -1,5 +1,9 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
-import type { OnProgramSettings, TaskFolderMode } from "./OnProgramSettings";
+import type {
+  OnProgramSettings,
+  TaskFolderMode,
+  ViewsBadgeMetric
+} from "./OnProgramSettings";
 
 export interface OnProgramSettingsHost {
   settings: OnProgramSettings;
@@ -96,16 +100,7 @@ export class OnProgramSettingTab extends PluginSettingTab {
       .setName("Badge color")
       .setDesc("Choose a color for the work item badge.")
       .addDropdown((dropdown) =>
-        dropdown
-          .addOption("accent", "Accent")
-          .addOption("green", "Green")
-          .addOption("blue", "Blue")
-          .addOption("purple", "Purple")
-          .addOption("orange", "Orange")
-          .addOption("red", "Red")
-          .addOption("yellow", "Yellow")
-          .addOption("gray", "Gray")
-          .addOption("custom", "Custom")
+        addBadgeColorOptions(dropdown)
           .setValue(this.host.settings.badgeColor)
           .onChange(async (value) => {
             this.host.settings.badgeColor = value;
@@ -124,6 +119,50 @@ export class OnProgramSettingTab extends PluginSettingTab {
             .setValue(this.host.settings.badgeCustomColor)
             .onChange(async (value) => {
               this.host.settings.badgeCustomColor = value.trim();
+              await this.host.saveSettings();
+            })
+        );
+    }
+
+    new Setting(containerEl)
+      .setName("Views badge metric")
+      .setDesc("Show one compact views metric pill. Hover it to see all available view windows. Uses views_24_hours, views_1_week, and views_1_month frontmatter properties.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("off", "Off")
+          .addOption("24-hours", "24 hours")
+          .addOption("1-week", "1 week")
+          .addOption("1-month", "1 month")
+          .setValue(this.host.settings.viewsBadgeMetric)
+          .onChange(async (value) => {
+            this.host.settings.viewsBadgeMetric = value as ViewsBadgeMetric;
+            await this.host.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Views badge color")
+      .setDesc("Choose a separate color for the views metric pill.")
+      .addDropdown((dropdown) =>
+        addBadgeColorOptions(dropdown)
+          .setValue(this.host.settings.viewsBadgeColor)
+          .onChange(async (value) => {
+            this.host.settings.viewsBadgeColor = value;
+            await this.host.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.host.settings.viewsBadgeColor === "custom") {
+      new Setting(containerEl)
+        .setName("Custom views badge color")
+        .setDesc("Any valid CSS color, for example #38bdf8 or rgb(56, 189, 248).")
+        .addText((text) =>
+          text
+            .setPlaceholder("#38bdf8")
+            .setValue(this.host.settings.viewsBadgeCustomColor)
+            .onChange(async (value) => {
+              this.host.settings.viewsBadgeCustomColor = value.trim();
               await this.host.saveSettings();
             })
         );
@@ -159,4 +198,17 @@ export class OnProgramSettingTab extends PluginSettingTab {
         })
       );
   }
+}
+
+function addBadgeColorOptions(dropdown: import("obsidian").DropdownComponent): import("obsidian").DropdownComponent {
+  return dropdown
+    .addOption("accent", "Accent")
+    .addOption("green", "Green")
+    .addOption("blue", "Blue")
+    .addOption("purple", "Purple")
+    .addOption("orange", "Orange")
+    .addOption("red", "Red")
+    .addOption("yellow", "Yellow")
+    .addOption("gray", "Gray")
+    .addOption("custom", "Custom");
 }
