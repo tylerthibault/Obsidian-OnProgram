@@ -291,6 +291,13 @@ const BADGE_STYLES = `
   position: relative;
 }
 
+/* Timed cards are their own responsive containers, so badge layout can react
+   to the actual card width instead of the overall Obsidian pane width. */
+.onprogram-calendar-view .onprogram-calendar-timed-item {
+  container-type: inline-size;
+  container-name: onprogram-calendar-card;
+}
+
 .onprogram-work-item-badge {
   --onprogram-badge-color: var(--interactive-accent);
   position: absolute;
@@ -407,5 +414,70 @@ const BADGE_STYLES = `
 
 .onprogram-board-card.onprogram-has-work-item-badge .onprogram-board-card-title {
   padding-right: 104px;
+}
+
+/* Compact timed cards: keep badges inside the card. The posted/done state is
+   already communicated by the card treatment, so the full status pill is
+   hidden when horizontal room is scarce. */
+@container onprogram-calendar-card (max-width: 210px) {
+  .onprogram-calendar-badge-tray {
+    top: 4px;
+    right: 4px;
+    max-width: calc(100% - 8px);
+    gap: 3px;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-calendar-status-badge {
+    display: none !important;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+    min-width: 24px;
+    height: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    max-width: 58px;
+    padding: 0 5px;
+    font-size: 10px;
+    line-height: 16px;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-views-badge {
+    min-width: 28px;
+  }
+
+  .onprogram-calendar-item-time {
+    max-width: calc(100% - 72px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .onprogram-calendar-timed-title {
+    top: 24px !important;
+    left: 5px !important;
+    right: 5px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+}
+
+@container onprogram-calendar-card (max-width: 145px) {
+  .onprogram-calendar-badge-tray {
+    gap: 2px;
+    right: 3px;
+  }
+
+  .onprogram-calendar-badge-tray > .onprogram-work-item-badge {
+    min-width: 22px;
+    max-width: 48px;
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 9px;
+  }
+
+  .onprogram-calendar-item-time {
+    font-size: 10px;
+    max-width: calc(100% - 58px);
+  }
 }
 `;
