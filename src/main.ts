@@ -12,6 +12,7 @@ import { CalendarDayCountService } from "./services/calendar/CalendarDayCountSer
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
+import { ProjectAssignmentService } from "./services/projects/ProjectAssignmentService";
 import { ProjectCreator } from "./services/projects/ProjectCreator";
 import { CalendarPublishingService } from "./services/publishing/CalendarPublishingService";
 import { TaskCreator } from "./services/work-items/TaskCreator";
@@ -60,6 +61,12 @@ export default class OnProgramPlugin extends Plugin {
     });
     const taskCreator = new TaskCreator(this.app, creationConfig);
     const projectCreator = new ProjectCreator(this.app, creationConfig);
+    const projectAssignment = new ProjectAssignmentService(
+      this.app,
+      workItemParser,
+      workItemWriter,
+      errorHandler
+    );
     const baseContext = new OnProgramBaseContext(this.app);
     const baseCreator = new OnProgramBaseCreator(
       this.app,
@@ -72,6 +79,7 @@ export default class OnProgramPlugin extends Plugin {
       workItemWriter,
       taskCreator,
       projectCreator,
+      projectAssignment,
       workItemOpener,
       errorHandler
     );
@@ -83,7 +91,7 @@ export default class OnProgramPlugin extends Plugin {
     );
     const calendarScrollState = new CalendarScrollStateService(this);
     const calendarDayCounts = new CalendarDayCountService(this);
-    const calendarPublishing = new CalendarPublishingService(this);
+    const calendarPublishing = new CalendarPublishingService(this, projectAssignment);
     const workItemBadges = new WorkItemBadgeService(this, () => ({
       badgeProperty: this.settings.badgeProperty,
       badgeColor: this.settings.badgeColor,
