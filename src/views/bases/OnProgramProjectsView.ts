@@ -1,13 +1,19 @@
-import { BasesView, Menu, Notice, type QueryController } from "obsidian";
+import { BasesView, Menu, Notice, TFile, type QueryController } from "obsidian";
 import { CreateProjectModal } from "../../components/CreateProjectModal";
+import { ProjectTaskManagerModal } from "../../components/ProjectTaskManagerModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
-import type { ProjectWorkItem } from "../../models/work-item/WorkItem";
+import type { ProjectWorkItem, TaskWorkItem } from "../../models/work-item/WorkItem";
+import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import { resolveLinkedOnProgramBase } from "../../services/bases/LinkedOnProgramBase";
 import type { ProjectCreator } from "../../services/projects/ProjectCreator";
-import { calculateProjectProgress } from "../../services/projects/ProjectRollup";
+import {
+  calculateProjectProgress,
+  projectReferenceMatches
+} from "../../services/projects/ProjectRollup";
+import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
 import type { WorkItemWriter } from "../../services/work-items/WorkItemWriter";
 
@@ -31,6 +37,7 @@ export class OnProgramProjectsView extends BasesView {
     private readonly hostEl: HTMLElement,
     private readonly adapter: BasesWorkItemAdapter,
     private readonly projectCreator: ProjectCreator,
+    private readonly taskCreator: TaskCreator,
     private readonly writer: WorkItemWriter,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
@@ -75,7 +82,7 @@ export class OnProgramProjectsView extends BasesView {
       const empty = this.hostEl.createDiv({ cls: "onprogram-projects-empty" });
       empty.createEl("strong", { text: "No projects yet" });
       empty.createDiv({
-        text: "Create a project, then assign tasks with the project property to see automatic progress here."
+        text: "Create a project, then use its Tasks button to build the checklist as the work becomes clear."
       });
       const emptyCreate = empty.createEl("button", { text: "Create first project" });
       emptyCreate.addEventListener("click", () => this.createProject());
@@ -123,7 +130,7 @@ export class OnProgramProjectsView extends BasesView {
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      this.showProjectMenu(event, project);
+      this.showProjectMenu(event, project, allItems);
     });
 
     const identity = row.createDiv({ cls: "onprogram-project-identity" });
@@ -159,6 +166,13 @@ export class OnProgramProjectsView extends BasesView {
     track.setAttr("aria-label", `${progress.percentage}% complete`);
 
     const actions = row.createDiv({ cls: "onprogram-project-actions" });
+    const tasksButton = actions.createEl("button", {
+      text: progress.total === 0 ? "Tasks" : `Tasks ${progress.total}`,
+      cls: "onprogram-project-tasks-button"
+    });
+    tasksButton.setAttr("title", `Manage tasks for ${project.title}`);
+    tasksButton.addEventListener("click", () => this.openTaskManager(project, allItems));
+
     if (project.linkedBase) {
       const baseButton = actions.createEl("button", {
         text: "Base ↗",
@@ -173,7 +187,7 @@ export class OnProgramProjectsView extends BasesView {
       cls: "onprogram-project-more"
     });
     more.setAttr("aria-label", `Project actions for ${project.title}`);
-    more.addEventListener("click", (event) => this.showProjectMenu(event, project));
+    more.addEventListener("click", (event) => this.showProjectMenu(event, project, allItems));
   }
 
   private matchesFilter(project: ProjectWorkItem): boolean {
@@ -196,6 +210,50 @@ export class OnProgramProjectsView extends BasesView {
     }).open();
   }
 
+  private openTaskManager(
+    project: ProjectWorkItem,
+    allItems: ReturnType<BasesWorkItemAdapter["adapt"]>["items"]
+  ): void {
+    const tasks = allItems.filter((item): item is TaskWorkItem => item.type === "task");
+    const projectReference = projectReferenceForWrite(project);
+
+    new ProjectTaskManagerModal(this.app, {
+      project,
+      tasks,
+      onCreateTask: async (title) => {
+        await this.taskCreator.createTask({
+          title,
+          project: projectReference,
+          targetFolder: this.getConfiguredTaskFolder(),
+          openAfterCreate: false
+        });
+      },
+      onAttachTask: async (task) => {
+        await this.updateTask(task, { project: projectReference });
+      },
+      onDetachTask: async (task) => {
+        await this.updateTask(task, { project: null });
+      },
+      onToggleComplete: async (task, completed) => {
+        await this.updateTask(task, completed
+          ? { status: "done", completed: currentLocalDateTime() }
+          : { status: "todo", completed: null });
+      },
+      onError: (error) => this.errorHandler.handle(error, "manage project tasks", true)
+    }).open();
+  }
+
+  private async updateTask(
+    task: TaskWorkItem,
+    patch: Parameters<WorkItemWriter["updateFile"]>[1]
+  ): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(task.source.path);
+    if (!(file instanceof TFile)) {
+      throw new Error(`Task file was not found: ${task.source.path}`);
+    }
+    await this.writer.updateFile(file, patch);
+  }
+
   private getConfiguredTaskFolder(): string | undefined {
     const value = this.config.get("taskFolder");
     return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -215,8 +273,17 @@ export class OnProgramProjectsView extends BasesView {
     await this.app.workspace.getLeaf(false).openFile(baseFile);
   }
 
-  private showProjectMenu(event: MouseEvent, project: ProjectWorkItem): void {
+  private showProjectMenu(
+    event: MouseEvent,
+    project: ProjectWorkItem,
+    allItems: ReturnType<BasesWorkItemAdapter["adapt"]>["items"]
+  ): void {
     const menu = new Menu();
+
+    menu.addItem((item) => item
+      .setTitle("Manage tasks…")
+      .setIcon("list-checks")
+      .onClick(() => this.openTaskManager(project, allItems)));
 
     menu.addItem((item) => item
       .setTitle("Open project note")
@@ -264,6 +331,21 @@ export class OnProgramProjectsView extends BasesView {
       this.hostEl.removeClass("onprogram-is-busy");
     }
   }
+}
+
+function projectReferenceForWrite(project: ProjectWorkItem): string {
+  const path = project.source.path.replace(/\.md$/i, "");
+  return `[[${path}]]`;
+}
+
+function currentLocalDateTime(): WorkItemDateValue {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hour = String(now.getHours()).padStart(2, "0");
+  const minute = String(now.getMinutes()).padStart(2, "0");
+  return { kind: "date-time", iso: `${year}-${month}-${day}T${hour}:${minute}` };
 }
 
 function humanize(value: string): string {
@@ -435,9 +517,14 @@ const PROJECT_STYLES = `
   flex: 0 0 auto;
 }
 
+.onprogram-project-tasks-button,
 .onprogram-project-base-button,
 .onprogram-project-more {
   white-space: nowrap;
+}
+
+.onprogram-project-tasks-button {
+  font-variant-numeric: tabular-nums;
 }
 
 .onprogram-projects-empty,
