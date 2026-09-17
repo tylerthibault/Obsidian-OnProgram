@@ -22,9 +22,11 @@ import {
   OnProgramTimelineView
 } from "../../views/bases/OnProgramTimelineView";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { MilestoneCreator } from "../projects/MilestoneCreator";
 import type { ProjectAssignmentService } from "../projects/ProjectAssignmentService";
 import type { ProjectCreator } from "../projects/ProjectCreator";
 import type { TaskCreator } from "../work-items/TaskCreator";
+import type { WorkItemEditorService } from "../work-items/WorkItemEditorService";
 import type { WorkItemOpener } from "../work-items/WorkItemOpener";
 import type { WorkItemParser } from "../work-items/WorkItemParser";
 import type { WorkItemWriter } from "../work-items/WorkItemWriter";
@@ -62,7 +64,9 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
     private readonly projectCreator: ProjectCreator,
+    private readonly milestoneCreator: MilestoneCreator,
     private readonly projectAssignment: ProjectAssignmentService,
+    private readonly workItemEditor: WorkItemEditorService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly errorHandler: ErrorHandler
   ) {}
@@ -137,8 +141,10 @@ export class BasesIntegrationService implements OnProgramService {
         containerEl,
         adapter,
         this.projectCreator,
+        this.milestoneCreator,
         this.taskCreator,
         this.writer,
+        this.workItemEditor,
         this.workItemOpener,
         this.errorHandler
       )
@@ -174,11 +180,6 @@ export class BasesIntegrationService implements OnProgramService {
   }
 }
 
-/**
- * taskFolder is persisted in the view configuration so the view can route new
- * files, but it is intentionally hidden from the normal view-options UI. The
- * folder and the Base filter are one ownership contract and must not drift.
- */
 function baseTaskFolderOptions() {
   return [
     {
@@ -194,9 +195,6 @@ function boardViewOptions() {
   return [
     ...baseTaskFolderOptions(),
     {
-      // Virtual linked-Base cards are Board metadata, not Markdown work items.
-      // Keeping this as a registered hidden view option makes Bases persist the
-      // JSON safely inside the Board's own view configuration.
       type: "text" as const,
       key: "linkedBases",
       displayName: "Linked OnProgram Bases",
