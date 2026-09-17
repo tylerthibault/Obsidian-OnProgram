@@ -555,3 +555,21 @@
   min-height: 64px;
   max-height: 64px;
 }
+
+/* Calendar badges are outlines only so they never paint over event content. */
+.onprogram-calendar-view .onprogram-calendar-badge-tray > .onprogram-work-item-badge,
+.onprogram-calendar-view .onprogram-calendar-badge-tray > .onprogram-calendar-status-badge,
+.onprogram-calendar-view .onprogram-calendar-publishing-pill {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Obsidian button/theme styles must not add an opaque strip behind task titles. */
+.onprogram-calendar-view .onprogram-calendar-item-title,
+.onprogram-calendar-view .onprogram-calendar-item-title:hover,
+.onprogram-calendar-view .onprogram-calendar-item-title:focus,
+.onprogram-calendar-view .onprogram-calendar-item-title:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
