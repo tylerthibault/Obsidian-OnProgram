@@ -47,6 +47,7 @@ export class OnProgramCalendarView extends BasesView {
   private anchorDate = new Date();
   private draggedPath?: string;
   private writing = false;
+  private unscheduledDrawerOpen = false;
 
   constructor(
     controller: QueryController,
@@ -72,11 +73,12 @@ export class OnProgramCalendarView extends BasesView {
 
     const result = this.adapter.adapt(this.data);
     this.renderToolbar(result.items);
-    this.renderUnscheduled(result.items);
 
     if (this.mode === "month") this.renderMonth(result.items);
     else if (this.mode === "week") this.renderWeek(result.items);
     else this.renderDay(result.items);
+
+    if (this.unscheduledDrawerOpen) this.renderUnscheduledDrawer(result.items);
   }
 
   private syncViewConfig(): void {
@@ -158,17 +160,83 @@ export class OnProgramCalendarView extends BasesView {
     }
 
     controls.createSpan({ text: `${items.length} work items`, cls: "onprogram-calendar-count" });
+
+    const unscheduled = this.getUnscheduled(items);
+    if (unscheduled.length > 0) {
+      const unscheduledButton = controls.createEl("button", {
+        text: `Unscheduled (${unscheduled.length})`,
+        cls: "onprogram-calendar-unscheduled-button"
+      });
+      unscheduledButton.setAttr("aria-expanded", String(this.unscheduledDrawerOpen));
+      unscheduledButton.setAttr("aria-label", `Show ${unscheduled.length} unscheduled items`);
+      unscheduledButton.addEventListener("click", () => {
+        this.unscheduledDrawerOpen = !this.unscheduledDrawerOpen;
+        this.syncUnscheduledDrawer(items, unscheduledButton);
+      });
+    }
   }
 
-  private renderUnscheduled(items: WorkItem[]): void {
-    const unscheduled = items.filter((item) => !getCalendarDate(item, this.field));
-    if (unscheduled.length === 0) return;
+  private getUnscheduled(items: WorkItem[]): WorkItem[] {
+    return items.filter((item) => !getCalendarDate(item, this.field));
+  }
 
-    const section = this.hostEl.createEl("details", { cls: "onprogram-calendar-unscheduled" });
-    section.createEl("summary", {
-      text: `Unscheduled for ${humanize(this.field)} (${unscheduled.length})`
+  private syncUnscheduledDrawer(items: WorkItem[], trigger?: HTMLButtonElement): void {
+    this.hostEl.querySelector(".onprogram-calendar-unscheduled-drawer")?.remove();
+
+    if (!this.unscheduledDrawerOpen) {
+      trigger?.setAttr("aria-expanded", "false");
+      return;
+    }
+
+    trigger?.setAttr("aria-expanded", "true");
+    this.renderUnscheduledDrawer(items);
+  }
+
+  private renderUnscheduledDrawer(items: WorkItem[]): void {
+    const unscheduled = this.getUnscheduled(items);
+    if (unscheduled.length === 0) {
+      this.unscheduledDrawerOpen = false;
+      return;
+    }
+
+    this.hostEl.querySelector(".onprogram-calendar-unscheduled-drawer")?.remove();
+
+    const drawer = this.hostEl.createDiv({
+      cls: "onprogram-calendar-unscheduled-drawer"
     });
-    const tray = section.createDiv({ cls: "onprogram-calendar-unscheduled-tray" });
+    drawer.setAttr("role", "dialog");
+    drawer.setAttr("aria-label", `Unscheduled for ${humanize(this.field)}`);
+
+    const header = drawer.createDiv({
+      cls: "onprogram-calendar-unscheduled-drawer-header"
+    });
+    const heading = header.createDiv();
+    heading.createEl("strong", {
+      text: `Unscheduled for ${humanize(this.field)}`
+    });
+    heading.createDiv({
+      text: `${unscheduled.length} ${unscheduled.length === 1 ? "item" : "items"}`,
+      cls: "onprogram-calendar-unscheduled-drawer-count"
+    });
+
+    const close = header.createEl("button", {
+      text: "×",
+      cls: "onprogram-calendar-unscheduled-drawer-close"
+    });
+    close.setAttr("aria-label", "Close unscheduled items");
+    close.addEventListener("click", () => {
+      this.unscheduledDrawerOpen = false;
+      drawer.remove();
+      const trigger = this.hostEl.querySelector(
+        ".onprogram-calendar-unscheduled-button"
+      ) as HTMLButtonElement | null;
+      trigger?.setAttr("aria-expanded", "false");
+      trigger?.focus();
+    });
+
+    const tray = drawer.createDiv({
+      cls: "onprogram-calendar-unscheduled-drawer-tray"
+    });
     for (const item of unscheduled) tray.appendChild(this.makeItemChip(item));
   }
 
