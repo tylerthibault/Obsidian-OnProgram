@@ -768,7 +768,6 @@ const ONPROGRAM_VIEW_POLISH_STYLES = `
     min-height: 48px;
     margin-bottom: 8px;
     padding: 6px 8px;
-    flex-wrap: nowrap;
     gap: 8px;
   }
 
@@ -781,7 +780,6 @@ const ONPROGRAM_VIEW_POLISH_STYLES = `
   }
 
   .onprogram-calendar-view .onprogram-calendar-controls {
-    flex-wrap: nowrap;
     gap: 4px;
   }
 
