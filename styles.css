@@ -258,6 +258,7 @@
 
 /* Calendar */
 .onprogram-calendar-view {
+  position: relative;
   height: 100%;
   min-height: 0;
   display: flex;
@@ -300,17 +301,68 @@
   font-size: var(--font-ui-smaller);
 }
 
-.onprogram-calendar-unscheduled {
-  margin-bottom: var(--size-4-3);
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  padding: var(--size-4-2) var(--size-4-3);
+.onprogram-calendar-unscheduled-button {
+  white-space: nowrap;
 }
 
-.onprogram-calendar-unscheduled-tray {
-  overflow-x: auto;
-  padding-top: var(--size-4-2);
+.onprogram-calendar-unscheduled-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(380px, calc(100% - 48px));
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-primary);
+  border-left: 1px solid var(--background-modifier-border);
+  box-shadow: -14px 0 34px color-mix(in srgb, black 18%, transparent);
+  animation: onprogram-calendar-drawer-in 140ms ease-out;
+}
+
+.onprogram-calendar-unscheduled-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-3);
+  padding: var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+
+.onprogram-calendar-unscheduled-drawer-count {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.onprogram-calendar-unscheduled-drawer-close {
+  flex: 0 0 auto;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.onprogram-calendar-unscheduled-drawer-tray {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--size-4-3);
+}
+
+.onprogram-calendar-unscheduled-drawer-tray > .onprogram-calendar-item {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--size-4-2);
+  margin-bottom: var(--size-4-2);
+}
+
+@keyframes onprogram-calendar-drawer-in {
+  from { transform: translateX(18px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .onprogram-calendar-month {

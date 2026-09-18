@@ -264,17 +264,39 @@ const ONPROGRAM_VIEW_POLISH_STYLES = `
   font-variant-numeric: tabular-nums;
 }
 
-.onprogram-calendar-view .onprogram-calendar-unscheduled {
-  margin-bottom: 12px;
-  padding: 8px 11px;
-  border-color: var(--onprogram-polish-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--background-secondary) 70%, var(--background-primary));
+.onprogram-calendar-view .onprogram-calendar-unscheduled-button {
+  padding: 4px 9px;
+  border: 1px solid var(--onprogram-polish-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background-primary) 72%, transparent);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.onprogram-calendar-view .onprogram-calendar-unscheduled summary {
-  cursor: pointer;
-  font-weight: var(--font-medium);
+.onprogram-calendar-view .onprogram-calendar-unscheduled-button:hover,
+.onprogram-calendar-view .onprogram-calendar-unscheduled-button[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--interactive-accent) 58%, var(--onprogram-polish-border));
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
+  color: var(--text-normal);
+}
+
+.onprogram-calendar-view .onprogram-calendar-unscheduled-drawer {
+  border-left-color: var(--onprogram-polish-border-strong);
+  background: color-mix(in srgb, var(--background-primary) 97%, var(--background-secondary));
+}
+
+.onprogram-calendar-view .onprogram-calendar-unscheduled-drawer-header {
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--interactive-accent) 8%, transparent), transparent 55%),
+    var(--onprogram-polish-surface);
+}
+
+.onprogram-calendar-view .onprogram-calendar-unscheduled-drawer-tray > .onprogram-calendar-item {
+  border-color: var(--onprogram-polish-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background-secondary) 76%, var(--background-primary));
 }
 
 .onprogram-calendar-view .onprogram-calendar-month,
@@ -735,6 +757,53 @@ const ONPROGRAM_VIEW_POLISH_STYLES = `
 .onprogram-bases-view .onprogram-bases-row:hover {
   border-color: var(--onprogram-polish-border-strong);
   background: color-mix(in srgb, var(--interactive-accent) 4%, var(--background-primary));
+}
+
+@media (max-height: 1000px) and (min-width: 801px) {
+  .onprogram-calendar-view {
+    padding: 8px 12px 12px !important;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-toolbar {
+    min-height: 48px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-title {
+    min-width: 170px;
+    font-size: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-controls {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-nav,
+  .onprogram-calendar-view .onprogram-calendar-modes {
+    padding: 1px;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-nav button,
+  .onprogram-calendar-view .onprogram-calendar-modes button {
+    min-height: 24px;
+    padding: 2px 8px;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-controls select {
+    min-height: 28px;
+  }
+
+  .onprogram-calendar-view .onprogram-calendar-count,
+  .onprogram-calendar-view .onprogram-calendar-unscheduled-button {
+    padding: 3px 7px;
+  }
 }
 
 @media (max-width: 900px) {
