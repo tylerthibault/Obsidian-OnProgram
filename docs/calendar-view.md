@@ -70,11 +70,11 @@ Day mode displays:
 - double-click to create timed work;
 - Add task for date-only work.
 
-## Unscheduled tray
+## Unscheduled tasks drawer
 
-Work items without the currently selected calendar field appear in a collapsible unscheduled section above the calendar.
+Task work items without the currently selected calendar field appear behind an **Unscheduled (N)** button in the calendar toolbar.
 
-This ensures unscheduled work does not silently disappear from the calendar workflow.
+Selecting the button opens a right-side drawer containing those tasks. Projects, milestones, and events are not treated as unscheduled tasks. This keeps unscheduled task work discoverable without permanently consuming vertical calendar space.
 
 ## Calendar-aware task creation
 
@@ -145,7 +145,7 @@ The first calendar implementation does not yet use pixel-height resize handles t
 8. Double-click another hourly slot and create a task there.
 9. Switch to Day mode and confirm the same timed tasks appear.
 10. Switch the calendar field from Scheduled to Due and verify placement uses `due` instead of `scheduled`.
-11. Confirm items without the selected field remain visible in the unscheduled tray.
+11. Confirm tasks without the selected field appear behind the **Unscheduled (N)** toolbar button and open in the right-side drawer; confirm projects do not appear there.
 12. Apply a Base filter and verify Calendar only receives the filtered work items.
 
 ## Phase 6 gate
