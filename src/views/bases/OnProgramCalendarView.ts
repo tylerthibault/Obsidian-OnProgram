@@ -168,7 +168,7 @@ export class OnProgramCalendarView extends BasesView {
         cls: "onprogram-calendar-unscheduled-button"
       });
       unscheduledButton.setAttr("aria-expanded", String(this.unscheduledDrawerOpen));
-      unscheduledButton.setAttr("aria-label", `Show ${unscheduled.length} unscheduled items`);
+      unscheduledButton.setAttr("aria-label", `Unscheduled tasks (${unscheduled.length})`);
       unscheduledButton.addEventListener("click", () => {
         this.unscheduledDrawerOpen = !this.unscheduledDrawerOpen;
         this.syncUnscheduledDrawer(items, unscheduledButton);
@@ -177,7 +177,9 @@ export class OnProgramCalendarView extends BasesView {
   }
 
   private getUnscheduled(items: WorkItem[]): WorkItem[] {
-    return items.filter((item) => !getCalendarDate(item, this.field));
+    return items.filter(
+      (item) => item.type === "task" && !getCalendarDate(item, this.field)
+    );
   }
 
   private syncUnscheduledDrawer(items: WorkItem[], trigger?: HTMLButtonElement): void {
@@ -189,10 +191,10 @@ export class OnProgramCalendarView extends BasesView {
     }
 
     trigger?.setAttr("aria-expanded", "true");
-    this.renderUnscheduledDrawer(items);
+    this.renderUnscheduledDrawer(items, true);
   }
 
-  private renderUnscheduledDrawer(items: WorkItem[]): void {
+  private renderUnscheduledDrawer(items: WorkItem[], focusDrawer = false): void {
     const unscheduled = this.getUnscheduled(items);
     if (unscheduled.length === 0) {
       this.unscheduledDrawerOpen = false;
@@ -223,7 +225,8 @@ export class OnProgramCalendarView extends BasesView {
       text: "×",
       cls: "onprogram-calendar-unscheduled-drawer-close"
     });
-    close.setAttr("aria-label", "Close unscheduled items");
+    close.setAttr("aria-label", "Close unscheduled tasks");
+    if (focusDrawer) close.focus();
     close.addEventListener("click", () => {
       this.unscheduledDrawerOpen = false;
       drawer.remove();
