@@ -7,6 +7,7 @@ import { RuntimeService } from "./services/RuntimeService";
 import { ServiceRegistry } from "./services/ServiceRegistry";
 import { BasesIntegrationService } from "./services/bases/BasesIntegrationService";
 import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
+import { LinkedMarkdownInstanceStore } from "./services/bases/LinkedMarkdownInstanceStore";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { CalendarDayCountService } from "./services/calendar/CalendarDayCountService";
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
@@ -73,6 +74,7 @@ export default class OnProgramPlugin extends Plugin {
       errorHandler
     );
     const baseContext = new OnProgramBaseContext(this.app);
+    const linkedMarkdownStore = new LinkedMarkdownInstanceStore(this.app);
     const baseCreator = new OnProgramBaseCreator(
       this.app,
       () => this.settings.workItemProperties
@@ -88,6 +90,7 @@ export default class OnProgramPlugin extends Plugin {
       projectAssignment,
       workItemEditor,
       workItemOpener,
+      linkedMarkdownStore,
       errorHandler
     );
     const calendarStatus = new CalendarStatusService(
@@ -136,6 +139,7 @@ export default class OnProgramPlugin extends Plugin {
         errorHandler,
         taskCreator,
         baseContext,
+        linkedMarkdownStore,
         workItemEditor,
         workItemScanner,
         workItemWriter
