@@ -2,17 +2,15 @@
 
 ## Purpose
 
-OnProgram treats one piece of content as one work item. That work item may be reused across several distribution channels, so one overall task status is not enough to describe where the content has been distributed.
+OnProgram treats one piece of content as one Markdown work item while tracking distribution state independently for each publishing platform.
 
-The publishing feature separates **content/workflow state** from **platform distribution state** while keeping one Markdown note as the source of truth.
+The publishing model and the Calendar repetition model are intentionally separate:
 
-The guiding rules are:
+> Publishing properties describe what happened on each platform.
 
-> One content item, many platform states.
+> Linked Markdown instances describe where and when the same note appears again in OnProgram.
 
-> The Calendar's existing `scheduled` value is the single source of truth for when the content belongs on the schedule.
-
-> Platform state is controlled primarily through a right-click context menu; the pills at the bottom of the card are compact indicators.
+This separation keeps one Markdown note as the source of truth without coupling repeated Calendar appearances to social-platform-specific schema.
 
 ---
 
@@ -37,9 +35,9 @@ instagram_state: planned
 ---
 ```
 
-The normal OnProgram work-item properties continue to describe the content item itself. Platform properties describe distribution only.
+Platform state belongs to the note. Additional Calendar appearances do not.
 
-The initial supported platforms are:
+The initial publishing platforms remain:
 
 | Platform | Property prefix | Calendar pill |
 | --- | --- | --- |
@@ -47,13 +45,11 @@ The initial supported platforms are:
 | YouTube | `youtube` | `YT` |
 | Instagram | `instagram` | `IG` |
 
-The platform registry is centralized so additional platforms can be introduced later.
-
 ---
 
 ## Platform states
 
-Each active platform has one state property:
+Each active platform uses:
 
 ```text
 <platform>_state
@@ -67,33 +63,27 @@ Supported values are:
 - `failed`
 - `skipped`
 
-Examples:
+Posted timestamps remain optional platform metadata:
 
-```yaml
-tiktok_state: posted
-youtube_state: scheduled
-instagram_state: planned
+```text
+<platform>_posted
 ```
 
-A platform is inactive when its state property does not exist or is empty. Inactive platforms do not render a pill on the Calendar card.
-
-This keeps the Calendar uncluttered. A task that only uses TikTok and YouTube should not show an Instagram indicator.
+Platform state does not create a second Calendar database.
 
 ---
 
-## Scheduling rule
+## Scheduling and repeated appearances
 
-Platform state does **not** create another scheduling timeline.
-
-The work item's canonical OnProgram property remains the single schedule source:
+The note's canonical OnProgram property remains:
 
 ```yaml
 scheduled: 2026-09-17T08:00
 ```
 
-If TikTok and YouTube are both marked `scheduled`, they are understood to be scheduled for the content item's Calendar placement unless a future product requirement explicitly introduces separate publishing events.
+That value describes the note's own/default work schedule.
 
-The current GUI does not create or depend on:
+OnProgram does **not** use these platform-specific scheduling properties:
 
 ```text
 tiktok_scheduled
@@ -101,9 +91,80 @@ youtube_scheduled
 instagram_scheduled
 ```
 
-Early prototype values using those properties are treated as legacy data. When a platform is changed or removed through the current GUI, the corresponding legacy `*_scheduled` value is cleaned up.
+When the same content needs another appearance at a different date/time, the Calendar creates a generic linked Markdown instance instead.
 
-This prevents duplicate schedule information from drifting out of sync.
+Example linked-instance data stored in the Calendar view configuration:
+
+```json
+[
+  {
+    "id": "link-1",
+    "targetPath": "Content/Your Memory.md",
+    "scheduled": "2026-09-19T13:00",
+    "label": "TikTok"
+  },
+  {
+    "id": "link-2",
+    "targetPath": "Content/Your Memory.md",
+    "scheduled": "2026-09-21T10:30",
+    "label": "Instagram"
+  }
+]
+```
+
+Those are two OnProgram appearances pointing at one Markdown file.
+
+The same mechanism can be labeled `Newsletter`, `Review`, `Reminder`, `Repost`, or anything else. Social publishing is only one use case.
+
+See `docs/LINKED_MARKDOWN_INSTANCES.md` for the full interaction model.
+
+---
+
+## Calendar card UX
+
+Grade, analytics, and publishing pills remain note-level indicators.
+
+Publishing indicators continue to live along the bottom of normal Calendar cards:
+
+```text
+┌────────────────────────────────┐
+│ 8:00 AM           [8.7] [530]  │
+│                                │
+│ AI agreeing with you isn't...  │
+│                                │
+│ TT ✓     YT ◷     IG ·         │
+└────────────────────────────────┘
+```
+
+Linked Markdown instances use a dashed card treatment and append their optional label to the source note title so repeated appearances can be distinguished.
+
+Double-clicking any linked instance opens the same source Markdown note.
+
+---
+
+## Publishing interaction
+
+The Calendar card right-click menu remains the publishing control center for normal content cards.
+
+Active platform submenus support:
+
+- Planned
+- Scheduled
+- Posted
+- Failed
+- Skipped
+- Remove platform
+
+Inactive platforms remain available through direct Add actions.
+
+Publishing state and linked-instance state are separate concepts. A linked instance's right-click menu controls the link itself:
+
+- Open linked note
+- Edit linked instance
+- Duplicate linked instance
+- Remove linked instance
+
+This avoids making a generic Calendar link behave like a social-platform object.
 
 ---
 
@@ -116,148 +177,9 @@ tiktok_state: posted
 tiktok_posted: 2026-09-17T08:03
 ```
 
-The posted timestamp is useful because the Calendar time describes when the content was planned, while the posted timestamp can describe when distribution actually occurred.
+Posted timestamps describe real distribution events. They are not Calendar placement records.
 
-Changing a platform away from Posted removes its `*_posted` timestamp.
-
-Removing a platform removes its state and any platform-owned legacy/posting metadata.
-
----
-
-## Calendar card UX
-
-Grade, analytics, and other existing top badges remain at the top of the card.
-
-Publishing indicators live along the **bottom** of the card:
-
-```text
-┌────────────────────────────────┐
-│ 8:00 AM           [8.7] [530]  │
-│                                │
-│ AI agreeing with you isn't...  │
-│                                │
-│ TT ✓     YT ◷     IG ·         │
-└────────────────────────────────┘
-```
-
-The compact state language is:
-
-| State | Symbol | Meaning |
-| --- | --- | --- |
-| Planned | `·` | Intended for this platform |
-| Scheduled | `◷` | Scheduled/distribution queued |
-| Posted | `✓` | Published |
-| Failed | `!` | Distribution failed/problem |
-| Skipped | `—` | Deliberately not distributed |
-
-The pills are primarily **status indicators**, not precision interaction targets.
-
-On narrow cards they remain compact and inside the card boundary. The title truncates rather than colliding with publishing indicators.
-
----
-
-## Primary interaction: right-click menu
-
-The Calendar card's right-click context menu is the publishing control center.
-
-### No active platforms
-
-A task with no platform state properties shows:
-
-```text
-Add TikTok
-Add YouTube
-Add Instagram
-```
-
-Selecting one adds that platform with the default state:
-
-```yaml
-youtube_state: planned
-```
-
-The corresponding pill then appears immediately.
-
-### Some active platforms
-
-If TikTok is already active while YouTube and Instagram are not, the menu becomes:
-
-```text
-TikTok — Planned     >
-----------------------
-Add YouTube
-Add Instagram
-```
-
-Hovering the active TikTok entry opens a submenu:
-
-```text
-✓ Planned
-  Scheduled
-  Posted
-  Failed
-  Skipped
-----------------------
-  Remove TikTok
-```
-
-The current state is indicated with a check mark.
-
-### All platforms active
-
-If all three platforms are active, the top-level menu contains three platform submenus:
-
-```text
-TikTok — Posted      >
-YouTube — Scheduled  >
-Instagram — Planned  >
-```
-
-Each submenu controls only that platform.
-
----
-
-## Why the context menu replaces the `+` button
-
-The first prototype placed a small `+` control inside Calendar cards. This created several problems:
-
-- small timed cards left very little usable click space;
-- enlarging the control damaged card layout;
-- draggable Calendar cards competed with the button interaction;
-- the separate picker popup introduced another UI layer;
-- platform pills themselves were too small to be ideal primary controls.
-
-The right-click menu solves these problems by giving the user a large, native Obsidian menu target without consuming any Calendar-card space.
-
-The current design therefore removes:
-
-- the Calendar `+` publishing button;
-- the publishing platform picker popup;
-- the publishing schedule popup;
-- the extra interaction guard that existed only to make buttons reliable inside draggable cards.
-
----
-
-## Separation from work-item status
-
-Publishing state and work-item status are separate concepts.
-
-Example:
-
-```yaml
-status: todo
-scheduled: 2026-09-17T08:00
-
-tiktok_state: posted
-youtube_state: scheduled
-instagram_state: planned
-```
-
-The content can therefore have its normal OnProgram workflow while distribution progresses independently.
-
-The legacy Calendar right-click actions such as `Mark scheduled`, `Mark done`, and `Mark posted` have been removed from the Calendar interaction so they do not compete conceptually with platform publishing controls.
-
-Existing top-level statuses remain readable and continue to receive their existing visual treatment for backward compatibility.
+Changing a platform away from Posted removes its `*_posted` timestamp. Removing a platform removes its platform-owned publishing metadata.
 
 ---
 
@@ -265,77 +187,45 @@ Existing top-level statuses remain readable and continue to receive their existi
 
 ### Publishing platform model
 
-`src/models/publishing/PublishingPlatform.ts` defines:
-
-- supported platform IDs;
-- names and abbreviations;
-- publishing states;
-- property-key helpers;
-- state normalization;
-- state labels and compact symbols.
+`src/models/publishing/PublishingPlatform.ts` defines platform IDs, names, abbreviations, publishing states, property-key helpers, state normalization, labels, and compact symbols.
 
 ### Calendar publishing service
 
-`src/services/publishing/CalendarPublishingService.ts` owns the Calendar publishing UX.
+`src/services/publishing/CalendarPublishingService.ts` owns note-level publishing state and publishing pills.
 
-Responsibilities include:
+### Linked Markdown instance model
 
-- reading platform state from frontmatter;
-- rendering the bottom status tray;
-- rendering only active platforms;
-- opening the right-click publishing menu;
-- creating native hover submenus for active platforms;
-- adding inactive platforms;
-- changing platform states;
-- removing platforms;
-- recording/removing posted timestamps;
-- cleaning prototype per-platform schedule fields;
-- refreshing after metadata and Calendar DOM changes.
+`src/services/links/LinkedMarkdownInstance.ts` owns parsing, serialization, stable instance IDs, date normalization, and target-note resolution for reusable linked appearances.
 
-The service intentionally sits outside the core Calendar renderer so publishing behavior stays modular.
+### Markdown picker
 
----
+`src/components/MarkdownFilePickerModal.ts` allows any Markdown note in the vault to be selected as a link target.
 
-## Help/documentation behavior
+### Linked instance editor
 
-`OnProgram: Help` documents the publishing state fields.
+`src/components/LinkedMarkdownInstanceModal.ts` edits the target note, schedule, all-day state, label, and instance-owned duration.
 
-Primary current properties are:
+### Calendar view
 
-```text
-tiktok_state
-youtube_state
-instagram_state
+`src/views/bases/OnProgramCalendarView.ts` materializes stored links as virtual Calendar work items. These virtual items never create or copy Markdown files.
 
-tiktok_posted
-youtube_posted
-instagram_posted
-```
-
-The canonical task `scheduled` property remains the schedule source.
+Dragging or resizing a linked instance writes only to the Calendar view's linked-instance configuration.
 
 ---
 
 ## Future phases
 
-### Additional/configurable platforms
+### Reuse in other OnProgram views
 
-A later Settings interface may add:
+The linked-instance model is deliberately generic. Timeline, Dashboard, or other future views may choose to consume the same concept without adding social-specific data structures.
 
-- Facebook
-- LinkedIn
-- Threads
-- X
-- YouTube Shorts
-- Newsletter
-- Website
-- custom user-defined channels
+### Additional/configurable publishing platforms
 
-The current platform registry is designed to make this extension straightforward.
+Publishing platforms can still expand independently to Facebook, LinkedIn, Threads, X, YouTube Shorts, or custom channels.
 
 ### Platform-specific analytics
 
-Future analytics may include fields such as:
+Future analytics may add fields such as:
 
 ```text
 tiktok_views_24_hours
@@ -343,38 +233,29 @@ youtube_views_24_hours
 instagram_views_24_hours
 ```
 
-with matching week/month measurements.
-
-Existing aggregate analytics may remain useful for total cross-platform performance.
-
-### Separate publishing events, only if genuinely needed
-
-A future publishing-specific Calendar could represent separate platform placements if the workflow eventually requires TikTok, YouTube, and Instagram to publish at materially different dates/times.
-
-That should be introduced as an explicit new product model rather than duplicating schedule timestamps prematurely.
-
 ### External integrations
 
-Actual API publishing, scheduled posting, and analytics retrieval are intentionally deferred until the local workflow is stable and useful on its own.
+Actual API publishing, scheduled posting, and analytics retrieval remain future work.
 
 ---
 
 ## Definition of done for this feature branch
 
-The multi-platform publishing feature is ready to merge into `dev` when:
+The feature is ready to merge into `dev` when:
 
-1. TikTok, YouTube, and Instagram can be independently activated from a Calendar card's right-click menu.
-2. A platform with no state property produces no Calendar pill.
-3. Platform pills remain at the bottom of Calendar cards and do not interfere with top badges.
-4. Active platforms appear as hover submenus in the right-click menu.
-5. Each submenu supports Planned, Scheduled, Posted, Failed, Skipped, and Remove.
-6. Inactive platforms appear as direct `Add <platform>` actions.
-7. Marking Scheduled does not ask for a second date/time.
-8. The task's canonical `scheduled` value remains the only Calendar schedule source.
-9. Marking Posted can record a platform-specific posted timestamp.
-10. Removing a platform removes its owned publishing metadata and its pill.
-11. The Calendar `+` publishing button and obsolete publishing popups are gone.
-12. Existing Calendar drag, resize, scroll preservation, date counts, grade/views badges, and note opening continue to work.
-13. OnProgram Help reflects the current property model.
-14. TypeScript and production esbuild pass successfully.
-15. `dev` remains unchanged until this feature branch is explicitly merged.
+1. Existing TikTok, YouTube, and Instagram state controls continue to work.
+2. No platform-specific `*_scheduled` fields are required.
+3. The Scheduled Calendar can create a linked instance pointing to any existing Markdown note.
+4. Multiple linked instances may point to the same target note.
+5. Every linked instance has a stable unique ID.
+6. Each instance owns its own date/time, optional label, and timed duration.
+7. Double-clicking any instance opens the single linked Markdown file.
+8. Dragging an instance changes only that instance's schedule.
+9. Resizing an instance changes only that instance's duration.
+10. Right-click supports Open, Edit, Duplicate, and Remove for linked instances.
+11. Linked notes may live outside the current Base result set.
+12. Existing ordinary Calendar items continue to write scheduling changes to their own Markdown frontmatter.
+13. Existing Calendar creation, scroll, badges, project indicators, publishing pills, and unscheduled behavior continue to work.
+14. Documentation describes the generic linked-instance model.
+15. TypeScript and production esbuild pass successfully.
+16. `dev` remains unchanged until this branch is explicitly merged.
