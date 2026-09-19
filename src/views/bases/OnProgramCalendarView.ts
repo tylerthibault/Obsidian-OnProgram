@@ -948,17 +948,17 @@ export class OnProgramCalendarView extends BasesView {
         });
         new Notice(`OnProgram: Created ${result.title}.`);
       },
-      onLinkMarkdown: this.field === "scheduled"
-        ? async (file, label) => {
-            this.addLinkedInstance(
-              file.path,
-              value.iso,
-              label,
-              value.kind === "date-time" ? DEFAULT_TIMED_DURATION_MINUTES : undefined
-            );
-            new Notice(`OnProgram: linked ${file.basename} at ${value.iso}.`);
-          }
-        : undefined,
+      onLinkMarkdown: async (file, label) => {
+        this.addLinkedInstance(
+          file.path,
+          value.iso,
+          label,
+          value.kind === "date-time" ? DEFAULT_TIMED_DURATION_MINUTES : undefined
+        );
+        new Notice(
+          `OnProgram: linked ${file.basename} at ${value.iso}. Linked instances appear on the Scheduled calendar.`
+        );
+      },
       onError: (error) => this.errorHandler.handle(error, "create calendar item", true)
     }).open();
   }
