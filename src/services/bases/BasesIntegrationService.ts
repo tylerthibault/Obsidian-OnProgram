@@ -138,7 +138,6 @@ export class BasesIntegrationService implements OnProgramService {
         this.writer,
         this.taskCreator,
         this.workItemOpener,
-        this.linkedMarkdownStore,
         this.errorHandler
       )
     });
