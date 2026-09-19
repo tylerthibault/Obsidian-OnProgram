@@ -1,4 +1,5 @@
-import { normalizeWorkItemDate, type NormalizedWorkItemDate } from "../work-items/WorkItemValueNormalizer";
+import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
+import { normalizeWorkItemDate } from "../work-items/WorkItemValueNormalizer";
 
 export interface LinkedMarkdownInstance {
   /** Stable identity for this appearance. Multiple instances may target the same Markdown file. */
@@ -103,11 +104,11 @@ export function createLinkedMarkdownInstanceId(
   return `link-${Date.now().toString(36)}-${suffix}`;
 }
 
-export function normalizeLinkedInstanceSchedule(value: unknown): NormalizedWorkItemDate | undefined {
+export function normalizeLinkedInstanceSchedule(value: unknown): WorkItemDateValue | undefined {
   return normalizeScheduled(value);
 }
 
-function normalizeScheduled(value: unknown): NormalizedWorkItemDate | undefined {
+function normalizeScheduled(value: unknown): WorkItemDateValue | undefined {
   return normalizeWorkItemDate(value);
 }
 
