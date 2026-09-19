@@ -301,12 +301,26 @@ export class OnProgramCalendarView extends BasesView {
     const index = instances.findIndex((instance) => instance.id === id);
     if (index < 0) return;
 
-    const next = [...instances];
-    next[index] = {
-      ...next[index],
+    const current = instances[index];
+    if (!current) return;
+
+    const updated = {
+      ...current,
       ...patch,
       id
     };
+
+    if (
+      typeof updated.targetPath !== "string" ||
+      !updated.targetPath.trim() ||
+      typeof updated.scheduled !== "string" ||
+      !updated.scheduled.trim()
+    ) {
+      return;
+    }
+
+    const next = [...instances];
+    next[index] = updated as LinkedMarkdownInstance;
     this.persistLinkedInstances(next);
   }
 
