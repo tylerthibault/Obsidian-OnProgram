@@ -264,6 +264,13 @@ function calendarViewOptions() {
       displayName: "Calendar date field",
       default: "scheduled",
       options: CALENDAR_FIELD_OPTIONS
+    },
+    {
+      type: "text" as const,
+      key: "linkedMarkdownInstances",
+      displayName: "Linked Markdown instances",
+      default: "[]",
+      shouldHide: () => true
     }
   ];
 }
