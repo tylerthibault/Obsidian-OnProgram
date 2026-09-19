@@ -1,6 +1,7 @@
 import type { QueryController } from "obsidian";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { LinkedMarkdownInstanceStore } from "../../services/bases/LinkedMarkdownInstanceStore";
 import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
@@ -107,6 +108,7 @@ export class CustomizableOnProgramDashboardView extends OnProgramDashboardView {
     taskCreator: TaskCreator,
     projectAssignment: ProjectAssignmentService,
     workItemOpener: WorkItemOpener,
+    linkedMarkdownStore: LinkedMarkdownInstanceStore,
     errorHandler: ErrorHandler
   ) {
     super(
@@ -116,6 +118,7 @@ export class CustomizableOnProgramDashboardView extends OnProgramDashboardView {
       taskCreator,
       projectAssignment,
       workItemOpener,
+      linkedMarkdownStore,
       errorHandler
     );
   }
