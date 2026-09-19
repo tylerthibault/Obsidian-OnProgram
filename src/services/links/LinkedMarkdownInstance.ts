@@ -1,3 +1,4 @@
+import { TFile, type App } from "obsidian";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import { normalizeWorkItemDate } from "../work-items/WorkItemValueNormalizer";
 
@@ -106,6 +107,31 @@ export function createLinkedMarkdownInstanceId(
 
 export function normalizeLinkedInstanceSchedule(value: unknown): WorkItemDateValue | undefined {
   return normalizeScheduled(value);
+}
+
+export function resolveLinkedMarkdownFile(
+  app: App,
+  targetPath: string
+): TFile | undefined {
+  const normalized = targetPath.trim().replace(/^\/+/, "");
+  if (!normalized) return undefined;
+
+  const exact = app.vault.getAbstractFileByPath(normalized);
+  if (exact instanceof TFile && exact.extension === "md") return exact;
+
+  const linkPath = normalized.toLowerCase().endsWith(".md")
+    ? normalized.slice(0, -3)
+    : normalized;
+  const linked = app.metadataCache.getFirstLinkpathDest(linkPath, "");
+  if (linked instanceof TFile && linked.extension === "md") return linked;
+
+  const lower = normalized.toLowerCase();
+  const lowerWithMd = lower.endsWith(".md") ? lower : `${lower}.md`;
+  return app.vault.getMarkdownFiles().find((file) =>
+    file.path.toLowerCase() === lowerWithMd ||
+    file.name.toLowerCase() === lowerWithMd ||
+    file.basename.toLowerCase() === lower.replace(/\.md$/i, "")
+  );
 }
 
 function normalizeScheduled(value: unknown): WorkItemDateValue | undefined {
