@@ -47,31 +47,7 @@ export class CreateTaskModal extends Modal {
     });
 
     if (supportsLinks) {
-      new Setting(contentEl)
-        .setName("Add")
-        .setDesc(this.modeDescription())
-        .addDropdown((dropdown) => {
-          dropdown.addOption("task", "Task");
-          if (this.options.onLinkMarkdown) {
-            dropdown.addOption("linked-markdown", "Linked Markdown note");
-          }
-          if (this.options.onLinkBase) {
-            dropdown.addOption("linked-base", "Linked Base");
-          }
-
-          dropdown
-            .setValue(this.mode)
-            .onChange((value) => {
-              if (value === "linked-base" && this.options.onLinkBase) {
-                this.mode = "linked-base";
-              } else if (value === "linked-markdown" && this.options.onLinkMarkdown) {
-                this.mode = "linked-markdown";
-              } else {
-                this.mode = "task";
-              }
-              this.render();
-            });
-        });
+      this.renderModeChooser();
     }
 
     if (this.mode === "linked-base" && this.options.onLinkBase) {
@@ -96,6 +72,52 @@ export class CreateTaskModal extends Modal {
           .setButtonText("Cancel")
           .onClick(() => this.close())
       );
+  }
+
+  private renderModeChooser(): void {
+    const setting = new Setting(this.contentEl)
+      .setName("What do you want to add?")
+      .setDesc(this.modeDescription());
+
+    setting.addButton((button) => {
+      button
+        .setButtonText("Create new file")
+        .setTooltip("Create a new OnProgram Markdown task")
+        .onClick(() => {
+          this.mode = "task";
+          this.render();
+        });
+
+      if (this.mode === "task") button.setCta();
+    });
+
+    if (this.options.onLinkMarkdown) {
+      setting.addButton((button) => {
+        button
+          .setButtonText("Link existing file")
+          .setTooltip("Create another OnProgram appearance that points at an existing Markdown note")
+          .onClick(() => {
+            this.mode = "linked-markdown";
+            this.render();
+          });
+
+        if (this.mode === "linked-markdown") button.setCta();
+      });
+    }
+
+    if (this.options.onLinkBase) {
+      setting.addButton((button) => {
+        button
+          .setButtonText("Link Base")
+          .setTooltip("Link directly to another OnProgram Base")
+          .onClick(() => {
+            this.mode = "linked-base";
+            this.render();
+          });
+
+        if (this.mode === "linked-base") button.setCta();
+      });
+    }
   }
 
   private renderTask(): void {
@@ -169,12 +191,12 @@ export class CreateTaskModal extends Modal {
 
   private modeDescription(): string {
     if (this.mode === "linked-base") {
-      return "Link this Board directly to another OnProgram Base.";
+      return "Link directly to another OnProgram Base without creating a Markdown task.";
     }
     if (this.mode === "linked-markdown") {
-      return "Add another OnProgram appearance that points at an existing Markdown note.";
+      return "Create another OnProgram appearance that points at an existing Markdown note.";
     }
-    return "Create a new Markdown task.";
+    return "Create a brand-new Markdown file for this task.";
   }
 
   private submitLabel(): string {
