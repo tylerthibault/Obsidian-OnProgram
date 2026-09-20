@@ -14,6 +14,7 @@ import type {
   WorkItemPropertyMap
 } from "../../models/work-item/WorkItemProperties";
 import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
+import { normalizeTaskTypeValues } from "../../models/work-item/TaskTypeDefinition";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { WorkItemType } from "../../models/work-item/WorkItemTypes";
 import {
@@ -112,6 +113,10 @@ export class WorkItemParser {
       this.read(frontmatter, propertyMap, "duration"),
       issues
     );
+    const taskTypes = this.parseTaskTypes(
+      this.read(frontmatter, propertyMap, "taskTypes"),
+      issues
+    );
 
     if (!status || hasValidationErrors(issues)) {
       return this.invalid(file, issues);
@@ -126,6 +131,7 @@ export class WorkItemParser {
       title: file.basename,
       status,
       priority,
+      taskTypes,
       dates,
       dependsOn
     };
@@ -270,6 +276,20 @@ export class WorkItemParser {
     }
 
     return references;
+  }
+
+  private parseTaskTypes(value: unknown, issues: WorkItemValidationIssue[]): string[] {
+    const taskTypes = normalizeTaskTypeValues(value);
+    if (taskTypes) return taskTypes;
+
+    issues.push({
+      severity: "error",
+      code: "invalid-task-type-list",
+      property: "taskTypes",
+      value,
+      message: "Task types must be a string or a list of non-empty strings."
+    });
+    return [];
   }
 
   private parseDuration(value: unknown, issues: WorkItemValidationIssue[]): number | undefined {
