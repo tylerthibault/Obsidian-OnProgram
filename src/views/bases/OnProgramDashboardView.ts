@@ -1,4 +1,5 @@
 import { Menu, Notice, type QueryController, BasesView } from "obsidian";
+import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { ProjectWorkItem, TaskWorkItem, WorkItem } from "../../models/work-item/WorkItem";
@@ -357,6 +358,13 @@ export class OnProgramDashboardView extends BasesView {
           openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${created.title}.`);
+      },
+      onBatchLoad: () => {
+        new BatchTaskImportModal(this.app, {
+          taskCreator: this.taskCreator,
+          targetFolder: this.getConfiguredTaskFolder(),
+          onError: (error) => this.errorHandler.handle(error, "batch load dashboard tasks", true)
+        }).open();
       },
       onError: (error) => this.errorHandler.handle(error, "create dashboard task", true)
     }).open();
