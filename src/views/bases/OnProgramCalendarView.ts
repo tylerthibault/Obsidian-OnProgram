@@ -1,8 +1,12 @@
-import { BasesView, Menu, Notice, type QueryController } from "obsidian";
+import { BasesView, Menu, Notice, setIcon, type QueryController } from "obsidian";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { LinkedMarkdownInstanceModal } from "../../components/LinkedMarkdownInstanceModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
+import {
+  taskTypeDefinitionById,
+  type TaskTypeDefinition
+} from "../../models/work-item/TaskTypeDefinition";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import {
   createLinkedMarkdownInstanceId,
@@ -40,6 +44,10 @@ const CALENDAR_RESIZE_SNAP_MINUTES = 30;
 const DEFAULT_TIMED_DURATION_MINUTES = 60;
 const MAX_TIMED_DURATION_MINUTES = 14 * 24 * 60;
 
+interface CalendarTaskTypeOption extends TaskTypeDefinition {
+  registered: boolean;
+}
+
 interface TimedCalendarSegment {
   item: WorkItem;
   dayIso: string;
@@ -59,6 +67,8 @@ export class OnProgramCalendarView extends BasesView {
   private linkedInstanceByItem = new WeakMap<WorkItem, LinkedMarkdownInstance>();
   private writing = false;
   private unscheduledDrawerOpen = false;
+  private taskTypeFilterOpen = false;
+  private selectedTaskTypes = new Set<string>();
 
   constructor(
     controller: QueryController,
@@ -67,7 +77,8 @@ export class OnProgramCalendarView extends BasesView {
     private readonly writer: WorkItemWriter,
     private readonly taskCreator: TaskCreator,
     private readonly workItemOpener: WorkItemOpener,
-    private readonly errorHandler: ErrorHandler
+    private readonly errorHandler: ErrorHandler,
+    private readonly getTaskTypes: () => readonly TaskTypeDefinition[]
   ) {
     super(controller);
   }
@@ -84,13 +95,15 @@ export class OnProgramCalendarView extends BasesView {
 
     const result = this.adapter.adapt(this.data);
     const calendarItems = this.composeCalendarItems(result.items);
-    this.renderToolbar(result.items);
+    const visibleCalendarItems = this.getFilteredItems(calendarItems);
+    const visibleWorkItems = this.getFilteredItems(result.items);
+    this.renderToolbar(result.items, visibleWorkItems, calendarItems, visibleCalendarItems);
 
-    if (this.mode === "month") this.renderMonth(calendarItems);
-    else if (this.mode === "week") this.renderWeek(calendarItems);
-    else this.renderDay(calendarItems);
+    if (this.mode === "month") this.renderMonth(visibleCalendarItems);
+    else if (this.mode === "week") this.renderWeek(visibleCalendarItems);
+    else this.renderDay(visibleCalendarItems);
 
-    if (this.unscheduledDrawerOpen) this.renderUnscheduledDrawer(result.items);
+    if (this.unscheduledDrawerOpen) this.renderUnscheduledDrawer(visibleWorkItems);
   }
 
   private syncViewConfig(): void {
@@ -123,7 +136,12 @@ export class OnProgramCalendarView extends BasesView {
     style.textContent = TIMED_CALENDAR_STYLES;
   }
 
-  private renderToolbar(items: WorkItem[]): void {
+  private renderToolbar(
+    items: WorkItem[],
+    visibleItems: WorkItem[],
+    calendarItems: WorkItem[],
+    visibleCalendarItems: WorkItem[]
+  ): void {
     const toolbar = this.hostEl.createDiv({ cls: "onprogram-calendar-toolbar" });
     const nav = toolbar.createDiv({ cls: "onprogram-calendar-nav" });
 
@@ -171,15 +189,22 @@ export class OnProgramCalendarView extends BasesView {
       });
     }
 
-    const linkedCount = this.field === "scheduled" ? this.getLinkedInstances().length : 0;
+    this.renderTaskTypeFilter(controls, calendarItems);
+
+    const linkedCount = this.field === "scheduled"
+      ? visibleCalendarItems.filter((item) => this.linkedInstanceByItem.has(item)).length
+      : 0;
+    const workItemCount = visibleItems.length === items.length
+      ? `${items.length} work items`
+      : `${visibleItems.length} of ${items.length} work items`;
     controls.createSpan({
       text: linkedCount > 0
-        ? `${items.length} work items · ${linkedCount} ${linkedCount === 1 ? "link" : "links"}`
-        : `${items.length} work items`,
+        ? `${workItemCount} · ${linkedCount} ${linkedCount === 1 ? "link" : "links"}`
+        : workItemCount,
       cls: "onprogram-calendar-count"
     });
 
-    const unscheduled = this.getUnscheduled(items);
+    const unscheduled = this.getUnscheduled(visibleItems);
     if (unscheduled.length > 0) {
       const unscheduledButton = controls.createEl("button", {
         text: `Unscheduled (${unscheduled.length})`,
@@ -189,7 +214,133 @@ export class OnProgramCalendarView extends BasesView {
       unscheduledButton.setAttr("aria-label", `Show ${unscheduled.length} unscheduled items`);
       unscheduledButton.addEventListener("click", () => {
         this.unscheduledDrawerOpen = !this.unscheduledDrawerOpen;
-        this.syncUnscheduledDrawer(items, unscheduledButton);
+        this.syncUnscheduledDrawer(visibleItems, unscheduledButton);
+      });
+    }
+  }
+
+  private getFilteredItems(items: WorkItem[]): WorkItem[] {
+    if (this.selectedTaskTypes.size === 0) return items;
+    return items.filter((item) =>
+      item.taskTypes.some((taskType) => this.selectedTaskTypes.has(taskType))
+    );
+  }
+
+  private getAvailableTaskTypes(items: WorkItem[]): CalendarTaskTypeOption[] {
+    const options: CalendarTaskTypeOption[] = [];
+    const seen = new Set<string>();
+
+    for (const definition of this.getTaskTypes()) {
+      if (seen.has(definition.id)) continue;
+      seen.add(definition.id);
+      options.push({ ...definition, registered: true });
+    }
+
+    const unknown = new Set<string>();
+    for (const item of items) {
+      for (const taskType of item.taskTypes) {
+        if (!seen.has(taskType)) unknown.add(taskType);
+      }
+    }
+
+    for (const taskType of [...unknown].sort((a, b) => a.localeCompare(b))) {
+      options.push({
+        id: taskType,
+        label: humanize(taskType),
+        icon: "tag",
+        color: "#888888",
+        registered: false
+      });
+      seen.add(taskType);
+    }
+
+    for (const selected of [...this.selectedTaskTypes]) {
+      if (!seen.has(selected)) this.selectedTaskTypes.delete(selected);
+    }
+
+    return options;
+  }
+
+  private renderTaskTypeFilter(controls: HTMLElement, items: WorkItem[]): void {
+    const options = this.getAvailableTaskTypes(items);
+    if (options.length === 0) return;
+
+    const wrap = controls.createDiv({ cls: "onprogram-calendar-task-type-filter" });
+    const selected = [...this.selectedTaskTypes];
+    const labels = selected.map((id) =>
+      options.find((option) => option.id === id)?.label ?? humanize(id)
+    );
+    const buttonText = labels.length === 0
+      ? "Filter"
+      : `Filter: ${labels[0]}${labels.length > 1 ? ` +${labels.length - 1}` : ""}`;
+
+    const button = wrap.createEl("button", {
+      text: buttonText,
+      cls: selected.length > 0 ? "onprogram-calendar-filter-active" : ""
+    });
+    button.setAttr("aria-haspopup", "true");
+    button.setAttr("aria-expanded", String(this.taskTypeFilterOpen));
+    button.addEventListener("click", () => {
+      this.taskTypeFilterOpen = !this.taskTypeFilterOpen;
+      this.render();
+    });
+
+    if (!this.taskTypeFilterOpen) return;
+
+    const popover = wrap.createDiv({ cls: "onprogram-calendar-task-type-popover" });
+    popover.createEl("strong", { text: "Task type" });
+
+    for (const option of options) {
+      const row = popover.createEl("label", { cls: "onprogram-calendar-task-type-filter-option" });
+      const checkbox = row.createEl("input", { type: "checkbox" });
+      checkbox.checked = this.selectedTaskTypes.has(option.id);
+      checkbox.addEventListener("change", () => {
+        const next = new Set(this.selectedTaskTypes);
+        if (checkbox.checked) next.add(option.id);
+        else next.delete(option.id);
+        this.selectedTaskTypes = next;
+        this.render();
+      });
+
+      const icon = row.createSpan({ cls: "onprogram-calendar-task-type-filter-icon" });
+      icon.style.setProperty("--onprogram-task-type-color", option.color);
+      setIcon(icon, option.icon || "tag");
+      row.createSpan({ text: option.label });
+      if (!option.registered) {
+        row.createSpan({ text: "unregistered", cls: "onprogram-calendar-task-type-unregistered" });
+      }
+    }
+
+    const clear = popover.createEl("button", { text: "Clear filter" });
+    clear.addEventListener("click", () => {
+      this.selectedTaskTypes.clear();
+      this.taskTypeFilterOpen = false;
+      this.render();
+    });
+  }
+
+  private appendTaskTypeIndicators(parent: HTMLElement, item: WorkItem): void {
+    if (item.taskTypes.length === 0) return;
+
+    const tray = parent.createSpan({ cls: "onprogram-calendar-task-type-indicators" });
+    const definitions = this.getTaskTypes();
+
+    for (const taskType of item.taskTypes.slice(0, 2)) {
+      const definition = taskTypeDefinitionById(definitions, taskType);
+      const indicator = tray.createSpan({ cls: "onprogram-calendar-task-type-indicator" });
+      indicator.style.setProperty(
+        "--onprogram-task-type-color",
+        definition?.color ?? "#888888"
+      );
+      indicator.setAttr("title", definition?.label ?? humanize(taskType));
+      indicator.setAttr("aria-label", definition?.label ?? humanize(taskType));
+      setIcon(indicator, definition?.icon || "tag");
+    }
+
+    if (item.taskTypes.length > 2) {
+      tray.createSpan({
+        text: `+${item.taskTypes.length - 2}`,
+        cls: "onprogram-calendar-task-type-more"
       });
     }
   }
@@ -262,6 +413,7 @@ export class OnProgramCalendarView extends BasesView {
             title: basename,
             status: "todo",
             priority: "normal",
+            taskTypes: [],
             dates: { scheduled },
             durationMinutes: instance.durationMinutes ?? DEFAULT_TIMED_DURATION_MINUTES,
             dependsOn: []
@@ -655,6 +807,8 @@ export class OnProgramCalendarView extends BasesView {
       cls: "onprogram-calendar-item-time onprogram-calendar-timed-time"
     });
 
+    this.appendTaskTypeIndicators(block, item);
+
     block.createEl("button", {
       text: linkedInstance
         ? linkedInstanceTitle(item.title, linkedInstance)
@@ -703,6 +857,8 @@ export class OnProgramCalendarView extends BasesView {
     const value = getCalendarDate(item, this.field);
     const time = value ? timePart(value) : undefined;
     if (time) chip.createSpan({ text: time, cls: "onprogram-calendar-item-time" });
+
+    this.appendTaskTypeIndicators(chip, item);
 
     chip.createEl("button", {
       text: linkedInstance
@@ -939,9 +1095,11 @@ export class OnProgramCalendarView extends BasesView {
 
   private createTaskAt(value: { kind: "date" | "date-time"; iso: string }): void {
     new CreateTaskModal(this.app, {
-      onSubmit: async (title) => {
+      taskTypes: this.getTaskTypes(),
+      onSubmit: async (title, taskTypes) => {
         const result = await this.taskCreator.createTask({
           title,
+          initialTaskTypes: taskTypes,
           targetFolder: this.getConfiguredTaskFolder(),
           initialDate: { field: this.field, value },
           openAfterCreate: false

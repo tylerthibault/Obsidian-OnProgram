@@ -35,7 +35,8 @@ import { installOnProgramViewPolish } from "./views/presentation/OnProgramViewPo
 export default class OnProgramPlugin extends Plugin {
   settings: OnProgramSettings = {
     ...DEFAULT_SETTINGS,
-    workItemProperties: { ...DEFAULT_SETTINGS.workItemProperties }
+    workItemProperties: { ...DEFAULT_SETTINGS.workItemProperties },
+    taskTypes: DEFAULT_SETTINGS.taskTypes.map((definition) => ({ ...definition }))
   };
 
   private logger?: Logger;
@@ -56,7 +57,11 @@ export default class OnProgramPlugin extends Plugin {
     const workItemParser = new WorkItemParser(() => this.settings.workItemProperties);
     const workItemScanner = new WorkItemScanner(this.app, workItemParser);
     const workItemWriter = new WorkItemWriter(this.app, () => this.settings.workItemProperties);
-    const workItemEditor = new WorkItemEditorService(this.app, workItemWriter);
+    const workItemEditor = new WorkItemEditorService(
+      this.app,
+      workItemWriter,
+      () => this.settings.taskTypes
+    );
     const workItemOpener = new WorkItemOpener(this.app, () => this.settings.openItemsInSplit);
     const creationConfig = () => ({
       taskFolderMode: this.settings.taskFolderMode,
@@ -92,7 +97,8 @@ export default class OnProgramPlugin extends Plugin {
       workItemEditor,
       workItemOpener,
       linkedMarkdownStore,
-      errorHandler
+      errorHandler,
+      () => this.settings.taskTypes
     );
     const calendarStatus = new CalendarStatusService(
       this,
@@ -194,6 +200,7 @@ export default class OnProgramPlugin extends Plugin {
       taskFolder: this.settings.taskFolder,
       taskTemplatePath: this.settings.taskTemplatePath,
       defaultProject: this.settings.defaultProject,
+      taskTypes: this.settings.taskTypes,
       badgeProperty: this.settings.badgeProperty,
       badgeColor: this.settings.badgeColor,
       badgeCustomColor: this.settings.badgeCustomColor,
@@ -217,13 +224,17 @@ export default class OnProgramPlugin extends Plugin {
 
   private async loadSettings(): Promise<void> {
     const saved = (await this.loadData()) as Partial<OnProgramSettings> | null;
+    const savedTaskTypes = Array.isArray(saved?.taskTypes)
+      ? saved.taskTypes
+      : DEFAULT_SETTINGS.taskTypes;
     this.settings = {
       ...DEFAULT_SETTINGS,
       ...(saved ?? {}),
       workItemProperties: {
         ...DEFAULT_SETTINGS.workItemProperties,
         ...(saved?.workItemProperties ?? {})
-      }
+      },
+      taskTypes: savedTaskTypes.map((definition) => ({ ...definition }))
     };
   }
 }

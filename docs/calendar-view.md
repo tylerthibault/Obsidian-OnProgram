@@ -16,6 +16,18 @@ One calendar view supports three modes:
 
 The mode can be changed from the calendar toolbar without changing the backing Base.
 
+## Task types and filtering
+
+Calendar supports user-defined task types stored in the mapped `task_types` list. OnProgram Settings ships with **Filming** and **Posting** definitions and allows adding, renaming, recoloring, changing icons, reordering, or removing registered types.
+
+The Calendar toolbar includes a compact Task Type filter. Multiple selections use OR behavior: selecting Filming and Posting shows items containing either value. Clearing the filter shows all work items again.
+
+Calendar cards show compact type indicators using each registered type's icon and color. Values found in Markdown that are not registered in Settings are still shown and can still be filtered; OnProgram does not delete or reject them.
+
+Linked Markdown instances inherit task types when their target is an OnProgram work item. Links to ordinary Markdown notes remain valid and simply have no task type.
+
+Calendar task creation can assign one or more registered task types immediately.
+
 ## Calendar field
 
 The toolbar can place items using one of three canonical work-item fields:
@@ -164,7 +176,11 @@ The first calendar implementation does not yet use pixel-height resize handles t
 9. Switch to Day mode and confirm the same timed tasks appear.
 10. Switch the calendar field from Scheduled to Due and verify placement uses `due` instead of `scheduled`.
 11. Confirm items without the selected field remain visible in the unscheduled tray.
-12. Apply a Base filter and verify Calendar only receives the filtered work items.
+12. Assign Filming and Posting task types, filter to each type, and confirm multi-select filtering uses OR behavior.
+13. Create a Calendar task with a task type selected and confirm `task_types` is written as a YAML list.
+14. Add an unregistered `task_types` value manually and confirm Calendar preserves/displays it.
+15. Confirm a linked Markdown instance targeting an OnProgram task follows that task's type filter.
+16. Apply a Base filter and verify Calendar only receives the filtered work items.
 
 ## Phase 6 gate
 

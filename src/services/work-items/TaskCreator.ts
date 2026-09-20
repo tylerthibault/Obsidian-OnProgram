@@ -27,6 +27,8 @@ export interface CreateTaskRequest {
   project?: string;
   /** Optional status override used by contextual creation, such as Board columns. */
   initialStatus?: WorkItemStatus;
+  /** Optional task-type values written during initial frontmatter creation. */
+  initialTaskTypes?: string[];
   /** Optional destination hint supplied by a folder-scoped OnProgram Base view. */
   targetFolder?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
@@ -117,6 +119,7 @@ export class TaskCreator {
       frontmatter[map.status] = request.initialStatus ?? DEFAULT_STATUS_BY_TYPE.task;
 
       setDefault(frontmatter, map.project, project || null);
+      setDefault(frontmatter, map.taskTypes, []);
       setDefault(frontmatter, map.priority, "normal");
       setDefault(frontmatter, map.start, null);
       setDefault(frontmatter, map.end, null);
@@ -136,6 +139,11 @@ export class TaskCreator {
       setDefault(frontmatter, "views_1_month", null);
 
       if (project) frontmatter[map.project] = project;
+      if (request.initialTaskTypes) {
+        frontmatter[map.taskTypes] = [...new Set(
+          request.initialTaskTypes.map((value) => value.trim()).filter(Boolean)
+        )];
+      }
 
       if (request.initialDate) {
         frontmatter[map[request.initialDate.field]] = request.initialDate.value.iso;

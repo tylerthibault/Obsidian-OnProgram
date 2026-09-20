@@ -26,6 +26,7 @@ These names are defaults, not permanent requirements. Property-name mapping will
 | type | `type` | Work-item kind |
 | status | `status` | Current workflow state |
 | project | `project` | Related project reference |
+| taskTypes | `task_types` | User-defined list describing the kind of work |
 | priority | `priority` | Relative importance |
 | start | `start` | Planned range start |
 | end | `end` | Planned range end |
@@ -161,6 +162,9 @@ type: task
 status: in-progress
 project: "[[OnProgram]]"
 priority: high
+task_types:
+  - filming
+  - posting
 start: 2026-09-08
 due: 2026-09-12
 scheduled: 2026-09-09T10:00
@@ -178,7 +182,8 @@ The schema keeps required data intentionally small so OnProgram can work natural
 - Every valid work item requires `type` and `status`.
 - A milestone additionally requires `due`.
 - An event additionally requires `scheduled`.
-- Priority, relationships, range dates, completion information, and duration are optional unless a future feature specifically needs them.
+- Priority, task types, relationships, range dates, completion information, and duration are optional unless a future feature specifically needs them.
+- `task_types` is conceptually a list. Registered values are managed in OnProgram Settings, but unregistered string values remain valid and are preserved.
 - Missing optional values should normally remain absent rather than being written as empty YAML properties.
 
 ## Architectural rules

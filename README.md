@@ -93,6 +93,7 @@ With default mappings:
 type: task
 status: todo
 project:
+task_types: []
 priority: normal
 start:
 end:
@@ -143,7 +144,7 @@ See [`docs/board-view.md`](docs/board-view.md).
 
 One Bases-native Calendar view switches between Month, Week, and Day. The active date field can be `scheduled`, `due`, or `start`.
 
-Current capabilities include navigation, Today, all-day/timed placement, direct task creation from calendar cells, drag/drop rescheduling, and an unscheduled-work tray. Calendar-created files go to the current Base's `files/` folder.
+Current capabilities include navigation, Today, all-day/timed placement, direct task creation from calendar cells, drag/drop rescheduling, an unscheduled-work tray, linked Markdown instances, and user-defined task-type indicators/filtering. Calendar-created files go to the current Base's `files/` folder.
 
 See [`docs/calendar-view.md`](docs/calendar-view.md).
 

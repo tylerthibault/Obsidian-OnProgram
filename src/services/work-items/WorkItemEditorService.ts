@@ -4,6 +4,7 @@ import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import type { WorkItemPriority } from "../../models/work-item/WorkItemPriority";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
+import type { TaskTypeDefinition } from "../../models/work-item/TaskTypeDefinition";
 import { normalizeTaskTitle } from "./TaskCreator";
 import {
   normalizeDurationMinutes,
@@ -16,6 +17,7 @@ export interface WorkItemEditorDraft {
   title: string;
   status: WorkItemStatus;
   project: string;
+  taskTypes: string[];
   linkedBase: string;
   priority: WorkItemPriority;
   start: string;
@@ -39,8 +41,13 @@ export interface SaveWorkItemEditorResult {
 export class WorkItemEditorService {
   constructor(
     private readonly app: App,
-    private readonly writer: WorkItemWriter
+    private readonly writer: WorkItemWriter,
+    private readonly getTaskTypes: () => readonly TaskTypeDefinition[] = () => []
   ) {}
+
+  getTaskTypeDefinitions(): readonly TaskTypeDefinition[] {
+    return this.getTaskTypes();
+  }
 
   async loadDraft(item: WorkItem): Promise<WorkItemEditorDraft> {
     const file = this.resolveFile(item.source.path);
@@ -50,6 +57,7 @@ export class WorkItemEditorService {
       title: item.title,
       status: item.status,
       project: item.project ?? "",
+      taskTypes: [...item.taskTypes],
       linkedBase: item.linkedBase ?? "",
       priority: item.priority,
       start: item.dates.start?.iso ?? "",
@@ -132,6 +140,7 @@ export class WorkItemEditorService {
       status: draft.status,
       priority: draft.priority,
       project: optionalString(draft.project),
+      taskTypes: normalizeTaskTypeDraft(draft.taskTypes),
       linkedBase: optionalString(draft.linkedBase),
       start: parseOptionalDate(draft.start, "start"),
       due: this.requiredAwareDate(item.type === "milestone", draft.due, "due"),
@@ -191,6 +200,16 @@ export class WorkItemEditorService {
 function extractNotes(content: string): string {
   const info = getFrontMatterInfo(content);
   return info.exists ? content.slice(info.contentStart).replace(/^\r?\n/, "") : content;
+}
+
+function normalizeTaskTypeDraft(values: readonly string[]): string[] {
+  const normalized: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed || normalized.includes(trimmed)) continue;
+    normalized.push(trimmed);
+  }
+  return normalized;
 }
 
 function optionalString(value: string): string | null {

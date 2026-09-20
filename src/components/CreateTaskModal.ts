@@ -1,14 +1,17 @@
 import { Modal, Setting, TFile, type App } from "obsidian";
+import type { TaskTypeDefinition } from "../models/work-item/TaskTypeDefinition";
 import { MarkdownFilePickerModal } from "./MarkdownFilePickerModal";
 import { OnProgramBasePickerModal } from "./OnProgramBasePickerModal";
 
 export interface CreateTaskModalOptions {
-  onSubmit: (title: string) => Promise<void>;
+  onSubmit: (title: string, taskTypes: string[]) => Promise<void>;
   onError: (error: unknown) => void;
   /** When provided, the modal can add an existing OnProgram Base instead of creating a note. */
   onLinkBase?: (baseFile: TFile) => Promise<void>;
   /** Required so every OnProgram add flow can create an instance pointing at an existing Markdown note. */
   onLinkMarkdown: (file: TFile, label?: string) => Promise<void>;
+  /** Optional registered task types exposed while creating a new task. */
+  taskTypes?: readonly TaskTypeDefinition[];
 }
 
 type CreateMode = "task" | "linked-base" | "linked-markdown";
@@ -19,6 +22,7 @@ export class CreateTaskModal extends Modal {
   private selectedBase?: TFile;
   private selectedMarkdown?: TFile;
   private linkedMarkdownLabel = "";
+  private selectedTaskTypes = new Set<string>();
   private submitting = false;
 
   constructor(
@@ -133,6 +137,25 @@ export class CreateTaskModal extends Modal {
 
         window.setTimeout(() => text.inputEl.focus(), 0);
       });
+
+    if (this.options.taskTypes?.length) {
+      const taskTypesSetting = new Setting(this.contentEl)
+        .setName("Task types")
+        .setDesc("A task can have more than one type.");
+
+      const controls = taskTypesSetting.controlEl;
+      controls.addClass("onprogram-task-type-toggle-list");
+      for (const definition of this.options.taskTypes) {
+        const label = controls.createEl("label", { cls: "onprogram-task-type-toggle" });
+        const checkbox = label.createEl("input", { type: "checkbox" });
+        checkbox.checked = this.selectedTaskTypes.has(definition.id);
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) this.selectedTaskTypes.add(definition.id);
+          else this.selectedTaskTypes.delete(definition.id);
+        });
+        label.createSpan({ text: definition.label });
+      }
+    }
   }
 
   private renderLinkedBase(): void {
@@ -216,7 +239,7 @@ export class CreateTaskModal extends Modal {
           this.linkedMarkdownLabel.trim() || undefined
         );
       } else {
-        await this.options.onSubmit(this.title);
+        await this.options.onSubmit(this.title, [...this.selectedTaskTypes]);
       }
 
       this.close();

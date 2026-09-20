@@ -1,5 +1,6 @@
 import type { Plugin } from "obsidian";
 import type { ErrorHandler } from "../../core/ErrorHandler";
+import type { TaskTypeDefinition } from "../../models/work-item/TaskTypeDefinition";
 import { Logger } from "../../utils/Logger";
 import {
   ONPROGRAM_BASES_VIEW_ID,
@@ -77,7 +78,8 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly workItemEditor: WorkItemEditorService,
     private readonly workItemOpener: WorkItemOpener,
     private readonly linkedMarkdownStore: LinkedMarkdownInstanceStore,
-    private readonly errorHandler: ErrorHandler
+    private readonly errorHandler: ErrorHandler,
+    private readonly getTaskTypes: () => readonly TaskTypeDefinition[]
   ) {}
 
   start(): void {
@@ -138,7 +140,8 @@ export class BasesIntegrationService implements OnProgramService {
         this.writer,
         this.taskCreator,
         this.workItemOpener,
-        this.errorHandler
+        this.errorHandler,
+        this.getTaskTypes
       )
     });
 
