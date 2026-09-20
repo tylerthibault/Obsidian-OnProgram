@@ -31,6 +31,8 @@ export interface CreateTaskRequest {
   targetFolder?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
+  /** Optional Markdown body. When provided, it replaces template body content after frontmatter initialization. */
+  body?: string;
   /** Whether to navigate to the newly created note. */
   openAfterCreate?: boolean;
 }
@@ -62,6 +64,9 @@ export class TaskCreator {
 
     try {
       await this.initializeTaskFrontmatter(file, config, request);
+      if (request.body !== undefined) {
+        await this.replaceTaskBody(file, request.body);
+      }
     } catch (error) {
       try {
         await this.app.vault.delete(file);
@@ -141,6 +146,15 @@ export class TaskCreator {
         frontmatter[map[request.initialDate.field]] = request.initialDate.value.iso;
       }
     });
+  }
+
+  private async replaceTaskBody(file: TFile, body: string): Promise<void> {
+    const current = await this.app.vault.read(file);
+    const frontmatterMatch = current.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/);
+    const frontmatter = frontmatterMatch?.[0].trimEnd();
+    const normalizedBody = body.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const next = frontmatter ? `${frontmatter}\n\n${normalizedBody}` : normalizedBody;
+    await this.app.vault.modify(file, next);
   }
 
   private async loadTemplate(templatePath: string): Promise<{ content: string; usedTemplate: boolean }> {
