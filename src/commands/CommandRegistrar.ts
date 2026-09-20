@@ -1,4 +1,5 @@
 import { Notice, Plugin } from "obsidian";
+import { BatchTaskImportModal } from "../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../components/CreateTaskModal";
 import { OnProgramHelpModal } from "../components/OnProgramHelpModal";
 import { QuickTaskEditorModal } from "../components/QuickTaskEditorModal";
@@ -76,6 +77,14 @@ export class CommandRegistrar {
     });
 
     this.plugin.addCommand({
+      id: "onprogram-batch-load-tasks",
+      name: "Batch load tasks",
+      callback: () => {
+        void this.openBatchTaskImport();
+      }
+    });
+
+    this.plugin.addCommand({
       id: "onprogram-edit-active-work-item",
       name: "Edit active work item",
       checkCallback: (checking) => {
@@ -145,6 +154,19 @@ export class CommandRegistrar {
     });
 
     this.logger.debug("Core commands registered");
+  }
+
+  private async openBatchTaskImport(): Promise<void> {
+    try {
+      const targetFolder = await this.dependencies.baseContext.resolveActiveTaskFolder();
+      new BatchTaskImportModal(this.plugin.app, {
+        taskCreator: this.dependencies.taskCreator,
+        targetFolder,
+        onError: (error) => this.dependencies.errorHandler.handle(error, "batch load tasks", true)
+      }).open();
+    } catch (error) {
+      this.dependencies.errorHandler.handle(error, "batch load tasks", true);
+    }
   }
 
   private async runWriterTest(action: "complete" | "reopen"): Promise<void> {
