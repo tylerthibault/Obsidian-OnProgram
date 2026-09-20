@@ -1,5 +1,8 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
-import { TIMED_CALENDAR_STYLES } from "./styles/OnProgramCalendarStyles";
+import {
+  CALENDAR_HOUR_HEIGHT,
+  TIMED_CALENDAR_STYLES
+} from "./styles/OnProgramCalendarStyles";
 import { humanize } from "../../utils/text";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { LinkedMarkdownInstanceModal } from "../../components/LinkedMarkdownInstanceModal";
@@ -37,7 +40,6 @@ import {
 
 export const ONPROGRAM_CALENDAR_VIEW_ID = "onprogram-calendar";
 
-const CALENDAR_HOUR_HEIGHT = 64;
 const CALENDAR_RESIZE_SNAP_MINUTES = 30;
 const DEFAULT_TIMED_DURATION_MINUTES = 60;
 const MAX_TIMED_DURATION_MINUTES = 14 * 24 * 60;
