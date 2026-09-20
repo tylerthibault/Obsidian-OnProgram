@@ -1,4 +1,5 @@
 import { Modal, Notice, Setting, type App } from "obsidian";
+import { humanize } from "../utils/text";
 import type { ProjectWorkItem, TaskWorkItem } from "../models/work-item/WorkItem";
 import { projectReferenceMatches } from "../services/projects/ProjectRollup";
 
@@ -304,13 +305,6 @@ function displayReference(reference: string): string {
     .replace(/\.md$/i, "")
     .split("/")
     .pop() ?? reference;
-}
-
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 const TASK_MANAGER_STYLES = `
