@@ -7,8 +7,8 @@ export interface CreateTaskModalOptions {
   onError: (error: unknown) => void;
   /** When provided, the modal can add an existing OnProgram Base instead of creating a note. */
   onLinkBase?: (baseFile: TFile) => Promise<void>;
-  /** When provided, the modal can add a Calendar instance that points at an existing Markdown note. */
-  onLinkMarkdown?: (file: TFile, label?: string) => Promise<void>;
+  /** Required so every OnProgram add flow can create an instance pointing at an existing Markdown note. */
+  onLinkMarkdown: (file: TFile, label?: string) => Promise<void>;
 }
 
 type CreateMode = "task" | "linked-base" | "linked-markdown";
@@ -41,18 +41,12 @@ export class CreateTaskModal extends Modal {
     contentEl.empty();
     contentEl.addClass("onprogram-create-task-modal");
 
-    const supportsLinks = Boolean(this.options.onLinkBase || this.options.onLinkMarkdown);
-    contentEl.createEl("h2", {
-      text: supportsLinks ? "Add to OnProgram" : "Create OnProgram task"
-    });
-
-    if (supportsLinks) {
-      this.renderModeChooser();
-    }
+    contentEl.createEl("h2", { text: "Add to OnProgram" });
+    this.renderModeChooser();
 
     if (this.mode === "linked-base" && this.options.onLinkBase) {
       this.renderLinkedBase();
-    } else if (this.mode === "linked-markdown" && this.options.onLinkMarkdown) {
+    } else if (this.mode === "linked-markdown") {
       this.renderLinkedMarkdown();
     } else {
       this.renderTask();
@@ -91,19 +85,17 @@ export class CreateTaskModal extends Modal {
       if (this.mode === "task") button.setCta();
     });
 
-    if (this.options.onLinkMarkdown) {
-      setting.addButton((button) => {
-        button
-          .setButtonText("Link existing file")
-          .setTooltip("Create another OnProgram appearance that points at an existing Markdown note")
-          .onClick(() => {
-            this.mode = "linked-markdown";
-            this.render();
-          });
+    setting.addButton((button) => {
+      button
+        .setButtonText("Link existing file")
+        .setTooltip("Create another OnProgram appearance that points at an existing Markdown note")
+        .onClick(() => {
+          this.mode = "linked-markdown";
+          this.render();
+        });
 
-        if (this.mode === "linked-markdown") button.setCta();
-      });
-    }
+      if (this.mode === "linked-markdown") button.setCta();
+    });
 
     if (this.options.onLinkBase) {
       setting.addButton((button) => {
@@ -215,7 +207,7 @@ export class CreateTaskModal extends Modal {
           throw new Error("Choose an OnProgram Base to link.");
         }
         await this.options.onLinkBase(this.selectedBase);
-      } else if (this.mode === "linked-markdown" && this.options.onLinkMarkdown) {
+      } else if (this.mode === "linked-markdown") {
         if (!this.selectedMarkdown) {
           throw new Error("Choose a Markdown note to link.");
         }
