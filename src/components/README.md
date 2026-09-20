@@ -1,3 +1,8 @@
 # Components
 
-Reusable OnProgram UI components belong here. Components should use the `onprogram-` CSS namespace and remain independent of work-item persistence whenever possible.
+Reusable Obsidian UI belongs here. Components should:
+
+- use the `onprogram-` CSS namespace;
+- receive persistence/actions through callbacks or services;
+- avoid owning Base or frontmatter persistence directly;
+- keep large style blocks in adjacent style modules when practical.
