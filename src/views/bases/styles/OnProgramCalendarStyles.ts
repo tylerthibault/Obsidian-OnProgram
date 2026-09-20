@@ -1,3 +1,5 @@
+export const CALENDAR_HOUR_HEIGHT = 64;
+
 export const TIMED_CALENDAR_STYLES = `
 .onprogram-calendar-week-cell,
 .onprogram-calendar-day-slot {
