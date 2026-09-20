@@ -12,7 +12,8 @@ export type WorkItemValidationCode =
   | "invalid-date"
   | "invalid-duration"
   | "invalid-reference"
-  | "invalid-reference-list";
+  | "invalid-reference-list"
+  | "invalid-task-type-list";
 
 export interface WorkItemValidationIssue {
   severity: WorkItemValidationSeverity;
