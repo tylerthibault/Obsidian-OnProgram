@@ -134,7 +134,7 @@ export class BatchTaskImportModal extends Modal {
 
     new Setting(defaults)
       .setName("Destination folder")
-      .setDesc("Overrides the normal task destination for this import. Leave blank for the vault root.")
+      .setDesc("Overrides the normal task destination for this import. Leave blank to use the normal OnProgram task destination.")
       .addText((text) => text.setValue(this.defaults.destinationFolder).setPlaceholder("Tasks").onChange((value) => {
         this.defaults.destinationFolder = value;
       }));
@@ -351,7 +351,7 @@ export class BatchTaskImportModal extends Modal {
           initialStatus: row.status,
           priority: row.priority,
           targetFolder: this.options.targetFolder,
-          destinationFolderOverride: this.defaults.destinationFolder,
+          destinationFolderOverride: this.defaults.destinationFolder.trim() ? this.defaults.destinationFolder.trim() : undefined,
           initialDate: row.scheduled ? { field: "scheduled", value: row.scheduled } : undefined,
           body: row.body || undefined,
           extraProperties,
