@@ -1,56 +1,106 @@
-# Multi-platform publishing: single schedule source
+# Multi-platform publishing: note state + generic linked instances
 
 ## Decision
 
-OnProgram uses the work item's existing canonical `scheduled` property as the single source of truth for when content is placed on the Calendar/Timeline.
+OnProgram keeps publishing state on the content note, but does **not** model repeated Calendar appearances with platform-specific schedule properties.
 
-Per-platform publishing fields describe distribution state only:
+The note's normal `scheduled` property remains its canonical/default work schedule:
 
 ```yaml
 scheduled: 2026-09-17T13:00
 
-tiktok_state: scheduled
-youtube_state: posted
+tiktok_state: posted
+youtube_state: planned
 instagram_state: planned
 ```
 
-OnProgram does **not** require `tiktok_scheduled`, `youtube_scheduled`, or `instagram_scheduled` timestamps for the normal publishing workflow.
+If the same Markdown content needs another Calendar appearance on another day, OnProgram uses a **linked Markdown instance** instead of adding fields such as:
+
+```text
+tiktok_scheduled
+youtube_scheduled
+instagram_scheduled
+```
 
 ## Why
 
-The content item is already positioned at a date/time on the OnProgram Calendar. Asking for another schedule date/time after choosing `TikTok → Scheduled` or `YouTube → Scheduled` creates duplicate data and unnecessary GUI friction.
+The underlying requirement is broader than social publishing.
 
-The platform pill answers **where / what state**:
+The same note may need multiple independent appearances for:
 
-- Planned
-- Scheduled
-- Posted
-- Failed
-- Skipped
+- TikTok / Instagram / YouTube distribution;
+- reposts;
+- review sessions;
+- reminders;
+- newsletter reuse;
+- client delivery;
+- presentations;
+- follow-ups;
+- any future workflow the user invents.
 
-The Calendar card answers **when**.
+Encoding those appearances as platform-specific frontmatter would couple the Calendar data model to one use case.
 
-## GUI behavior
+Linked Markdown instances solve the general problem:
 
-Clicking a platform pill opens its state menu. Choosing `Mark scheduled` immediately writes the platform state and closes the menu. No schedule modal is shown.
+> One Markdown note, many OnProgram appearances.
 
-Example:
+## Example
 
-```yaml
-scheduled: 2026-09-17T13:00
-tiktok_state: scheduled
+The source note remains a single file:
+
+```text
+Content/Your Memory.md
 ```
 
-If an early prototype created a platform-specific `*_scheduled` field, changing that platform's state through the current GUI removes the redundant legacy field.
+The Calendar view may store several independent linked instances pointing at it:
+
+```json
+[
+  {
+    "id": "link-1",
+    "targetPath": "Content/Your Memory.md",
+    "scheduled": "2026-09-19T13:00",
+    "label": "TikTok"
+  },
+  {
+    "id": "link-2",
+    "targetPath": "Content/Your Memory.md",
+    "scheduled": "2026-09-21T10:30",
+    "label": "Instagram"
+  }
+]
+```
+
+Both cards open the same Markdown note. Moving either card changes only that linked instance.
+
+## Publishing state
+
+Platform state remains note-level distribution metadata:
+
+```text
+tiktok_state
+youtube_state
+instagram_state
+
+tiktok_posted
+youtube_posted
+instagram_posted
+```
+
+The optional linked-instance label is descriptive only. It is not limited to social platforms and does not create new platform-specific schema.
 
 ## Posted timestamps
 
-`*_posted` timestamps remain useful because they describe an actual event that may differ from the planned Calendar time. For example:
+Posted timestamps remain useful because they describe an actual distribution event:
 
 ```yaml
-scheduled: 2026-09-17T13:00
 tiktok_state: posted
-tiktok_posted: 2026-09-17T13:07
+tiktok_posted: 2026-09-19T13:07
 ```
 
-This decision can be revisited only if OnProgram later introduces a dedicated publishing calendar where a single content item can intentionally publish to different platforms at different times. Until then, the main task schedule owns time and platform state owns distribution status.
+Linked Calendar instances and publishing state therefore solve different problems:
+
+- linked instance = where/when this note appears in OnProgram;
+- publishing metadata = what happened on a distribution platform.
+
+See `docs/LINKED_MARKDOWN_INSTANCES.md` for the linked-instance model and interaction details.

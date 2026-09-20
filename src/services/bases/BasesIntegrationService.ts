@@ -24,6 +24,7 @@ import {
   OnProgramTimelineView
 } from "../../views/bases/OnProgramTimelineView";
 import type { OnProgramService } from "../ServiceRegistry";
+import type { LinkedMarkdownInstanceStore } from "./LinkedMarkdownInstanceStore";
 import type { MilestoneCreator } from "../projects/MilestoneCreator";
 import type { ProjectAssignmentService } from "../projects/ProjectAssignmentService";
 import type { ProjectCreator } from "../projects/ProjectCreator";
@@ -75,6 +76,7 @@ export class BasesIntegrationService implements OnProgramService {
     private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemEditor: WorkItemEditorService,
     private readonly workItemOpener: WorkItemOpener,
+    private readonly linkedMarkdownStore: LinkedMarkdownInstanceStore,
     private readonly errorHandler: ErrorHandler
   ) {}
 
@@ -103,6 +105,7 @@ export class BasesIntegrationService implements OnProgramService {
         this.taskCreator,
         this.projectAssignment,
         this.workItemOpener,
+        this.linkedMarkdownStore,
         this.errorHandler
       )
     });
@@ -119,6 +122,7 @@ export class BasesIntegrationService implements OnProgramService {
         this.taskCreator,
         this.projectAssignment,
         this.workItemOpener,
+        this.linkedMarkdownStore,
         this.errorHandler
       )
     });
@@ -150,6 +154,7 @@ export class BasesIntegrationService implements OnProgramService {
         this.taskCreator,
         this.projectAssignment,
         this.workItemOpener,
+        this.linkedMarkdownStore,
         this.errorHandler
       )
     });
@@ -264,6 +269,13 @@ function calendarViewOptions() {
       displayName: "Calendar date field",
       default: "scheduled",
       options: CALENDAR_FIELD_OPTIONS
+    },
+    {
+      type: "text" as const,
+      key: "linkedMarkdownInstances",
+      displayName: "Linked Markdown instances",
+      default: "[]",
+      shouldHide: () => true
     }
   ];
 }

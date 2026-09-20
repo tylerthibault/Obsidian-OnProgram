@@ -1,5 +1,6 @@
 import { Notice, Plugin } from "obsidian";
 import { CreateTaskModal } from "../components/CreateTaskModal";
+import { openLinkedMarkdownCreateFlow } from "../components/LinkedMarkdownCreateFlow";
 import { OnProgramHelpModal } from "../components/OnProgramHelpModal";
 import { QuickTaskEditorModal } from "../components/QuickTaskEditorModal";
 import type { ErrorHandler } from "../core/ErrorHandler";
@@ -7,6 +8,7 @@ import type { LifecycleManager } from "../core/LifecycleManager";
 import { DEFAULT_WORK_ITEM_PROPERTY_MAP } from "../models/work-item/WorkItemProperties";
 import type { RuntimeService } from "../services/RuntimeService";
 import type { OnProgramBaseContext } from "../services/bases/OnProgramBaseContext";
+import type { LinkedMarkdownInstanceStore } from "../services/bases/LinkedMarkdownInstanceStore";
 import type { TaskCreator } from "../services/work-items/TaskCreator";
 import type { WorkItemEditorService } from "../services/work-items/WorkItemEditorService";
 import type { WorkItemScanner } from "../services/work-items/WorkItemScanner";
@@ -19,6 +21,7 @@ export interface CommandDependencies {
   errorHandler: ErrorHandler;
   taskCreator: TaskCreator;
   baseContext: OnProgramBaseContext;
+  linkedMarkdownStore: LinkedMarkdownInstanceStore;
   workItemEditor: WorkItemEditorService;
   workItemScanner: WorkItemScanner;
   workItemWriter: WorkItemWriter;
@@ -69,6 +72,17 @@ export class CommandRegistrar {
               baseScoped: Boolean(targetFolder)
             });
             new Notice(`OnProgram: Created ${result.title}.`);
+          },
+          onLinkMarkdown: async (file, label) => {
+            openLinkedMarkdownCreateFlow(
+              this.plugin.app,
+              this.dependencies.linkedMarkdownStore,
+              this.dependencies.errorHandler,
+              {
+                initialFile: file,
+                initialLabel: label
+              }
+            );
           },
           onError: (error) => this.dependencies.errorHandler.handle(error, "create task", true)
         }).open();
