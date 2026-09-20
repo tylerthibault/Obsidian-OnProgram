@@ -1,20 +1,21 @@
-import { TFile, TFolder, normalizePath, type App } from "obsidian";
+import { TFile, type App } from "obsidian";
 import { OnProgramError } from "../../core/ErrorHandler";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
-import {
-  validateWorkItemPropertyMap,
-  type WorkItemPropertyMap
-} from "../../models/work-item/WorkItemProperties";
 import { DEFAULT_STATUS_BY_TYPE, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
-import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
+import {
+  assertSafeCreationPropertyMap,
+  createInitializedMarkdownFile,
+  ensureCreationFolder,
+  findAvailableMarkdownPath,
+  normalizeVaultPath,
+  normalizeWorkItemFolder,
+  normalizeWorkItemTitle,
+  resolveCreationFolder,
+  setFrontmatterDefault,
+  type WorkItemCreationConfig
+} from "./WorkItemCreationSupport";
 
-export interface TaskCreationConfig {
-  taskFolderMode: "current-base" | "custom";
-  taskFolder: string;
-  taskTemplatePath: string;
-  defaultProject: string;
-  propertyMap: WorkItemPropertyMap;
-}
+export type TaskCreationConfig = WorkItemCreationConfig;
 
 export interface TaskInitialDate {
   field: "scheduled" | "due" | "start";
@@ -42,6 +43,13 @@ export interface CreatedTaskResult {
   usedTemplate: boolean;
 }
 
+const TASK_CREATION_KIND = {
+  label: "Task",
+  folderConflictCode: "task-folder-conflict",
+  filenameExhaustedCode: "task-filename-exhausted",
+  invalidPropertyMapCode: "invalid-work-item-property-map"
+} as const;
+
 export class TaskCreator {
   constructor(
     private readonly app: App,
@@ -50,26 +58,35 @@ export class TaskCreator {
 
   async createTask(request: CreateTaskRequest): Promise<CreatedTaskResult> {
     const config = this.getConfig();
-    this.assertSafePropertyMap(config.propertyMap);
+    assertSafeCreationPropertyMap(config.propertyMap, TASK_CREATION_KIND);
 
     const title = normalizeTaskTitle(request.title);
-    const folder = this.resolveDestinationFolder(config, request);
-    await this.ensureFolder(folder);
+    const folder = resolveCreationFolder(
+      this.app,
+      config,
+      request.targetFolder,
+      {
+        unresolvedMessage:
+          "OnProgram could not determine the current Base folder. Focus the Base and try again, or choose Custom vault folder in OnProgram settings.",
+        unresolvedCode: "task-base-folder-unresolved"
+      }
+    );
+
+    await ensureCreationFolder(this.app, folder, TASK_CREATION_KIND);
 
     const { content, usedTemplate } = await this.loadTemplate(config.taskTemplatePath);
-    const path = this.findAvailablePath(folder, title);
-    const file = await this.app.vault.create(path, content);
-
-    try {
-      await this.initializeTaskFrontmatter(file, config, request);
-    } catch (error) {
-      try {
-        await this.app.vault.delete(file);
-      } catch {
-        // The initialization error is more actionable than a secondary cleanup failure.
-      }
-      throw error;
-    }
+    const path = findAvailableMarkdownPath(
+      this.app,
+      folder,
+      title,
+      TASK_CREATION_KIND
+    );
+    const file = await createInitializedMarkdownFile(
+      this.app,
+      path,
+      content,
+      (createdFile) => this.initializeTaskFrontmatter(createdFile, config, request)
+    );
 
     if (request.openAfterCreate !== false) {
       await this.app.workspace.getLeaf(false).openFile(file);
@@ -81,25 +98,6 @@ export class TaskCreator {
       title: file.basename,
       usedTemplate
     };
-  }
-
-  private resolveDestinationFolder(
-    config: TaskCreationConfig,
-    request: CreateTaskRequest
-  ): string {
-    if (config.taskFolderMode === "custom") {
-      return normalizeTaskFolder(config.taskFolder);
-    }
-
-    const contextualFolder = resolveOnProgramViewTaskFolder(this.app, request.targetFolder);
-    if (!contextualFolder) {
-      throw new OnProgramError(
-        "OnProgram could not determine the current Base folder. Focus the Base and try again, or choose Custom vault folder in OnProgram settings.",
-        "task-base-folder-unresolved"
-      );
-    }
-
-    return normalizeTaskFolder(contextualFolder);
   }
 
   private async initializeTaskFrontmatter(
@@ -116,24 +114,23 @@ export class TaskCreator {
       frontmatter[map.type] = "task";
       frontmatter[map.status] = request.initialStatus ?? DEFAULT_STATUS_BY_TYPE.task;
 
-      setDefault(frontmatter, map.project, project || null);
-      setDefault(frontmatter, map.priority, "normal");
-      setDefault(frontmatter, map.start, null);
-      setDefault(frontmatter, map.end, null);
-      setDefault(frontmatter, map.due, null);
-      setDefault(frontmatter, map.scheduled, null);
-      setDefault(frontmatter, map.duration, null);
-      setDefault(frontmatter, map.completed, null);
-      setDefault(frontmatter, map.parent, null);
-      setDefault(frontmatter, map.dependsOn, []);
-      setDefault(frontmatter, map.linkedBase, null);
+      setFrontmatterDefault(frontmatter, map.project, project || null);
+      setFrontmatterDefault(frontmatter, map.priority, "normal");
+      setFrontmatterDefault(frontmatter, map.start, null);
+      setFrontmatterDefault(frontmatter, map.end, null);
+      setFrontmatterDefault(frontmatter, map.due, null);
+      setFrontmatterDefault(frontmatter, map.scheduled, null);
+      setFrontmatterDefault(frontmatter, map.duration, null);
+      setFrontmatterDefault(frontmatter, map.completed, null);
+      setFrontmatterDefault(frontmatter, map.parent, null);
+      setFrontmatterDefault(frontmatter, map.dependsOn, []);
+      setFrontmatterDefault(frontmatter, map.linkedBase, null);
 
-      // Optional content-performance metrics. These are deliberately plain
-      // frontmatter properties so external publishing/analytics workflows can
-      // update them without going through the OnProgram writer.
-      setDefault(frontmatter, "views_24_hours", null);
-      setDefault(frontmatter, "views_1_week", null);
-      setDefault(frontmatter, "views_1_month", null);
+      // Performance metrics remain plain frontmatter so external analytics
+      // workflows can update them without depending on the OnProgram writer.
+      setFrontmatterDefault(frontmatter, "views_24_hours", null);
+      setFrontmatterDefault(frontmatter, "views_1_week", null);
+      setFrontmatterDefault(frontmatter, "views_1_month", null);
 
       if (project) frontmatter[map.project] = project;
 
@@ -143,7 +140,9 @@ export class TaskCreator {
     });
   }
 
-  private async loadTemplate(templatePath: string): Promise<{ content: string; usedTemplate: boolean }> {
+  private async loadTemplate(
+    templatePath: string
+  ): Promise<{ content: string; usedTemplate: boolean }> {
     const trimmed = templatePath.trim();
     if (!trimmed) return { content: "", usedTemplate: false };
 
@@ -154,12 +153,12 @@ export class TaskCreator {
 
     for (const candidate of candidates) {
       const abstractFile = this.app.vault.getAbstractFileByPath(candidate);
-      if (abstractFile instanceof TFile) {
-        return {
-          content: await this.app.vault.read(abstractFile),
-          usedTemplate: true
-        };
-      }
+      if (!(abstractFile instanceof TFile)) continue;
+
+      return {
+        content: await this.app.vault.read(abstractFile),
+        usedTemplate: true
+      };
     }
 
     throw new OnProgramError(
@@ -167,102 +166,16 @@ export class TaskCreator {
       "task-template-not-found"
     );
   }
-
-  private async ensureFolder(folder: string): Promise<void> {
-    if (!folder) return;
-
-    const segments = folder.split("/").filter((segment) => segment.length > 0);
-    let current = "";
-
-    for (const segment of segments) {
-      current = current ? `${current}/${segment}` : segment;
-      const existing = this.app.vault.getAbstractFileByPath(current);
-
-      if (!existing) {
-        await this.app.vault.createFolder(current);
-        continue;
-      }
-
-      if (!(existing instanceof TFolder)) {
-        throw new OnProgramError(
-          `Cannot create task folder because '${current}' is a file.`,
-          "task-folder-conflict"
-        );
-      }
-    }
-  }
-
-  private findAvailablePath(folder: string, title: string): string {
-    const makePath = (suffix: string): string =>
-      normalizePath(`${folder ? `${folder}/` : ""}${title}${suffix}.md`);
-
-    const first = makePath("");
-    if (!this.app.vault.getAbstractFileByPath(first)) return first;
-
-    for (let index = 2; index <= 9999; index += 1) {
-      const candidate = makePath(` ${index}`);
-      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
-    }
-
-    throw new OnProgramError(
-      `Unable to find an available filename for '${title}'.`,
-      "task-filename-exhausted"
-    );
-  }
-
-  private assertSafePropertyMap(propertyMap: WorkItemPropertyMap): void {
-    const issues = validateWorkItemPropertyMap(propertyMap);
-    if (issues.length === 0) return;
-
-    throw new OnProgramError(
-      `Cannot create a task with the current property mapping: ${issues.map((issue) => issue.message).join(" ")}`,
-      "invalid-work-item-property-map"
-    );
-  }
 }
 
 export function normalizeTaskTitle(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    throw new OnProgramError("Task title cannot be empty.", "empty-task-title");
-  }
-
-  const sanitized = trimmed
-    .replace(/[\\/:*?"<>|\u0000-\u001F]/g, "-")
-    .replace(/\s+/g, " ")
-    .replace(/[. ]+$/g, "")
-    .trim();
-
-  if (!sanitized) {
-    throw new OnProgramError("Task title does not contain a usable filename.", "invalid-task-title");
-  }
-
-  return sanitized;
+  return normalizeWorkItemTitle(value, {
+    label: "Task",
+    emptyCode: "empty-task-title",
+    invalidCode: "invalid-task-title"
+  });
 }
 
 export function normalizeTaskFolder(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "/") return "";
-  return normalizeVaultPath(trimmed, "task folder");
-}
-
-function normalizeVaultPath(value: string, label: string): string {
-  const slashNormalized = value.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  const segments = slashNormalized.split("/").filter((segment) => segment.length > 0);
-
-  if (segments.some((segment) => segment === "." || segment === "..")) {
-    throw new OnProgramError(
-      `The ${label} cannot contain '.' or '..' path segments.`,
-      "invalid-vault-path"
-    );
-  }
-
-  if (segments.length === 0) return "";
-  return normalizePath(segments.join("/"));
-}
-
-function setDefault(frontmatter: Record<string, unknown>, property: string, value: unknown): void {
-  if (!Object.prototype.hasOwnProperty.call(frontmatter, property)) {
-    frontmatter[property] = value;
-  }
+  return normalizeWorkItemFolder(value);
 }
