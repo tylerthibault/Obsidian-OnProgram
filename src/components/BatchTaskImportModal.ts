@@ -41,62 +41,56 @@ interface BatchRow {
   errors: string[];
 }
 
-const SAMPLE = `title,date,time,project,status,priority,body
-"Film kitchen update",2026-09-22,09:00,Kitchen,todo,high,"Film the kitchen update and get B-roll."
-"Edit kitchen video",2026-09-23,13:30,Kitchen,in-progress,normal,"## Edit notes
-
-- Before footage
-- Lighting comparison
-- Final reveal"`;
+const SAMPLE = `"title","date","time","project","status","priority","body"
+"Film kitchen update","2026-09-22","09:00","Kitchen","todo","high","Film the kitchen update and get B-roll."
+"Edit kitchen video","2026-09-23","13:30","Kitchen","in-progress","normal","## Edit notes\\n\\n- Before footage\\n- Lighting comparison\\n- Final reveal"`;
 
 function buildAiFormattingPrompt(defaults: ImportDefaults): string {
-  const defaultProject = defaults.project.trim() || "(none)";
+  const defaultProject = defaults.project.trim();
   const defaultFolder = defaults.destinationFolder.trim() || "(use OnProgram's normal task destination)";
 
   return [
     "I am planning work that I want to import into OnProgram as tasks.",
     "After this prompt, I will describe the project, plan, schedule, or work I want to do.",
     "",
-    "Turn my planning information into CSV that can be pasted directly into OnProgram's Batch Load Tasks importer.",
+    "Turn my planning information into AI-safe CSV for OnProgram's Batch Load Tasks importer.",
     "",
-    "OUTPUT RULES",
+    "OUTPUT FORMAT — FOLLOW EXACTLY",
     "- Put the finished import data inside exactly one fenced Markdown code block labeled csv.",
-    "- The csv code block is the copy/paste payload for OnProgram. Do not put any explanations, headings, notes, or other text inside that code block.",
-    "- You may add a brief explanation outside the code block if useful, but the user must be able to click Copy on the csv code block and paste that content directly into OnProgram.",
-    "- Do not indent CSV records. Every record must begin at the first character of the line; never add spaces before the opening quote or first field.",
-    "- Do not add blank lines between CSV records. Blank lines are allowed only when they are part of a quoted multiline body field.",
-    "- Use exactly this header row:",
+    "- Inside that code block, output only the header plus CSV task rows. No commentary, headings, or notes.",
+    "- Use exactly seven columns in exactly this order:",
     "title,date,time,project,status,priority,body",
-    "- Create one row per actionable task.",
-    "- title is required and should be concise but specific.",
-    "- date is optional. When present, use YYYY-MM-DD.",
-    "- time is optional. When present, use 24-hour HH:mm and only use it when date is also present.",
-    `- status must be one of: ${WORK_ITEM_STATUSES.join(", ")}.`,
-    `- priority must be one of: ${WORK_ITEM_PRIORITIES.join(", ")}.`,
-    "- project is optional.",
-    "- body is optional Markdown. Use it for useful details, notes, acceptance criteria, checklists, or subtasks.",
-    "- Follow normal CSV quoting rules. Quote any field containing a comma, double quote, or line break.",
-    "- Escape a double quote inside a quoted field by doubling it.",
-    "- Multiline Markdown bodies are allowed, but the entire body field must stay inside CSV quotes.",
-    "- Do not invent dates or times when my plan does not provide enough information. Leave those cells blank instead.",
+    "- Quote EVERY field, including empty fields.",
+    "- Every task must occupy exactly ONE physical line in the code block.",
+    "- Never use a real line break inside a CSV field. In body text, represent Markdown line breaks with the two literal characters \\n.",
+    "- Never add or remove columns. Every task row must contain exactly seven quoted fields.",
+    "- Separate the seven fields with exactly six commas.",
+    "- Do not indent rows and do not add blank lines between task rows.",
+    "- Escape any double quote inside a field by doubling it: \"\".",
     "",
-    "CURRENT ONPROGRAM IMPORT DEFAULTS",
-    `- Project: ${defaultProject}`,
+    "FIELD RULES",
+    "- title: required; concise but specific.",
+    "- date: use YYYY-MM-DD when known; otherwise use an empty quoted field \"\". Do not invent dates.",
+    "- time: use 24-hour HH:mm when known and only when date exists; otherwise use \"\".",
+    "- project: always include the project value explicitly. Use the default below when applicable; if there is no project, use \"\".",
+    `- status: always include one of: ${WORK_ITEM_STATUSES.join(", ")}. Use the default below unless a task needs an override.`,
+    `- priority: always include one of: ${WORK_ITEM_PRIORITIES.join(", ")}. Use the default below unless a task needs an override.`,
+    "- body: optional Markdown details. Keep the entire body on the same physical CSV line and encode intended Markdown line breaks as \\n.",
+    "- Create one row per actionable task.",
+    "",
+    "CURRENT ONPROGRAM DEFAULTS",
+    `- Project: ${defaultProject || "(none)"}`,
     `- Status: ${defaults.status}`,
     `- Priority: ${defaults.priority}`,
     `- Destination folder: ${defaultFolder}`,
-    "- When a task should use the Project, Status, or Priority default above, leave that CSV cell blank. Only provide a value when the task should override the default.",
     "",
-    "EXAMPLE",
-    "title,date,time,project,status,priority,body",
-    "\"Film kitchen update\",2026-09-22,09:00,,,high,\"Film the kitchen update and get B-roll.\"",
-    "\"Edit kitchen video\",2026-09-23,13:30,,in-progress,,\"## Edit notes",
+    "EXAMPLE — NOTICE THAT EVERY ROW HAS EXACTLY SEVEN QUOTED FIELDS ON ONE LINE",
+    "\"title\",\"date\",\"time\",\"project\",\"status\",\"priority\",\"body\"",
+    `"Film kitchen update","2026-09-22","09:00","${defaultProject || "Kitchen"}","${defaults.status}","high","Film the kitchen update and get B-roll."`,
+    `"Edit kitchen video","2026-09-23","13:30","${defaultProject || "Kitchen"}","in-progress","${defaults.priority}","## Edit notes\\\\n\\\\n- Before footage\\\\n- Lighting comparison\\\\n- Final reveal"`,
     "",
-    "- Before footage",
-    "- Lighting comparison",
-    "- Final reveal\"",
-    "",
-    "Now wait for my planning information. Put the finished OnProgram CSV in one ```csv code block so its Copy button copies only the paste-ready import data."
+    "Before answering, silently verify every data row has exactly seven fields and six separating commas outside quoted text.",
+    "Now wait for my planning information. Return the paste-ready CSV in one csv code block."
   ].join("\n");
 }
 
@@ -515,7 +509,7 @@ function buildRow(
       case "title": title = trimmed; break;
       case "date": date = trimmed; break;
       case "time": time = trimmed; break;
-      case "body": body = raw; break;
+      case "body": body = decodeEscapedBody(raw); break;
       case "project": if (trimmed) project = trimmed; break;
       case "status": if (trimmed && isWorkItemStatus(trimmed)) status = trimmed; else if (trimmed) status = trimmed as WorkItemStatus; break;
       case "priority": if (trimmed && isWorkItemPriority(trimmed)) priority = trimmed; else if (trimmed) priority = trimmed as WorkItemPriority; break;
@@ -530,6 +524,11 @@ function buildRow(
 
   const row: BatchRow = { rowNumber, title, date, time, body, project, status, priority, customProperties, errors: [] };
   row.errors = validateRow(row);
+  if (values.length !== mappings.length) {
+    row.errors.unshift(
+      `CSV structure error: row has ${values.length} field${values.length === 1 ? "" : "s"} but the header has ${mappings.length}. Each row must have exactly the same number of fields as the header.`
+    );
+  }
   row.scheduled = row.errors.length === 0 && date
     ? { kind: time ? "date-time" : "date", iso: time ? `${date}T${time}` : date }
     : undefined;
@@ -551,6 +550,10 @@ function validateRow(row: BatchRow): string[] {
   if (!isWorkItemStatus(row.status)) errors.push(`Unknown status '${row.status}'.`);
   if (!isWorkItemPriority(row.priority)) errors.push(`Unknown priority '${row.priority}'.`);
   return errors;
+}
+
+function decodeEscapedBody(value: string): string {
+  return value.replace(/\\\\n/g, "\n");
 }
 
 function addTextField(
