@@ -1,17 +1,16 @@
-import { TFile, TFolder, normalizePath, type App } from "obsidian";
-import { OnProgramError } from "../../core/ErrorHandler";
+import { TFile, type App } from "obsidian";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
-import {
-  validateWorkItemPropertyMap,
-  type WorkItemPropertyMap
-} from "../../models/work-item/WorkItemProperties";
 import { DEFAULT_STATUS_BY_TYPE } from "../../models/work-item/WorkItemStatus";
-import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
 import {
-  normalizeTaskFolder,
-  normalizeTaskTitle,
-  type TaskCreationConfig
-} from "../work-items/TaskCreator";
+  assertSafeCreationPropertyMap,
+  createInitializedMarkdownFile,
+  ensureCreationFolder,
+  findAvailableMarkdownPath,
+  normalizeWorkItemTitle,
+  resolveCreationFolder,
+  setFrontmatterDefault,
+  type WorkItemCreationConfig
+} from "../work-items/WorkItemCreationSupport";
 
 export interface CreateMilestoneRequest {
   title: string;
@@ -27,39 +26,62 @@ export interface CreatedMilestoneResult {
   title: string;
 }
 
+const MILESTONE_CREATION_KIND = {
+  label: "Milestone",
+  folderConflictCode: "milestone-folder-conflict",
+  filenameExhaustedCode: "milestone-filename-exhausted",
+  invalidPropertyMapCode: "invalid-milestone-property-map"
+} as const;
+
 /** Creates a first-class Markdown milestone linked to a project. */
 export class MilestoneCreator {
   constructor(
     private readonly app: App,
-    private readonly getConfig: () => TaskCreationConfig
+    private readonly getConfig: () => WorkItemCreationConfig
   ) {}
 
-  async createMilestone(request: CreateMilestoneRequest): Promise<CreatedMilestoneResult> {
+  async createMilestone(
+    request: CreateMilestoneRequest
+  ): Promise<CreatedMilestoneResult> {
     const config = this.getConfig();
-    this.assertSafePropertyMap(config.propertyMap);
+    assertSafeCreationPropertyMap(config.propertyMap, MILESTONE_CREATION_KIND);
 
-    const title = normalizeTaskTitle(request.title);
-    const folder = this.resolveDestinationFolder(config, request.targetFolder);
-    await this.ensureFolder(folder);
-
-    const path = this.findAvailablePath(folder, title);
-    const file = await this.app.vault.create(path, "");
-
-    try {
-      await this.initializeMilestoneFrontmatter(
-        file,
-        config.propertyMap,
-        request.project,
-        request.due
-      );
-    } catch (error) {
-      try {
-        await this.app.vault.delete(file);
-      } catch {
-        // Preserve the initialization error.
+    const title = normalizeWorkItemTitle(request.title, {
+      label: "Milestone",
+      emptyCode: "empty-milestone-title",
+      invalidCode: "invalid-milestone-title"
+    });
+    const folder = resolveCreationFolder(
+      this.app,
+      config,
+      request.targetFolder,
+      {
+        unresolvedMessage:
+          "OnProgram could not determine the current Base folder for the milestone.",
+        unresolvedCode: "milestone-base-folder-unresolved"
       }
-      throw error;
-    }
+    );
+
+    await ensureCreationFolder(this.app, folder, MILESTONE_CREATION_KIND);
+
+    const path = findAvailableMarkdownPath(
+      this.app,
+      folder,
+      title,
+      MILESTONE_CREATION_KIND
+    );
+    const file = await createInitializedMarkdownFile(
+      this.app,
+      path,
+      "",
+      (createdFile) =>
+        this.initializeMilestoneFrontmatter(
+          createdFile,
+          config.propertyMap,
+          request.project,
+          request.due
+        )
+    );
 
     if (request.openAfterCreate !== false) {
       await this.app.workspace.getLeaf(false).openFile(file);
@@ -68,28 +90,9 @@ export class MilestoneCreator {
     return { file, path: file.path, title: file.basename };
   }
 
-  private resolveDestinationFolder(
-    config: TaskCreationConfig,
-    targetFolder: string | undefined
-  ): string {
-    if (config.taskFolderMode === "custom") {
-      return normalizeTaskFolder(config.taskFolder);
-    }
-
-    const contextualFolder = resolveOnProgramViewTaskFolder(this.app, targetFolder);
-    if (!contextualFolder) {
-      throw new OnProgramError(
-        "OnProgram could not determine the current Base folder for the milestone.",
-        "milestone-base-folder-unresolved"
-      );
-    }
-
-    return normalizeTaskFolder(contextualFolder);
-  }
-
   private async initializeMilestoneFrontmatter(
     file: TFile,
-    map: WorkItemPropertyMap,
+    map: WorkItemCreationConfig["propertyMap"],
     project: string,
     due: WorkItemDateValue
   ): Promise<void> {
@@ -98,69 +101,16 @@ export class MilestoneCreator {
       frontmatter[map.status] = DEFAULT_STATUS_BY_TYPE.milestone;
       frontmatter[map.project] = project;
       frontmatter[map.due] = due.iso;
-      setDefault(frontmatter, map.priority, "normal");
-      setDefault(frontmatter, map.start, null);
-      setDefault(frontmatter, map.end, null);
-      setDefault(frontmatter, map.scheduled, null);
-      setDefault(frontmatter, map.duration, null);
-      setDefault(frontmatter, map.completed, null);
-      setDefault(frontmatter, map.parent, null);
-      setDefault(frontmatter, map.dependsOn, []);
-      setDefault(frontmatter, map.linkedBase, null);
+
+      setFrontmatterDefault(frontmatter, map.priority, "normal");
+      setFrontmatterDefault(frontmatter, map.start, null);
+      setFrontmatterDefault(frontmatter, map.end, null);
+      setFrontmatterDefault(frontmatter, map.scheduled, null);
+      setFrontmatterDefault(frontmatter, map.duration, null);
+      setFrontmatterDefault(frontmatter, map.completed, null);
+      setFrontmatterDefault(frontmatter, map.parent, null);
+      setFrontmatterDefault(frontmatter, map.dependsOn, []);
+      setFrontmatterDefault(frontmatter, map.linkedBase, null);
     });
-  }
-
-  private async ensureFolder(folder: string): Promise<void> {
-    if (!folder) return;
-
-    const segments = folder.split("/").filter((segment) => segment.length > 0);
-    let current = "";
-    for (const segment of segments) {
-      current = current ? `${current}/${segment}` : segment;
-      const existing = this.app.vault.getAbstractFileByPath(current);
-      if (!existing) {
-        await this.app.vault.createFolder(current);
-        continue;
-      }
-      if (!(existing instanceof TFolder)) {
-        throw new OnProgramError(
-          `Cannot create milestone folder because '${current}' is a file.`,
-          "milestone-folder-conflict"
-        );
-      }
-    }
-  }
-
-  private findAvailablePath(folder: string, title: string): string {
-    const makePath = (suffix: string): string =>
-      normalizePath(`${folder ? `${folder}/` : ""}${title}${suffix}.md`);
-
-    const first = makePath("");
-    if (!this.app.vault.getAbstractFileByPath(first)) return first;
-
-    for (let index = 2; index <= 9999; index += 1) {
-      const candidate = makePath(` ${index}`);
-      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
-    }
-
-    throw new OnProgramError(
-      `Unable to find an available filename for milestone '${title}'.`,
-      "milestone-filename-exhausted"
-    );
-  }
-
-  private assertSafePropertyMap(propertyMap: WorkItemPropertyMap): void {
-    const issues = validateWorkItemPropertyMap(propertyMap);
-    if (issues.length === 0) return;
-    throw new OnProgramError(
-      `Cannot create a milestone with the current property mapping: ${issues.map((issue) => issue.message).join(" ")}`,
-      "invalid-milestone-property-map"
-    );
-  }
-}
-
-function setDefault(frontmatter: Record<string, unknown>, property: string, value: unknown): void {
-  if (!Object.prototype.hasOwnProperty.call(frontmatter, property)) {
-    frontmatter[property] = value;
   }
 }
