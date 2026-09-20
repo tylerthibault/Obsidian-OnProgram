@@ -1,4 +1,5 @@
 import { Modal, Notice, Setting, type App } from "obsidian";
+import { humanize } from "../utils/text";
 import type { WorkItem } from "../models/work-item/WorkItem";
 import { WORK_ITEM_PRIORITIES } from "../models/work-item/WorkItemPriority";
 import { getWorkItemTypeSchema } from "../models/work-item/WorkItemSchema";
@@ -209,9 +210,3 @@ export class QuickTaskEditorModal extends Modal {
   }
 }
 
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
