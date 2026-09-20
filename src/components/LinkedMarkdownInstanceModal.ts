@@ -1,4 +1,5 @@
 import { Modal, Notice, Setting, TFile, type App } from "obsidian";
+import { localDateIso, localTimeIso } from "../utils/dateTime";
 import { MarkdownFilePickerModal } from "./MarkdownFilePickerModal";
 
 export interface LinkedMarkdownInstanceDraft {
@@ -217,12 +218,3 @@ function parseSchedule(value: string | undefined): {
   };
 }
 
-function localDateIso(date: Date): string {
-  const pad = (value: number): string => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function localTimeIso(date: Date): string {
-  const pad = (value: number): string => String(value).padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
