@@ -32,6 +32,8 @@ export interface CreateTaskRequest {
   priority?: WorkItemPriority;
   /** Optional destination hint supplied by a folder-scoped OnProgram Base view. */
   targetFolder?: string;
+  /** Explicit destination override, used by bulk creation flows. */
+  destinationFolderOverride?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
   /** Optional Markdown body. When provided, it replaces template body content after frontmatter initialization. */
@@ -97,6 +99,10 @@ export class TaskCreator {
     config: TaskCreationConfig,
     request: CreateTaskRequest
   ): string {
+    if (request.destinationFolderOverride !== undefined) {
+      return normalizeTaskFolder(request.destinationFolderOverride);
+    }
+
     if (config.taskFolderMode === "custom") {
       return normalizeTaskFolder(config.taskFolder);
     }
