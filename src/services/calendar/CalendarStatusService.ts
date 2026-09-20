@@ -1,4 +1,5 @@
 import { Menu, Notice, TFile, type Plugin } from "obsidian";
+import { humanize } from "../../utils/text";
 import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
@@ -211,12 +212,6 @@ function cleanupBadgeTray(element: HTMLElement): void {
   if (tray && tray.children.length === 0) tray.remove();
 }
 
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 const CALENDAR_STATUS_STYLES = `
 .onprogram-calendar-view .onprogram-calendar-item {
