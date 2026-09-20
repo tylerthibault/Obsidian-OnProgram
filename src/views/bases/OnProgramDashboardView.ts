@@ -1,4 +1,5 @@
 import { Menu, Notice, type QueryController, BasesView } from "obsidian";
+import { localDateIso } from "../../utils/dateTime";
 import { humanize } from "../../utils/text";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
@@ -486,13 +487,6 @@ function priorityRank(priority: TaskWorkItem["priority"]): number {
 
 function startOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function localDateIso(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function formatLongDate(date: Date): string {
