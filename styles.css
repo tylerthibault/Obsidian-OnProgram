@@ -305,6 +305,104 @@
   white-space: nowrap;
 }
 
+.onprogram-calendar-task-type-filter {
+  position: relative;
+}
+
+.onprogram-calendar-filter-active {
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.onprogram-calendar-task-type-popover {
+  position: absolute;
+  top: calc(100% + var(--size-4-1));
+  right: 0;
+  z-index: 90;
+  min-width: 220px;
+  display: grid;
+  gap: var(--size-4-2);
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-l);
+}
+
+.onprogram-calendar-task-type-filter-option {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  cursor: pointer;
+}
+
+.onprogram-calendar-task-type-filter-icon,
+.onprogram-calendar-task-type-indicator {
+  --onprogram-task-type-color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--onprogram-task-type-color);
+}
+
+.onprogram-calendar-task-type-filter-icon svg,
+.onprogram-calendar-task-type-indicator svg {
+  width: 14px;
+  height: 14px;
+}
+
+.onprogram-calendar-task-type-unregistered {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smallest);
+}
+
+.onprogram-calendar-task-type-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.onprogram-calendar-task-type-indicator {
+  width: 19px;
+  height: 19px;
+  box-sizing: border-box;
+  border: 1px solid var(--onprogram-task-type-color);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--onprogram-task-type-color) 18%, var(--background-primary));
+}
+
+.onprogram-calendar-task-type-more {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smallest);
+  white-space: nowrap;
+}
+
+.onprogram-calendar-timed-item > .onprogram-calendar-task-type-indicators {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  z-index: 3;
+}
+
+.onprogram-task-type-toggle-list {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  flex-wrap: wrap;
+}
+
+.onprogram-task-type-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: 3px var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-secondary);
+  cursor: pointer;
+}
+
 .onprogram-calendar-unscheduled-drawer {
   position: absolute;
   top: 0;
