@@ -1,4 +1,5 @@
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
+import { isOnProgramBaseFile } from "./LinkedOnProgramBase";
 
 /** Canonical owner-folder path with Obsidian's root represented as an empty string. */
 export function normalizeOnProgramOwnerPath(path: string): string {
@@ -19,6 +20,28 @@ export function onProgramTasksFolder(folder: TFolder): string {
 }
 
 /**
+ * Resolve the OnProgram Base associated with the file or Bases view the user
+ * is currently interacting with.
+ */
+export function resolveCurrentOnProgramBaseFile(app: App): TFile | undefined {
+  for (const candidate of workspaceFileCandidates(app)) {
+    if (isOnProgramBaseFile(candidate)) return candidate;
+    if (candidate.extension !== "md" || !(candidate.parent instanceof TFolder)) continue;
+
+    const ownerFolder = candidate.parent.parent;
+    if (!(ownerFolder instanceof TFolder)) continue;
+
+    const parentName = candidate.parent.name.toLowerCase();
+    if (parentName !== "tasks" && parentName !== "files") continue;
+
+    const base = app.vault.getAbstractFileByPath(onProgramBasePath(ownerFolder));
+    if (base instanceof TFile && isOnProgramBaseFile(base)) return base;
+  }
+
+  return undefined;
+}
+
+/**
  * Resolve the Tasks directory belonging to the Base/workspace context the user
  * is actually interacting with.
  *
@@ -27,21 +50,9 @@ export function onProgramTasksFolder(folder: TFolder): string {
  * and most-recent workspace leaf view for its backing file.
  */
 export function resolveCurrentBaseTasksFolder(app: App): string | undefined {
-  const candidates: unknown[] = [
-    app.workspace.getActiveFile(),
-    workspaceLeafFile((app.workspace as unknown as WorkspaceWithLeaves).activeLeaf),
-    workspaceLeafFile((app.workspace as unknown as WorkspaceWithLeaves).getMostRecentLeaf?.())
-  ];
-
-  for (const candidate of candidates) {
-    if (!(candidate instanceof TFile)) continue;
-
-    if (candidate.extension === "base" && candidate.parent instanceof TFolder) {
-      return onProgramTasksFolder(candidate.parent);
-    }
-
+  for (const candidate of workspaceFileCandidates(app)) {
     // When a task itself is active, preserve its owning Tasks folder rather than
-    // falling back to a global folder.
+    // relying on a Base leaf that may not be the most recently focused view.
     if (
       candidate.extension === "md" &&
       candidate.parent instanceof TFolder &&
@@ -51,7 +62,10 @@ export function resolveCurrentBaseTasksFolder(app: App): string | undefined {
     }
   }
 
-  return undefined;
+  const base = resolveCurrentOnProgramBaseFile(app);
+  return base?.parent instanceof TFolder
+    ? onProgramTasksFolder(base.parent)
+    : undefined;
 }
 
 /**
@@ -89,6 +103,17 @@ type WorkspaceWithLeaves = {
   activeLeaf?: LeafLike;
   getMostRecentLeaf?: () => LeafLike;
 };
+
+function workspaceFileCandidates(app: App): TFile[] {
+  const workspace = app.workspace as unknown as WorkspaceWithLeaves;
+  const candidates = [
+    app.workspace.getActiveFile(),
+    workspaceLeafFile(workspace.activeLeaf),
+    workspaceLeafFile(workspace.getMostRecentLeaf?.())
+  ];
+
+  return candidates.filter((candidate): candidate is TFile => candidate instanceof TFile);
+}
 
 function workspaceLeafFile(leaf: LeafLike): unknown {
   return leaf?.view?.file;
