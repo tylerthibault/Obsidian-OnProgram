@@ -60,7 +60,11 @@ function buildAiFormattingPrompt(defaults: ImportDefaults): string {
     "Turn my planning information into CSV that can be pasted directly into OnProgram's Batch Load Tasks importer.",
     "",
     "OUTPUT RULES",
-    "- Return raw CSV only. Do not use a Markdown code fence and do not add commentary before or after the CSV.",
+    "- Put the finished import data inside exactly one fenced Markdown code block labeled csv.",
+    "- The csv code block is the copy/paste payload for OnProgram. Do not put any explanations, headings, notes, or other text inside that code block.",
+    "- You may add a brief explanation outside the code block if useful, but the user must be able to click Copy on the csv code block and paste that content directly into OnProgram.",
+    "- Do not indent CSV records. Every record must begin at the first character of the line; never add spaces before the opening quote or first field.",
+    "- Do not add blank lines between CSV records. Blank lines are allowed only when they are part of a quoted multiline body field.",
     "- Use exactly this header row:",
     "title,date,time,project,status,priority,body",
     "- Create one row per actionable task.",
@@ -92,7 +96,7 @@ function buildAiFormattingPrompt(defaults: ImportDefaults): string {
     "- Lighting comparison",
     "- Final reveal\"",
     "",
-    "Now wait for my planning information, then return only the finished CSV."
+    "Now wait for my planning information. Put the finished OnProgram CSV in one ```csv code block so its Copy button copies only the paste-ready import data."
   ].join("\n");
 }
 
