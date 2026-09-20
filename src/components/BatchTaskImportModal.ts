@@ -49,6 +49,53 @@ const SAMPLE = `title,date,time,project,status,priority,body
 - Lighting comparison
 - Final reveal"`;
 
+function buildAiFormattingPrompt(defaults: ImportDefaults): string {
+  const defaultProject = defaults.project.trim() || "(none)";
+  const defaultFolder = defaults.destinationFolder.trim() || "(use OnProgram's normal task destination)";
+
+  return [
+    "I am planning work that I want to import into OnProgram as tasks.",
+    "After this prompt, I will describe the project, plan, schedule, or work I want to do.",
+    "",
+    "Turn my planning information into CSV that can be pasted directly into OnProgram's Batch Load Tasks importer.",
+    "",
+    "OUTPUT RULES",
+    "- Return raw CSV only. Do not use a Markdown code fence and do not add commentary before or after the CSV.",
+    "- Use exactly this header row:",
+    "title,date,time,project,status,priority,body",
+    "- Create one row per actionable task.",
+    "- title is required and should be concise but specific.",
+    "- date is optional. When present, use YYYY-MM-DD.",
+    "- time is optional. When present, use 24-hour HH:mm and only use it when date is also present.",
+    `- status must be one of: ${WORK_ITEM_STATUSES.join(", ")}.`,
+    `- priority must be one of: ${WORK_ITEM_PRIORITIES.join(", ")}.`,
+    "- project is optional.",
+    "- body is optional Markdown. Use it for useful details, notes, acceptance criteria, checklists, or subtasks.",
+    "- Follow normal CSV quoting rules. Quote any field containing a comma, double quote, or line break.",
+    "- Escape a double quote inside a quoted field by doubling it.",
+    "- Multiline Markdown bodies are allowed, but the entire body field must stay inside CSV quotes.",
+    "- Do not invent dates or times when my plan does not provide enough information. Leave those cells blank instead.",
+    "",
+    "CURRENT ONPROGRAM IMPORT DEFAULTS",
+    `- Project: ${defaultProject}`,
+    `- Status: ${defaults.status}`,
+    `- Priority: ${defaults.priority}`,
+    `- Destination folder: ${defaultFolder}`,
+    "- When a task should use the Project, Status, or Priority default above, leave that CSV cell blank. Only provide a value when the task should override the default.",
+    "",
+    "EXAMPLE",
+    "title,date,time,project,status,priority,body",
+    "\"Film kitchen update\",2026-09-22,09:00,,,high,\"Film the kitchen update and get B-roll.\"",
+    "\"Edit kitchen video\",2026-09-23,13:30,,in-progress,,\"## Edit notes",
+    "",
+    "- Before footage",
+    "- Lighting comparison",
+    "- Final reveal\"",
+    "",
+    "Now wait for my planning information, then return only the finished CSV."
+  ].join("\n");
+}
+
 const MAPPING_LABELS: Readonly<Record<MappingTarget, string>> = {
   title: "Title",
   date: "Scheduled date",
@@ -143,6 +190,13 @@ export class BatchTaskImportModal extends Modal {
     this.contentEl.createEl("pre", { text: SAMPLE, cls: "onprogram-batch-import-example" });
 
     new Setting(this.contentEl)
+      .setName("Format with AI")
+      .setDesc("Copy instructions you can give an AI so its response can be pasted directly into this importer.")
+      .addButton((button) => button
+        .setButtonText("Copy AI prompt")
+        .onClick(() => void this.copyAiPrompt()));
+
+    new Setting(this.contentEl)
       .setName("CSV")
       .setDesc("Quoted fields may contain commas and multiple lines.")
       .addTextArea((area) => {
@@ -155,6 +209,19 @@ export class BatchTaskImportModal extends Modal {
     new Setting(this.contentEl)
       .addButton((button) => button.setButtonText("Map columns").setCta().onClick(() => this.prepareMapping()))
       .addButton((button) => button.setButtonText("Cancel").onClick(() => this.close()));
+  }
+
+  private async copyAiPrompt(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(buildAiFormattingPrompt(this.defaults));
+      new Notice("OnProgram: AI formatting prompt copied to clipboard.");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Clipboard access failed.";
+      this.options.onError(new OnProgramError(
+        `Could not copy the AI formatting prompt. ${reason}`,
+        "batch-task-ai-prompt-copy-failed"
+      ));
+    }
   }
 
   private prepareMapping(): void {
