@@ -81,6 +81,7 @@ export class BatchTaskImportModal extends Modal {
   }
 
   onOpen(): void {
+    this.modalEl.addClass("onprogram-batch-import-shell");
     this.render();
   }
 
