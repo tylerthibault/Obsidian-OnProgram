@@ -9,6 +9,8 @@ on:
       - "phase-*"
       - "feature-*"
       - "feature/**"
+      - "chore/**"
+      - "fix/**"
   pull_request:
 
 permissions:
