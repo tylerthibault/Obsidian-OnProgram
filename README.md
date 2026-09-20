@@ -21,6 +21,27 @@ feature-folder-scoped-onprogram-base
 
 ## Install / update the test vault
 
+> **Important for local development:** the plugin directory name must match the
+> `id` in `manifest.json`. OnProgram's manifest ID is `onprogram`, so the
+> checkout that Obsidian loads must live at:
+>
+> ```text
+> <Vault>/.obsidian/plugins/onprogram/
+> ```
+>
+> Do not use `<Vault>/.obsidian/plugins/Obsidian-OnProgram/` as the loaded
+> plugin directory. The GitHub repository can still be named
+> `Obsidian-OnProgram`; only the local plugin folder needs to be `onprogram`.
+>
+> If the repository is already cloned as `Obsidian-OnProgram`, quit Obsidian
+> completely and rename the folder:
+>
+> ```bash
+> cd <Vault>/.obsidian/plugins
+> mv Obsidian-OnProgram onprogram
+> cd onprogram
+> ```
+
 ```bash
 git fetch origin
 git checkout feature-folder-scoped-onprogram-base

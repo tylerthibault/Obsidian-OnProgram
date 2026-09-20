@@ -1,9 +1,11 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
+import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { LinkedMarkdownInstanceStore } from "../../services/bases/LinkedMarkdownInstanceStore";
 import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
 import type { WorkItemOpener } from "../../services/work-items/WorkItemOpener";
@@ -51,6 +53,7 @@ export class OnProgramTimelineView extends BasesView {
     private readonly taskCreator: TaskCreator,
     private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemOpener: WorkItemOpener,
+    private readonly linkedMarkdownStore: LinkedMarkdownInstanceStore,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -121,6 +124,18 @@ export class OnProgramTimelineView extends BasesView {
           openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${result.title}.`);
+      },
+      onLinkMarkdown: async (file, label) => {
+        openLinkedMarkdownCreateFlow(
+          this.app,
+          this.linkedMarkdownStore,
+          this.errorHandler,
+          {
+            initialFile: file,
+            initialLabel: label,
+            initialScheduled: initialDate?.iso
+          }
+        );
       },
       onError: (error) => this.errorHandler.handle(error, "create timeline task", true)
     }).open();

@@ -1,12 +1,14 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
 import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
+import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import { OnProgramBasePickerModal } from "../../components/OnProgramBasePickerModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { LinkedMarkdownInstanceStore } from "../../services/bases/LinkedMarkdownInstanceStore";
 import {
   parseLinkedBaseBoardCards,
   serializeLinkedBaseBoardCards,
@@ -37,6 +39,7 @@ export class OnProgramBoardView extends BasesView {
     private readonly taskCreator: TaskCreator,
     private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemOpener: WorkItemOpener,
+    private readonly linkedMarkdownStore: LinkedMarkdownInstanceStore,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -236,6 +239,14 @@ export class OnProgramBoardView extends BasesView {
           targetFolder: this.getConfiguredTaskFolder(),
           onError: (error) => this.errorHandler.handle(error, "batch load board tasks", true)
         }).open();
+      },
+      onLinkMarkdown: async (file, label) => {
+        openLinkedMarkdownCreateFlow(
+          this.app,
+          this.linkedMarkdownStore,
+          this.errorHandler,
+          { initialFile: file, initialLabel: label }
+        );
       },
       onLinkBase: async (baseFile) => {
         this.addLinkedBaseCard(baseFile.path, initialStatus ?? "todo");

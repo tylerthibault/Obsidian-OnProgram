@@ -1,6 +1,7 @@
 import { Menu, Notice, type QueryController, BasesView } from "obsidian";
 import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
+import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import type { ErrorHandler } from "../../core/ErrorHandler";
 import type { ProjectWorkItem, TaskWorkItem, WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
@@ -13,6 +14,7 @@ import {
   type PublishingState
 } from "../../models/publishing/PublishingPlatform";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
+import type { LinkedMarkdownInstanceStore } from "../../services/bases/LinkedMarkdownInstanceStore";
 import type { ProjectAssignmentService } from "../../services/projects/ProjectAssignmentService";
 import { calculateProjectProgress, getLinkedProjectTasks } from "../../services/projects/ProjectRollup";
 import type { TaskCreator } from "../../services/work-items/TaskCreator";
@@ -52,6 +54,7 @@ export class OnProgramDashboardView extends BasesView {
     private readonly taskCreator: TaskCreator,
     private readonly projectAssignment: ProjectAssignmentService,
     private readonly workItemOpener: WorkItemOpener,
+    private readonly linkedMarkdownStore: LinkedMarkdownInstanceStore,
     private readonly errorHandler: ErrorHandler
   ) {
     super(controller);
@@ -365,6 +368,14 @@ export class OnProgramDashboardView extends BasesView {
           targetFolder: this.getConfiguredTaskFolder(),
           onError: (error) => this.errorHandler.handle(error, "batch load dashboard tasks", true)
         }).open();
+      },
+      onLinkMarkdown: async (file, label) => {
+        openLinkedMarkdownCreateFlow(
+          this.app,
+          this.linkedMarkdownStore,
+          this.errorHandler,
+          { initialFile: file, initialLabel: label }
+        );
       },
       onError: (error) => this.errorHandler.handle(error, "create dashboard task", true)
     }).open();

@@ -76,6 +76,24 @@ Work items without the currently selected calendar field appear in a collapsible
 
 This ensures unscheduled work does not silently disappear from the calendar workflow.
 
+## Linked Markdown instances
+
+When the Calendar field is **Scheduled**, Calendar creation can also add a **Linked Markdown note** instead of creating a new task.
+
+A linked instance:
+
+- points to any existing Markdown file in the vault;
+- owns its own Calendar date/time and optional label;
+- may point to the same Markdown file as any number of other instances;
+- does not rewrite the target note's `scheduled` frontmatter;
+- opens the target note on double-click;
+- can be dragged and resized independently;
+- can be edited, duplicated, or removed from its right-click menu.
+
+Linked instances are stored in the Calendar view configuration and rendered as virtual Calendar items. They use stable instance IDs, so duplicate target paths are intentional rather than deduplicated.
+
+The first implementation shows linked instances only when the Calendar is using the `scheduled` field. See `docs/LINKED_MARKDOWN_INSTANCES.md` for the complete model.
+
 ## Calendar-aware task creation
 
 `TaskCreator` accepts an optional initial date placement. A task created from Calendar therefore receives its selected date field during initial frontmatter creation rather than being created and immediately rewritten.
