@@ -6,6 +6,7 @@ import {
   type WorkItemPropertyMap
 } from "../../models/work-item/WorkItemProperties";
 import { DEFAULT_STATUS_BY_TYPE, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
+import type { WorkItemPriority } from "../../models/work-item/WorkItemPriority";
 import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
 
 export interface TaskCreationConfig {
@@ -27,12 +28,16 @@ export interface CreateTaskRequest {
   project?: string;
   /** Optional status override used by contextual creation, such as Board columns. */
   initialStatus?: WorkItemStatus;
+  /** Optional priority override. */
+  priority?: WorkItemPriority;
   /** Optional destination hint supplied by a folder-scoped OnProgram Base view. */
   targetFolder?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
   /** Optional Markdown body. When provided, it replaces template body content after frontmatter initialization. */
   body?: string;
+  /** Additional frontmatter properties for extensible creation flows such as batch import. */
+  extraProperties?: Readonly<Record<string, unknown>>;
   /** Whether to navigate to the newly created note. */
   openAfterCreate?: boolean;
 }
@@ -122,7 +127,7 @@ export class TaskCreator {
       frontmatter[map.status] = request.initialStatus ?? DEFAULT_STATUS_BY_TYPE.task;
 
       setDefault(frontmatter, map.project, project || null);
-      setDefault(frontmatter, map.priority, "normal");
+      setDefault(frontmatter, map.priority, request.priority ?? "normal");
       setDefault(frontmatter, map.start, null);
       setDefault(frontmatter, map.end, null);
       setDefault(frontmatter, map.due, null);
@@ -141,9 +146,19 @@ export class TaskCreator {
       setDefault(frontmatter, "views_1_month", null);
 
       if (project) frontmatter[map.project] = project;
+      if (request.priority) frontmatter[map.priority] = request.priority;
 
       if (request.initialDate) {
         frontmatter[map[request.initialDate.field]] = request.initialDate.value.iso;
+      }
+
+      if (request.extraProperties) {
+        const protectedProperties = new Set(Object.values(map));
+        for (const [property, value] of Object.entries(request.extraProperties)) {
+          const normalizedProperty = property.trim();
+          if (!normalizedProperty || protectedProperties.has(normalizedProperty)) continue;
+          frontmatter[normalizedProperty] = value;
+        }
       }
     });
   }
