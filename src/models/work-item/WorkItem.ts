@@ -19,6 +19,8 @@ export interface WorkItemBase {
   status: WorkItemStatus;
   priority: WorkItemPriority;
   project?: WorkItemReference;
+  /** User-defined work classifications such as filming, posting, or editing. */
+  taskTypes: string[];
   /** Optional link to a child OnProgram Base used for drill-down navigation. */
   linkedBase?: WorkItemReference;
   dates: WorkItemDates;
