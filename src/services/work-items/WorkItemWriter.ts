@@ -130,6 +130,16 @@ export class WorkItemWriter {
       );
     }
 
+    if (patch.taskTypes !== undefined) {
+      this.setProperty(
+        frontmatter,
+        propertyMap,
+        "taskTypes",
+        patch.taskTypes === null ? DELETE_PROPERTY : [...new Set(patch.taskTypes)],
+        changed
+      );
+    }
+
     if (patch.linkedBase !== undefined) {
       this.setProperty(
         frontmatter,
@@ -242,6 +252,14 @@ export class WorkItemWriter {
     }
 
     this.assertOptionalReference(patch.project, "project");
+    if (patch.taskTypes !== undefined && patch.taskTypes !== null) {
+      if (patch.taskTypes.some((value) => !isNonEmptyString(value))) {
+        throw new OnProgramError(
+          "Task types must be non-empty string values.",
+          "invalid-work-item-patch"
+        );
+      }
+    }
     this.assertOptionalReference(patch.parent, "parent");
     this.assertOptionalReference(patch.linkedBase, "linkedBase");
     this.assertDateValue(patch.start, "start");
