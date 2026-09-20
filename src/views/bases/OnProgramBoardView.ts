@@ -1,4 +1,5 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
+import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { OnProgramBasePickerModal } from "../../components/OnProgramBasePickerModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
@@ -228,6 +229,13 @@ export class OnProgramBoardView extends BasesView {
           openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${result.title}.`);
+      },
+      onBatchLoad: () => {
+        new BatchTaskImportModal(this.app, {
+          taskCreator: this.taskCreator,
+          targetFolder: this.getConfiguredTaskFolder(),
+          onError: (error) => this.errorHandler.handle(error, "batch load board tasks", true)
+        }).open();
       },
       onLinkBase: async (baseFile) => {
         this.addLinkedBaseCard(baseFile.path, initialStatus ?? "todo");
