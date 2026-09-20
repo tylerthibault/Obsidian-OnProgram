@@ -1,4 +1,5 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
+import { humanize } from "../../utils/text";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { LinkedMarkdownInstanceModal } from "../../components/LinkedMarkdownInstanceModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
@@ -1087,9 +1088,6 @@ function linkedInstanceTitle(
     : `${title} ↗`;
 }
 
-function humanize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1).replace(/-/g, " ");
-}
 
 function formatHour(hour: number): string {
   const date = new Date(2000, 0, 1, hour);
