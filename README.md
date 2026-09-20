@@ -1,50 +1,36 @@
 # OnProgram
 
-OnProgram is an Obsidian work-organizer built on Markdown files and Obsidian Bases. Markdown remains the source of truth; an OnProgram Base provides the query boundary and Board, Calendar, and Timeline views over those files.
+OnProgram is an Obsidian work organizer built around Markdown files and native Obsidian Bases. Markdown remains the source of truth; OnProgram adds project, board, calendar, timeline, dashboard, publishing, and planning workflows on top of that data.
 
-## Current development status
+## Requirements
 
-- **Phase 1 — Development Foundation:** complete and verified in Obsidian
-- **Phase 2 — Work Item Data Model:** complete
-- **Phase 3 — Work Item Management:** complete
-- **Phase 4 — Obsidian Bases Integration:** complete
-- **Phase 5 — Board View:** complete in code
-- **Phase 6 — Calendar System:** complete in code
-- **Phase 7 — Timeline View:** core implementation complete in code
-- **Folder-scoped Base workflow:** active integration/QA branch
+- Obsidian 1.10.2+
+- Node.js 20+ for development
+- Obsidian's Bases core plugin enabled
 
-Active branch:
+## Local development
+
+Obsidian loads a community plugin from a folder whose name matches the plugin ID in `manifest.json`. OnProgram's plugin ID is `onprogram`, so the development checkout must be located at:
 
 ```text
-feature-folder-scoped-onprogram-base
+<Vault>/.obsidian/plugins/onprogram/
 ```
 
-## Install / update the test vault
+The GitHub repository may still be named `Obsidian-OnProgram`; only the local plugin directory must be named `onprogram`.
 
-> **Important for local development:** the plugin directory name must match the
-> `id` in `manifest.json`. OnProgram's manifest ID is `onprogram`, so the
-> checkout that Obsidian loads must live at:
->
-> ```text
-> <Vault>/.obsidian/plugins/onprogram/
-> ```
->
-> Do not use `<Vault>/.obsidian/plugins/Obsidian-OnProgram/` as the loaded
-> plugin directory. The GitHub repository can still be named
-> `Obsidian-OnProgram`; only the local plugin folder needs to be `onprogram`.
->
-> If the repository is already cloned as `Obsidian-OnProgram`, quit Obsidian
-> completely and rename the folder:
->
-> ```bash
-> cd <Vault>/.obsidian/plugins
-> mv Obsidian-OnProgram onprogram
-> cd onprogram
-> ```
+If an existing checkout uses the repository name as the plugin directory, fully quit Obsidian before renaming it:
+
+```bash
+cd <Vault>/.obsidian/plugins
+mv Obsidian-OnProgram onprogram
+cd onprogram
+```
+
+Then install and build:
 
 ```bash
 git fetch origin
-git checkout feature-folder-scoped-onprogram-base
+git checkout dev
 git pull
 npm install
 npm run build
@@ -56,37 +42,42 @@ For watch mode:
 npm run dev
 ```
 
-OnProgram currently requires Obsidian **1.10.2+** because folder-scoped Bases use public Bases custom-view configuration APIs introduced in that release.
+For a standalone type check:
 
-## Primary workflow: a folder owns its OnProgram Base
+```bash
+npm run typecheck
+```
 
-Right-click a folder in Obsidian File Explorer and choose **Create OnProgram base**.
+After replacing `main.js`, fully reload Obsidian when validating plugin-load behavior. Toggling a plugin does not always invalidate every in-memory module path during development.
+
+## Base workflow
+
+Right-click a folder in Obsidian File Explorer and choose **OnProgram Base**.
 
 For a folder named `Project Alpha`, OnProgram creates:
 
 ```text
 Project Alpha/
 ├── Project Alpha.onprogram.base
-└── files/
+└── Tasks/
 ```
 
-The generated Base is filtered to Markdown files in `Project Alpha/files/` and is created with:
+The Base owns the query scope. Its OnProgram views operate over the same Markdown work items in `Tasks/`.
 
-- **Board**
-- **Calendar**
-- **Timeline**
+Current first-class views include:
 
-Switching views never changes the source dataset. They are different representations of the same Markdown files.
+- Dashboard
+- Board
+- Calendar
+- Timeline
+- Projects
+- Inspector
 
-Tasks created from these OnProgram views are routed back into that Base's own `files/` directory. The global **OnProgram: Create task** command also uses the active Base's folder when the Base itself—or one of its task files—is active.
+Switching views changes the presentation, not the underlying Markdown data.
 
-See [`docs/folder-scoped-bases.md`](docs/folder-scoped-bases.md).
+## Work items
 
-## Full schema at task creation
-
-New task files receive the complete OnProgram property set immediately rather than waiting for a particular view to need a property.
-
-With default mappings:
+OnProgram supports first-class Markdown work items including tasks, projects, milestones, and events. The property map is configurable, but a typical task uses frontmatter such as:
 
 ```yaml
 ---
@@ -102,84 +93,48 @@ duration:
 completed:
 parent:
 depends_on: []
+onprogram_base:
 ---
 ```
 
-That lets the same file move between Board, Calendar, Timeline, and future views without schema migration just to add missing fields.
+Creation services initialize the expected schema up front so the same note can move between OnProgram views without view-specific migrations.
 
-## Bases-native architecture
+## Linked Markdown instances
+
+A single Markdown note can appear multiple times on the Scheduled Calendar without duplicating the note.
+
+Each linked instance owns its own:
+
+- stable instance ID
+- date/time
+- optional label
+- optional duration
+
+The linked note remains the source of truth for its content and frontmatter. Moving or resizing a linked Calendar instance changes the instance, not the source note.
+
+This is intentionally generic. The same mechanism can represent TikTok, Instagram, a repost, a review, a reminder, a presentation, or any other repeated use of the same note.
+
+See [Linked Markdown Instances](docs/LINKED_MARKDOWN_INSTANCES.md).
+
+## Architecture
 
 ```text
-Project Alpha/files/*.md
+Markdown files
     ↓
-Obsidian Base filter / sort / formulas / grouping
-    ↓
-BasesQueryResult
+Obsidian Base query
     ↓
 BasesWorkItemAdapter
     ↓
-OnProgram WorkItems
+OnProgram domain models
     ↓
-┌─────────┬──────────┬──────────┐
-│  Board  │ Calendar │ Timeline │
-└─────────┴──────────┴──────────┘
+Views / interaction services
     ↓
-WorkItemWriter
+WorkItemWriter + creation services
     ↓
-Project Alpha/files/*.md
+Markdown files
 ```
 
-There is no separate OnProgram task database.
-
-## Board
-
-The Bases-native Board groups cards by canonical status. Dragging a card validates the target status and writes the mapped Markdown `status` property through `WorkItemWriter`. Card ordering follows the Base's own query/sort order.
-
-Board also provides **+ New task**, which creates the backing file in that Base's configured `files/` directory.
-
-See [`docs/board-view.md`](docs/board-view.md).
-
-## Calendar
-
-One Bases-native Calendar view switches between Month, Week, and Day. The active date field can be `scheduled`, `due`, or `start`.
-
-Current capabilities include navigation, Today, all-day/timed placement, direct task creation from calendar cells, drag/drop rescheduling, and an unscheduled-work tray. Calendar-created files go to the current Base's `files/` folder.
-
-See [`docs/calendar-view.md`](docs/calendar-view.md).
-
-## Timeline
-
-The Bases-native Timeline supports:
-
-- start/end ranges
-- start/due ranges
-- milestone and single-date points
-- project grouping
-- Day / Week / Month / Quarter zoom
-- automatic bounds
-- Today marker
-- draggable ranges and points
-- left/right range resize handles
-- safe date writes through `WorkItemWriter`
-- unscheduled work visibility
-- Base-scoped **+ New task** creation
-
-## Current commands
-
-- **OnProgram: Create task**
-- **OnProgram: Edit active work item**
-- **OnProgram: Scan work items**
-- **OnProgram: Show diagnostics**
-- **OnProgram: Test OnProgram**
-- temporary writer acceptance commands
-
-## Work-item management
-
-**Create task** is context-aware. Inside a folder-scoped OnProgram Base it uses that Base's `files/` directory; outside a Base context it falls back to the global task-folder setting.
-
-**Edit active work item** supports title/rename, status, project, priority, dates, duration, Markdown-body Notes, archive, source opening, and Move to Trash while preserving unrelated frontmatter and rejecting stale writes.
-
-## Architecture
+Source layout:
 
 ```text
 src/
@@ -187,35 +142,37 @@ src/
 ├── components/
 ├── core/
 ├── models/
-│   └── work-item/
 ├── services/
 │   ├── bases/
+│   ├── calendar/
+│   ├── links/
+│   ├── presentation/
+│   ├── projects/
+│   ├── publishing/
 │   └── work-items/
 ├── settings/
 ├── utils/
-├── views/
-│   ├── bases/
-│   ├── calendar/
-│   └── timeline/
-└── main.ts
+└── views/
 ```
 
-> Markdown files are the source of truth. The folder owns the Base. The Base owns the query scope. OnProgram views manipulate the same backing files.
+The main architectural boundary is simple: domain models and persistence services own data semantics; views own presentation and interaction.
 
-## Technical specifications
+## Build and CI
 
-- [`docs/work-item-schema.md`](docs/work-item-schema.md)
-- [`docs/work-item-parser.md`](docs/work-item-parser.md)
-- [`docs/work-item-writer.md`](docs/work-item-writer.md)
-- [`docs/task-creation.md`](docs/task-creation.md)
-- [`docs/quick-task-editor.md`](docs/quick-task-editor.md)
-- [`docs/bases-integration.md`](docs/bases-integration.md)
-- [`docs/folder-scoped-bases.md`](docs/folder-scoped-bases.md)
-- [`docs/board-view.md`](docs/board-view.md)
-- [`docs/calendar-view.md`](docs/calendar-view.md)
+`npm run build` performs a strict TypeScript check and then creates the production `main.js` bundle with esbuild.
 
-## Immediate acceptance gate
+CI runs on `main`, `dev`, phase branches, feature branches, fix branches, chore branches, and pull requests. Development branches may receive an automated `Build plugin bundle [skip ci]` commit when `main.js` changes.
 
-The current branch should be tested in a clean vault by creating two project folders, creating an OnProgram Base in each, and confirming task creation/isolation under each folder's `files/` directory. The full test procedure is in `docs/folder-scoped-bases.md`.
+## Technical documentation
 
-Once that gate passes, development continues from the completed multi-view core into the OnProgram Today / dashboard phase.
+- [Work-item schema](docs/work-item-schema.md)
+- [Work-item parser](docs/work-item-parser.md)
+- [Work-item writer](docs/work-item-writer.md)
+- [Task creation](docs/task-creation.md)
+- [Quick task editor](docs/quick-task-editor.md)
+- [Bases integration](docs/bases-integration.md)
+- [Folder-scoped Bases](docs/folder-scoped-bases.md)
+- [Board view](docs/board-view.md)
+- [Calendar view](docs/calendar-view.md)
+- [Linked Markdown instances](docs/LINKED_MARKDOWN_INSTANCES.md)
+- [Multi-platform publishing](docs/MULTI_PLATFORM_PUBLISHING_MASTER_PLAN.md)
