@@ -1,4 +1,5 @@
 import { Menu, Notice, type QueryController, BasesView } from "obsidian";
+import { humanize } from "../../utils/text";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import type { ErrorHandler } from "../../core/ErrorHandler";
@@ -528,12 +529,6 @@ function formatMonth(value: string): string {
   return new Date(2000, month, 1).toLocaleDateString(undefined, { month: "short" });
 }
 
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function displayReference(reference: string): string {
   return reference
