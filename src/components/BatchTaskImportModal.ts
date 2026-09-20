@@ -572,13 +572,15 @@ function normalizeHeader(value: string): string {
 }
 
 function parseCsv(input: string): string[][] {
-  const text = input.replace(/^\uFEFF/, "");
+  const text = normalizeAiCsvInput(input);
   if (!text.trim()) return [];
 
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let quoted = false;
+  let quotedStartLine = 0;
+  let lineNumber = 1;
 
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
@@ -586,22 +588,41 @@ function parseCsv(input: string): string[][] {
 
     if (quoted) {
       if (char === '"') {
-        if (text[index + 1] === '"') {
+        const next = text[index + 1];
+
+        if (next === '"') {
           field += '"';
           index += 1;
-        } else {
-          quoted = false;
+          continue;
         }
-      } else {
-        field += char;
+
+        if (next === "," || next === "\n" || next === "\r" || next === undefined) {
+          quoted = false;
+          continue;
+        }
+
+        // AI-generated CSV frequently uses normal quotation marks inside a
+        // quoted body without doubling them. Treat those as literal quotes
+        // unless the quote is in a position that can actually end the field.
+        field += '"';
+        continue;
       }
-    } else if (char === '"' && field.length === 0) {
+
+      if (char === "\n") lineNumber += 1;
+      else if (char === "\r" && text[index + 1] !== "\n") lineNumber += 1;
+      field += char;
+      continue;
+    }
+
+    if (char === '"' && field.length === 0) {
       quoted = true;
+      quotedStartLine = lineNumber;
     } else if (char === ",") {
       row.push(field);
       field = "";
     } else if (char === "\n" || char === "\r") {
       if (char === "\r" && text[index + 1] === "\n") index += 1;
+      lineNumber += 1;
       row.push(field);
       rows.push(row);
       row = [];
@@ -611,13 +632,35 @@ function parseCsv(input: string): string[][] {
     }
   }
 
-  if (quoted) throw new OnProgramError("CSV contains an unterminated quoted field.", "batch-task-csv-invalid");
+  if (quoted) {
+    throw new OnProgramError(
+      `CSV has an unclosed quoted field starting near line ${quotedStartLine}. Check that the final quoted body has a closing quote, or copy the complete AI CSV block again.`,
+      "batch-task-csv-invalid"
+    );
+  }
+
   if (field.length > 0 || row.length > 0) {
     row.push(field);
     rows.push(row);
   }
 
   return rows;
+}
+
+function normalizeAiCsvInput(input: string): string {
+  let text = input.replace(/^\uFEFF/, "").trim();
+
+  const fenced = /(?:^|\n)\s*```(?:csv)?\s*\r?\n([\s\S]*?)\r?\n\s*```/i.exec(text);
+  if (fenced?.[1] !== undefined) text = fenced[1];
+
+  const lines = text.split(/\r?\n/).map((line) => {
+    // Repair the common AI formatting artifact where a new CSV record is
+    // indented even though multiline Markdown body lines should remain intact.
+    if (/^\s+"[^"]*",\d{4}-\d{2}-\d{2},/.test(line)) return line.trimStart();
+    return line;
+  });
+
+  return lines.join("\n").trim();
 }
 
 function normalizeTime(value: string): string | undefined {
