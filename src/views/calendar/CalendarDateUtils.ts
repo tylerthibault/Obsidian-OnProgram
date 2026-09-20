@@ -44,9 +44,7 @@ export function timePart(value: WorkItemDateValue): string | undefined {
   return value.kind === "date-time" ? value.iso.slice(11, 16) : undefined;
 }
 
-export function localDateIso(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+export { localDateIso } from "../../utils/dateTime";
 
 export function parseLocalDate(iso: string): Date {
   const parts = iso.split("-");
