@@ -72,6 +72,8 @@ export class QuickTaskEditorModal extends Modal {
         .setValue(draft.project)
         .onChange((value) => { draft.project = value; }));
 
+    this.renderTaskTypes(draft);
+
     let linkedBaseInput: HTMLInputElement | undefined;
     const linkedBaseSetting = new Setting(this.contentEl)
       .setName("Linked OnProgram Base")
@@ -177,6 +179,44 @@ export class QuickTaskEditorModal extends Modal {
       new Notice(`OnProgram: saved ${result.file.basename}.`);
       this.close();
     }));
+  }
+
+  private renderTaskTypes(draft: WorkItemEditorDraft): void {
+    const definitions = this.editor.getTaskTypeDefinitions();
+    const registeredIds = new Set(definitions.map((definition) => definition.id));
+
+    this.contentEl.createEl("h3", { text: "Task types" });
+
+    for (const definition of definitions) {
+      new Setting(this.contentEl)
+        .setName(definition.label)
+        .setDesc(`Stored as ${definition.id}`)
+        .addToggle((toggle) => toggle
+          .setValue(draft.taskTypes.includes(definition.id))
+          .onChange((enabled) => {
+            if (enabled) {
+              if (!draft.taskTypes.includes(definition.id)) draft.taskTypes.push(definition.id);
+            } else {
+              draft.taskTypes = draft.taskTypes.filter((value) => value !== definition.id);
+            }
+          }));
+    }
+
+    const unknown = draft.taskTypes.filter((value) => !registeredIds.has(value));
+    new Setting(this.contentEl)
+      .setName("Other task types")
+      .setDesc("Comma-separated values are preserved even when they are not registered in Settings.")
+      .addText((text) => text
+        .setPlaceholder("research, admin")
+        .setValue(unknown.join(", "))
+        .onChange((value) => {
+          const selectedRegistered = draft.taskTypes.filter((taskType) => registeredIds.has(taskType));
+          const other = value
+            .split(",")
+            .map((taskType) => taskType.trim())
+            .filter((taskType, index, all) => taskType.length > 0 && all.indexOf(taskType) === index);
+          draft.taskTypes = [...selectedRegistered, ...other];
+        }));
   }
 
   private addDateSetting(
