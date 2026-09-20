@@ -1,4 +1,5 @@
 import { BasesView, Menu, Notice, TFile, type QueryController } from "obsidian";
+import { humanize } from "../../utils/text";
 import { CreateMilestoneModal } from "../../components/CreateMilestoneModal";
 import { CreateProjectModal } from "../../components/CreateProjectModal";
 import { ProjectTaskManagerModal } from "../../components/ProjectTaskManagerModal";
@@ -962,12 +963,6 @@ function localDateIso(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function formatDate(value: string): string {
   const dateOnly = value.split("T")[0] ?? value;
