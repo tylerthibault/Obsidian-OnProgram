@@ -13,12 +13,6 @@ export class EventManager {
 
   registerCoreEvents(): void {
     this.plugin.registerEvent(
-      this.plugin.app.workspace.on("layout-change", () => {
-        this.logger.debug("Workspace layout changed");
-      })
-    );
-
-    this.plugin.registerEvent(
       this.plugin.app.workspace.on("file-menu", (menu, file) => {
         if (!(file instanceof TFolder)) {
           return;
