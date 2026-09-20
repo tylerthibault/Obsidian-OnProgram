@@ -1,4 +1,5 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
+import { humanize } from "../../utils/text";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import { OnProgramBasePickerModal } from "../../components/OnProgramBasePickerModal";
@@ -420,9 +421,3 @@ function linkedBaseTitle(pathOrName: string): string {
   return name.replace(/\.onprogram\.base$/i, "").replace(/\.base$/i, "");
 }
 
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
