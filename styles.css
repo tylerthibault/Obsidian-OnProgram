@@ -676,8 +676,20 @@
 }
 
 /* Batch task import */
+.onprogram-batch-import-shell {
+  width: min(1120px, 94vw);
+  max-width: 1120px;
+}
+
+.onprogram-batch-import-shell .modal-content {
+  width: 100%;
+  max-width: none;
+}
+
 .onprogram-batch-import-modal {
-  width: min(760px, 92vw);
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .onprogram-batch-import-modal .setting-item {
