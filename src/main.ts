@@ -44,6 +44,7 @@ export default class OnProgramPlugin extends Plugin {
   private services?: ServiceRegistry;
 
   async onload(): Promise<void> {
+    this.warnIfDevelopmentFolderDoesNotMatchManifestId();
     await this.loadSettings();
     installOnProgramViewPolish(this);
 
@@ -200,6 +201,18 @@ export default class OnProgramPlugin extends Plugin {
       viewsBadgeColor: this.settings.viewsBadgeColor,
       viewsBadgeCustomColor: this.settings.viewsBadgeCustomColor
     });
+  }
+
+  private warnIfDevelopmentFolderDoesNotMatchManifestId(): void {
+    const manifestWithDir = this.manifest as typeof this.manifest & { dir?: string };
+    const dir = manifestWithDir.dir?.replace(/\\/g, "/").replace(/\/$/, "");
+    const folderName = dir?.split("/").pop();
+    if (!folderName || folderName === this.manifest.id) return;
+
+    new Notice(
+      `OnProgram development install mismatch: plugin folder '${folderName}' must be renamed to '${this.manifest.id}'. Quit Obsidian, rename the folder, then reopen the app.`,
+      12000
+    );
   }
 
   private async loadSettings(): Promise<void> {
