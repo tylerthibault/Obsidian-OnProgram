@@ -5,6 +5,8 @@ import { OnProgramBasePickerModal } from "./OnProgramBasePickerModal";
 export interface CreateTaskModalOptions {
   onSubmit: (title: string) => Promise<void>;
   onError: (error: unknown) => void;
+  /** When provided, the add flow can open the batch task loader. */
+  onBatchLoad?: () => void | Promise<void>;
   /** When provided, the modal can add an existing OnProgram Base instead of creating a note. */
   onLinkBase?: (baseFile: TFile) => Promise<void>;
   /** Required so every OnProgram add flow can create an instance pointing at an existing Markdown note. */
@@ -84,6 +86,22 @@ export class CreateTaskModal extends Modal {
 
       if (this.mode === "task") button.setCta();
     });
+
+    if (this.options.onBatchLoad) {
+      setting.addButton((button) => {
+        button
+          .setButtonText("Batch load")
+          .setTooltip("Paste structured CSV and create multiple OnProgram tasks")
+          .onClick(() => {
+            try {
+              void Promise.resolve(this.options.onBatchLoad?.())
+                .catch((error) => this.options.onError(error));
+            } catch (error) {
+              this.options.onError(error);
+            }
+          });
+      });
+    }
 
     setting.addButton((button) => {
       button

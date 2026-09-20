@@ -1,4 +1,5 @@
 import { Notice, Plugin } from "obsidian";
+import { BatchTaskImportModal } from "../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../components/CreateTaskModal";
 import { openLinkedMarkdownCreateFlow } from "../components/LinkedMarkdownCreateFlow";
 import { OnProgramHelpModal } from "../components/OnProgramHelpModal";
@@ -73,6 +74,9 @@ export class CommandRegistrar {
             });
             new Notice(`OnProgram: Created ${result.title}.`);
           },
+          onBatchLoad: () => {
+            void this.openBatchTaskImport();
+          },
           onLinkMarkdown: async (file, label) => {
             openLinkedMarkdownCreateFlow(
               this.plugin.app,
@@ -86,6 +90,14 @@ export class CommandRegistrar {
           },
           onError: (error) => this.dependencies.errorHandler.handle(error, "create task", true)
         }).open();
+      }
+    });
+
+    this.plugin.addCommand({
+      id: "onprogram-batch-load-tasks",
+      name: "Batch load tasks",
+      callback: () => {
+        void this.openBatchTaskImport();
       }
     });
 
@@ -159,6 +171,19 @@ export class CommandRegistrar {
     });
 
     this.logger.debug("Core commands registered");
+  }
+
+  private async openBatchTaskImport(): Promise<void> {
+    try {
+      const targetFolder = await this.dependencies.baseContext.resolveActiveTaskFolder();
+      new BatchTaskImportModal(this.plugin.app, {
+        taskCreator: this.dependencies.taskCreator,
+        targetFolder,
+        onError: (error) => this.dependencies.errorHandler.handle(error, "batch load tasks", true)
+      }).open();
+    } catch (error) {
+      this.dependencies.errorHandler.handle(error, "batch load tasks", true);
+    }
   }
 
   private async runWriterTest(action: "complete" | "reopen"): Promise<void> {

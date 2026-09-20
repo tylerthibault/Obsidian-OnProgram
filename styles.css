@@ -674,3 +674,191 @@
   background-color: transparent !important;
   box-shadow: none !important;
 }
+
+/* Batch task import */
+.onprogram-batch-import-shell {
+  width: min(1120px, 94vw);
+  max-width: 1120px;
+}
+
+.onprogram-batch-import-shell .modal-content {
+  width: 100%;
+  max-width: none;
+}
+
+.onprogram-batch-import-modal {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.onprogram-batch-import-modal .setting-item {
+  align-items: flex-start;
+}
+
+.onprogram-batch-import-modal .setting-item-control {
+  min-width: 60%;
+}
+
+.onprogram-batch-import-textarea {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  font-family: var(--font-monospace);
+}
+
+.onprogram-batch-import-example {
+  max-height: 180px;
+  overflow: auto;
+  padding: var(--size-4-2);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  white-space: pre-wrap;
+}
+
+.onprogram-batch-import-errors {
+  margin: var(--size-4-3) 0;
+  padding: var(--size-4-3);
+  border: 1px solid var(--color-red);
+  border-radius: var(--radius-m);
+}
+
+.onprogram-batch-import-list {
+  display: grid;
+  gap: var(--size-4-2);
+  max-height: 320px;
+  overflow: auto;
+  margin: var(--size-4-3) 0;
+}
+
+.onprogram-batch-import-item {
+  padding: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.onprogram-batch-import-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-top: 2px;
+}
+
+
+.onprogram-batch-import-defaults {
+  margin: var(--size-4-3) 0 var(--size-4-4);
+  padding: var(--size-4-3);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+}
+
+.onprogram-batch-import-defaults h3 {
+  margin-top: 0;
+}
+
+.onprogram-batch-mapping-grid,
+.onprogram-batch-edit-list {
+  display: grid;
+  gap: var(--size-4-2);
+  margin: var(--size-4-3) 0;
+}
+
+.onprogram-batch-mapping-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr);
+  gap: var(--size-4-2);
+  align-items: center;
+  padding: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.onprogram-batch-mapping-source {
+  font-family: var(--font-monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.onprogram-batch-mapping-row select,
+.onprogram-batch-mapping-row input {
+  width: 100%;
+}
+
+.onprogram-batch-edit-list {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.onprogram-batch-edit-card {
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+
+.onprogram-batch-edit-card-error {
+  border-color: var(--color-red);
+}
+
+.onprogram-batch-edit-row-number,
+.onprogram-batch-import-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.onprogram-batch-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: var(--size-4-2);
+  margin: var(--size-4-2) 0;
+}
+
+.onprogram-batch-edit-field,
+.onprogram-batch-edit-body {
+  display: grid;
+  gap: 4px;
+}
+
+.onprogram-batch-edit-field label,
+.onprogram-batch-edit-body label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.onprogram-batch-edit-field input,
+.onprogram-batch-edit-field select,
+.onprogram-batch-edit-body textarea {
+  width: 100%;
+}
+
+.onprogram-batch-edit-body textarea {
+  min-height: 90px;
+  resize: vertical;
+  font-family: var(--font-monospace);
+}
+
+.onprogram-batch-custom-properties {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: var(--size-4-2);
+  margin: var(--size-4-2) 0;
+}
+
+.onprogram-batch-custom-properties > strong {
+  grid-column: 1 / -1;
+}
+
+.onprogram-batch-row-errors {
+  margin: var(--size-4-2) 0;
+  color: var(--color-red);
+  font-size: var(--font-ui-smaller);
+}
+
+@media (max-width: 800px) {
+  .onprogram-batch-mapping-row,
+  .onprogram-batch-edit-fields,
+  .onprogram-batch-custom-properties {
+    grid-template-columns: 1fr;
+  }
+}

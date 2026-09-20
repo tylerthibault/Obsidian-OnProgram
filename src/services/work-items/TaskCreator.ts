@@ -6,6 +6,7 @@ import {
   type WorkItemPropertyMap
 } from "../../models/work-item/WorkItemProperties";
 import { DEFAULT_STATUS_BY_TYPE, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
+import type { WorkItemPriority } from "../../models/work-item/WorkItemPriority";
 import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
 
 export interface TaskCreationConfig {
@@ -27,10 +28,18 @@ export interface CreateTaskRequest {
   project?: string;
   /** Optional status override used by contextual creation, such as Board columns. */
   initialStatus?: WorkItemStatus;
+  /** Optional priority override. */
+  priority?: WorkItemPriority;
   /** Optional destination hint supplied by a folder-scoped OnProgram Base view. */
   targetFolder?: string;
+  /** Explicit destination override, used by bulk creation flows. */
+  destinationFolderOverride?: string;
   /** Optional calendar/timeline placement written during initial frontmatter creation. */
   initialDate?: TaskInitialDate;
+  /** Optional Markdown body. When provided, it replaces template body content after frontmatter initialization. */
+  body?: string;
+  /** Additional frontmatter properties for extensible creation flows such as batch import. */
+  extraProperties?: Readonly<Record<string, unknown>>;
   /** Whether to navigate to the newly created note. */
   openAfterCreate?: boolean;
 }
@@ -62,6 +71,9 @@ export class TaskCreator {
 
     try {
       await this.initializeTaskFrontmatter(file, config, request);
+      if (request.body !== undefined) {
+        await this.replaceTaskBody(file, request.body);
+      }
     } catch (error) {
       try {
         await this.app.vault.delete(file);
@@ -87,6 +99,10 @@ export class TaskCreator {
     config: TaskCreationConfig,
     request: CreateTaskRequest
   ): string {
+    if (request.destinationFolderOverride !== undefined) {
+      return normalizeTaskFolder(request.destinationFolderOverride);
+    }
+
     if (config.taskFolderMode === "custom") {
       return normalizeTaskFolder(config.taskFolder);
     }
@@ -117,7 +133,7 @@ export class TaskCreator {
       frontmatter[map.status] = request.initialStatus ?? DEFAULT_STATUS_BY_TYPE.task;
 
       setDefault(frontmatter, map.project, project || null);
-      setDefault(frontmatter, map.priority, "normal");
+      setDefault(frontmatter, map.priority, request.priority ?? "normal");
       setDefault(frontmatter, map.start, null);
       setDefault(frontmatter, map.end, null);
       setDefault(frontmatter, map.due, null);
@@ -136,11 +152,30 @@ export class TaskCreator {
       setDefault(frontmatter, "views_1_month", null);
 
       if (project) frontmatter[map.project] = project;
+      if (request.priority) frontmatter[map.priority] = request.priority;
 
       if (request.initialDate) {
         frontmatter[map[request.initialDate.field]] = request.initialDate.value.iso;
       }
+
+      if (request.extraProperties) {
+        const protectedProperties = new Set(Object.values(map));
+        for (const [property, value] of Object.entries(request.extraProperties)) {
+          const normalizedProperty = property.trim();
+          if (!normalizedProperty || protectedProperties.has(normalizedProperty)) continue;
+          frontmatter[normalizedProperty] = value;
+        }
+      }
     });
+  }
+
+  private async replaceTaskBody(file: TFile, body: string): Promise<void> {
+    const current = await this.app.vault.read(file);
+    const frontmatterMatch = current.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/);
+    const frontmatter = frontmatterMatch?.[0].trimEnd();
+    const normalizedBody = body.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const next = frontmatter ? `${frontmatter}\n\n${normalizedBody}` : normalizedBody;
+    await this.app.vault.modify(file, next);
   }
 
   private async loadTemplate(templatePath: string): Promise<{ content: string; usedTemplate: boolean }> {

@@ -1,4 +1,5 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
+import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { LinkedMarkdownInstanceModal } from "../../components/LinkedMarkdownInstanceModal";
 import type { ErrorHandler } from "../../core/ErrorHandler";
@@ -947,6 +948,13 @@ export class OnProgramCalendarView extends BasesView {
           openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${result.title}.`);
+      },
+      onBatchLoad: () => {
+        new BatchTaskImportModal(this.app, {
+          taskCreator: this.taskCreator,
+          targetFolder: this.getConfiguredTaskFolder(),
+          onError: (error) => this.errorHandler.handle(error, "batch load calendar tasks", true)
+        }).open();
       },
       onLinkMarkdown: async (file, label) => {
         this.addLinkedInstance(

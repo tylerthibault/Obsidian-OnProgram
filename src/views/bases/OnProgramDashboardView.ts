@@ -1,4 +1,5 @@
 import { Menu, Notice, type QueryController, BasesView } from "obsidian";
+import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import type { ErrorHandler } from "../../core/ErrorHandler";
@@ -360,6 +361,13 @@ export class OnProgramDashboardView extends BasesView {
           openAfterCreate: false
         });
         new Notice(`OnProgram: Created ${created.title}.`);
+      },
+      onBatchLoad: () => {
+        new BatchTaskImportModal(this.app, {
+          taskCreator: this.taskCreator,
+          targetFolder: this.getConfiguredTaskFolder(),
+          onError: (error) => this.errorHandler.handle(error, "batch load dashboard tasks", true)
+        }).open();
       },
       onLinkMarkdown: async (file, label) => {
         openLinkedMarkdownCreateFlow(
