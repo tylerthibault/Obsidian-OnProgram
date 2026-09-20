@@ -1,25 +1,14 @@
-import { TFile, TFolder, type App } from "obsidian";
+import { parseYaml, TFile, type App } from "obsidian";
 import {
   createLinkedMarkdownInstanceId,
   parseLinkedMarkdownInstances,
   serializeLinkedMarkdownInstances,
   type LinkedMarkdownInstance
 } from "../links/LinkedMarkdownInstance";
-import { onProgramBasePath } from "./OnProgramBasePaths";
+import { resolveCurrentOnProgramBaseFile } from "./OnProgramBasePaths";
 
 const CALENDAR_VIEW_TYPE = "onprogram-calendar";
 const LINKED_INSTANCES_KEY = "linkedMarkdownInstances";
-
-type LeafLike = {
-  view?: {
-    file?: unknown;
-  };
-} | null | undefined;
-
-type WorkspaceWithLeaves = {
-  activeLeaf?: LeafLike;
-  getMostRecentLeaf?: () => LeafLike;
-};
 
 export class LinkedMarkdownInstanceStore {
   constructor(private readonly app: App) {}
@@ -54,42 +43,20 @@ export class LinkedMarkdownInstanceStore {
   }
 
   resolveActiveBaseFile(): TFile | undefined {
-    const workspace = this.app.workspace as unknown as WorkspaceWithLeaves;
-    const candidates: unknown[] = [
-      this.app.workspace.getActiveFile(),
-      workspace.activeLeaf?.view?.file,
-      workspace.getMostRecentLeaf?.()?.view?.file
-    ];
-
-    for (const candidate of candidates) {
-      if (!(candidate instanceof TFile)) continue;
-
-      if (candidate.extension === "base") {
-        return candidate;
-      }
-
-      if (candidate.extension !== "md") continue;
-      const parent = candidate.parent;
-      if (!(parent instanceof TFolder)) continue;
-
-      if (parent.name.toLowerCase() === "tasks" && parent.parent instanceof TFolder) {
-        const base = this.app.vault.getAbstractFileByPath(onProgramBasePath(parent.parent));
-        if (base instanceof TFile) return base;
-      }
-
-      if (parent.name.toLowerCase() === "files" && parent.parent instanceof TFolder) {
-        const base = this.app.vault.getAbstractFileByPath(onProgramBasePath(parent.parent));
-        if (base instanceof TFile) return base;
-      }
-    }
-
-    return undefined;
+    return resolveCurrentOnProgramBaseFile(this.app);
   }
 
   async readFromBase(baseFile: TFile): Promise<LinkedMarkdownInstance[]> {
     const source = await this.app.vault.cachedRead(baseFile);
-    const raw = readCalendarProperty(source, LINKED_INSTANCES_KEY);
-    return parseLinkedMarkdownInstances(raw).instances;
+    const parsed = parseYaml(source) as unknown;
+    if (!isRecord(parsed) || !Array.isArray(parsed.views)) return [];
+
+    for (const candidate of parsed.views) {
+      if (!isRecord(candidate) || candidate.type !== CALENDAR_VIEW_TYPE) continue;
+      return parseLinkedMarkdownInstances(candidate[LINKED_INSTANCES_KEY]).instances;
+    }
+
+    return [];
   }
 
   private async writeToBase(
@@ -103,44 +70,6 @@ export class LinkedMarkdownInstanceStore {
       patchCalendarViewProperty(source, LINKED_INSTANCES_KEY, yamlValue)
     );
   }
-}
-
-function readCalendarProperty(source: string, key: string): unknown {
-  const lines = source.split(/\r?\n/);
-  let inCalendar = false;
-
-  for (const line of lines) {
-    if (/^\s*-\s*type:\s*["']?onprogram-calendar["']?\s*$/.test(line)) {
-      inCalendar = true;
-      continue;
-    }
-
-    if (inCalendar && /^\s*-\s*type:/.test(line)) break;
-    if (!inCalendar) continue;
-
-    const propertyPattern = new RegExp("^\\s*" + escapeRegExp(key) + ":\\s*(.*)$");
-    const match = propertyPattern.exec(line);
-    if (!match) continue;
-
-    const raw = (match[1] ?? "").trim();
-    if (!raw) return "";
-
-    if (raw.startsWith('"')) {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return raw;
-      }
-    }
-
-    if (raw.startsWith("'") && raw.endsWith("'")) {
-      return raw.slice(1, -1).replace(/''/g, "'");
-    }
-
-    return raw;
-  }
-
-  return "";
 }
 
 function patchCalendarViewProperty(
@@ -209,6 +138,10 @@ function finalize(lines: string[], newline: string, trailing: boolean): string {
   let result = lines.join(newline);
   if (trailing && !result.endsWith(newline)) result += newline;
   return result;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function escapeRegExp(value: string): string {
