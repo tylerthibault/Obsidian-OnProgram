@@ -4,11 +4,13 @@ import { OnProgramBasePickerModal } from "./OnProgramBasePickerModal";
 export interface CreateTaskModalOptions {
   onSubmit: (title: string) => Promise<void>;
   onError: (error: unknown) => void;
+  /** When provided, the modal can open the batch task loader instead of creating one note. */
+  onBatchLoad?: () => void | Promise<void>;
   /** When provided, the modal can add an existing OnProgram Base instead of creating a note. */
   onLinkBase?: (baseFile: TFile) => Promise<void>;
 }
 
-type CreateMode = "task" | "linked-base";
+type CreateMode = "task" | "batch" | "linked-base";
 
 export class CreateTaskModal extends Modal {
   private title = "";
@@ -35,21 +37,26 @@ export class CreateTaskModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("onprogram-create-task-modal");
+    const hasAlternateMode = Boolean(this.options.onBatchLoad || this.options.onLinkBase);
     contentEl.createEl("h2", {
-      text: this.options.onLinkBase ? "Add to OnProgram" : "Create OnProgram task"
+      text: hasAlternateMode ? "Add to OnProgram" : "Create OnProgram task"
     });
 
-    if (this.options.onLinkBase) {
+    if (hasAlternateMode) {
       new Setting(contentEl)
         .setName("Add")
-        .setDesc("Create a Markdown task or link this Board directly to another OnProgram Base.")
+        .setDesc("Create one task, batch load tasks from CSV, or link another OnProgram Base when available.")
         .addDropdown((dropdown) => {
+          dropdown.addOption("task", "Task");
+          if (this.options.onBatchLoad) dropdown.addOption("batch", "Batch Load Tasks");
+          if (this.options.onLinkBase) dropdown.addOption("linked-base", "Linked Base");
+
           dropdown
-            .addOption("task", "Task")
-            .addOption("linked-base", "Linked Base")
             .setValue(this.mode)
             .onChange((value) => {
-              this.mode = value === "linked-base" ? "linked-base" : "task";
+              if (value === "batch" && this.options.onBatchLoad) this.mode = "batch";
+              else if (value === "linked-base" && this.options.onLinkBase) this.mode = "linked-base";
+              else this.mode = "task";
               this.render();
             });
         });
@@ -71,6 +78,10 @@ export class CreateTaskModal extends Modal {
               this.render();
             }).open();
           }));
+    } else if (this.mode === "batch" && this.options.onBatchLoad) {
+      new Setting(contentEl)
+        .setName("Batch Load Tasks")
+        .setDesc("Paste CSV, preview the rows, and create several normal OnProgram Markdown tasks at once.");
     } else {
       new Setting(contentEl)
         .setName("Title")
@@ -97,7 +108,13 @@ export class CreateTaskModal extends Modal {
     new Setting(contentEl)
       .addButton((button) =>
         button
-          .setButtonText(this.mode === "linked-base" ? "Add Base" : "Create")
+          .setButtonText(
+            this.mode === "linked-base"
+              ? "Add Base"
+              : this.mode === "batch"
+                ? "Open Batch Loader"
+                : "Create"
+          )
           .setCta()
           .onClick(() => {
             void this.submit();
@@ -120,6 +137,8 @@ export class CreateTaskModal extends Modal {
           throw new Error("Choose an OnProgram Base to link.");
         }
         await this.options.onLinkBase(this.selectedBase);
+      } else if (this.mode === "batch" && this.options.onBatchLoad) {
+        await this.options.onBatchLoad();
       } else {
         await this.options.onSubmit(this.title);
       }
