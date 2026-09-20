@@ -1,4 +1,5 @@
 import { Modal, setIcon, type App } from "obsidian";
+import { humanize } from "../utils/text";
 import type { ProjectWorkItem, WorkItem } from "../models/work-item/WorkItem";
 import { projectReferenceMatches } from "../services/projects/ProjectRollup";
 
@@ -181,13 +182,6 @@ function displayReference(reference: string): string {
     .replace(/\.md$/i, "")
     .split("/")
     .pop() ?? reference;
-}
-
-function humanize(value: string): string {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 const PROJECT_PICKER_STYLES = `
