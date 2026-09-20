@@ -674,3 +674,61 @@
   background-color: transparent !important;
   box-shadow: none !important;
 }
+
+/* Batch task import */
+.onprogram-batch-import-modal {
+  width: min(760px, 92vw);
+}
+
+.onprogram-batch-import-modal .setting-item {
+  align-items: flex-start;
+}
+
+.onprogram-batch-import-modal .setting-item-control {
+  min-width: 60%;
+}
+
+.onprogram-batch-import-textarea {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  font-family: var(--font-monospace);
+}
+
+.onprogram-batch-import-example {
+  max-height: 180px;
+  overflow: auto;
+  padding: var(--size-4-2);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  white-space: pre-wrap;
+}
+
+.onprogram-batch-import-errors {
+  margin: var(--size-4-3) 0;
+  padding: var(--size-4-3);
+  border: 1px solid var(--color-red);
+  border-radius: var(--radius-m);
+}
+
+.onprogram-batch-import-list {
+  display: grid;
+  gap: var(--size-4-2);
+  max-height: 320px;
+  overflow: auto;
+  margin: var(--size-4-3) 0;
+}
+
+.onprogram-batch-import-item {
+  padding: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.onprogram-batch-import-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-top: 2px;
+}
+
