@@ -93,7 +93,6 @@ export class CreateTaskModal extends Modal {
           .setButtonText("Batch load")
           .setTooltip("Paste structured CSV and create multiple OnProgram tasks")
           .onClick(() => {
-            this.close();
             try {
               void Promise.resolve(this.options.onBatchLoad?.())
                 .catch((error) => this.options.onError(error));
