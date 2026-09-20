@@ -1,19 +1,9 @@
 # Models
 
-Domain models live here and remain independent from Obsidian view code.
+Domain models live here and should remain independent from Obsidian view code.
 
-## Work items
+`work-item/` defines the canonical contracts for tasks, projects, milestones, and events: types, statuses, priority semantics, dates, property mappings, schemas, and shared work-item interfaces.
 
-`work-item/` contains the canonical OnProgram work-item contract for Tasks, Projects, Milestones, and Events, including:
+`publishing/` defines platform distribution state without coupling publishing metadata to Calendar placement.
 
-- canonical types
-- canonical statuses
-- priority semantics
-- date semantics
-- property-name mapping contract
-- required versus optional fields
-- shared WorkItem interfaces
-
-Views and services should import the public model API from `work-item/index.ts` rather than duplicating frontmatter assumptions.
-
-The human-readable schema specification lives at `docs/work-item-schema.md`.
+Services and views should reuse these model contracts instead of duplicating frontmatter assumptions.
