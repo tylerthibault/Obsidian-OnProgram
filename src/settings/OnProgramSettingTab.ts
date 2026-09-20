@@ -1,4 +1,5 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { createTaskTypeId } from "../models/work-item/TaskTypeDefinition";
 import type {
   OnProgramSettings,
   TaskFolderMode,
@@ -82,6 +83,103 @@ export class OnProgramSettingTab extends PluginSettingTab {
             await this.host.saveSettings();
           })
       );
+
+    containerEl.createEl("h2", { text: "Task types" });
+    containerEl.createEl("p", {
+      text: "Create reusable work classifications for tasks. Calendar filtering uses these values, while unregistered values already present in Markdown remain valid.",
+      cls: "setting-item-description"
+    });
+
+    let newTaskTypeName = "";
+    new Setting(containerEl)
+      .setName("Add task type")
+      .setDesc("The stored ID is generated once from the name and stays stable when you rename the label.")
+      .addText((text) => text
+        .setPlaceholder("Editing")
+        .onChange((value) => { newTaskTypeName = value; }))
+      .addButton((button) => button
+        .setButtonText("Add")
+        .setCta()
+        .onClick(async () => {
+          const label = newTaskTypeName.trim();
+          if (!label) return;
+          const id = createTaskTypeId(
+            label,
+            this.host.settings.taskTypes.map((definition) => definition.id)
+          );
+          this.host.settings.taskTypes.push({
+            id,
+            label,
+            icon: "tag",
+            color: "#888888"
+          });
+          await this.host.saveSettings();
+          this.display();
+        }));
+
+    this.host.settings.taskTypes.forEach((definition, index) => {
+      const taskTypeSetting = new Setting(containerEl)
+        .setName(definition.label)
+        .setDesc(`Stored as ${definition.id}`);
+
+      taskTypeSetting.addText((text) => text
+        .setPlaceholder("Label")
+        .setValue(definition.label)
+        .onChange(async (value) => {
+          const trimmed = value.trim();
+          if (!trimmed) return;
+          definition.label = trimmed;
+          await this.host.saveSettings();
+        }));
+
+      taskTypeSetting.addText((text) => text
+        .setPlaceholder("Lucide icon")
+        .setValue(definition.icon)
+        .onChange(async (value) => {
+          definition.icon = value.trim() || "tag";
+          await this.host.saveSettings();
+        }));
+
+      taskTypeSetting.addColorPicker((picker) => picker
+        .setValue(definition.color)
+        .onChange(async (value) => {
+          definition.color = value;
+          await this.host.saveSettings();
+        }));
+
+      taskTypeSetting.addButton((button) => button
+        .setButtonText("↑")
+        .setDisabled(index === 0)
+        .onClick(async () => {
+          if (index === 0) return;
+          const [moved] = this.host.settings.taskTypes.splice(index, 1);
+          if (!moved) return;
+          this.host.settings.taskTypes.splice(index - 1, 0, moved);
+          await this.host.saveSettings();
+          this.display();
+        }));
+
+      taskTypeSetting.addButton((button) => button
+        .setButtonText("↓")
+        .setDisabled(index === this.host.settings.taskTypes.length - 1)
+        .onClick(async () => {
+          if (index >= this.host.settings.taskTypes.length - 1) return;
+          const [moved] = this.host.settings.taskTypes.splice(index, 1);
+          if (!moved) return;
+          this.host.settings.taskTypes.splice(index + 1, 0, moved);
+          await this.host.saveSettings();
+          this.display();
+        }));
+
+      taskTypeSetting.addButton((button) => button
+        .setButtonText("Remove")
+        .setWarning()
+        .onClick(async () => {
+          this.host.settings.taskTypes.splice(index, 1);
+          await this.host.saveSettings();
+          this.display();
+        }));
+    });
 
     new Setting(containerEl)
       .setName("Badge property")
