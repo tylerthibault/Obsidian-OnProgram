@@ -2,6 +2,10 @@ import {
   DEFAULT_WORK_ITEM_PROPERTY_MAP,
   type WorkItemPropertyMap
 } from "../models/work-item/WorkItemProperties";
+import {
+  DEFAULT_TASK_TYPES,
+  type TaskTypeDefinition
+} from "../models/work-item/TaskTypeDefinition";
 
 export type TaskFolderMode = "current-base" | "custom";
 export type ViewsBadgeMetric = "off" | "24-hours" | "1-week" | "1-month";
@@ -24,6 +28,8 @@ export interface OnProgramSettings {
   taskTemplatePath: string;
   /** Optional default project reference assigned to newly created tasks. */
   defaultProject: string;
+  /** User-defined task classifications available in editors and Calendar filters. */
+  taskTypes: TaskTypeDefinition[];
   /** Optional frontmatter property shown as a badge on supported OnProgram views. */
   badgeProperty: string;
   /** Badge palette name. Custom uses badgeCustomColor. */
@@ -47,6 +53,7 @@ export const DEFAULT_SETTINGS: OnProgramSettings = {
   taskFolder: "OnProgram/Tasks",
   taskTemplatePath: "",
   defaultProject: "",
+  taskTypes: DEFAULT_TASK_TYPES.map((definition) => ({ ...definition })),
   badgeProperty: "",
   badgeColor: "accent",
   badgeCustomColor: "",
