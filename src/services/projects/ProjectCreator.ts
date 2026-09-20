@@ -1,16 +1,15 @@
-import { TFile, TFolder, normalizePath, type App } from "obsidian";
-import { OnProgramError } from "../../core/ErrorHandler";
-import {
-  validateWorkItemPropertyMap,
-  type WorkItemPropertyMap
-} from "../../models/work-item/WorkItemProperties";
+import { TFile, type App } from "obsidian";
 import { DEFAULT_STATUS_BY_TYPE } from "../../models/work-item/WorkItemStatus";
-import { resolveOnProgramViewTaskFolder } from "../bases/OnProgramBasePaths";
 import {
-  normalizeTaskFolder,
-  normalizeTaskTitle,
-  type TaskCreationConfig
-} from "../work-items/TaskCreator";
+  assertSafeCreationPropertyMap,
+  createInitializedMarkdownFile,
+  ensureCreationFolder,
+  findAvailableMarkdownPath,
+  normalizeWorkItemTitle,
+  resolveCreationFolder,
+  setFrontmatterDefault,
+  type WorkItemCreationConfig
+} from "../work-items/WorkItemCreationSupport";
 
 export interface CreateProjectRequest {
   title: string;
@@ -26,34 +25,55 @@ export interface CreatedProjectResult {
   title: string;
 }
 
+const PROJECT_CREATION_KIND = {
+  label: "Project",
+  folderConflictCode: "project-folder-conflict",
+  filenameExhaustedCode: "project-filename-exhausted",
+  invalidPropertyMapCode: "invalid-project-property-map"
+} as const;
+
 /** Creates first-class Markdown project work items inside the current Base scope. */
 export class ProjectCreator {
   constructor(
     private readonly app: App,
-    private readonly getConfig: () => TaskCreationConfig
+    private readonly getConfig: () => WorkItemCreationConfig
   ) {}
 
   async createProject(request: CreateProjectRequest): Promise<CreatedProjectResult> {
     const config = this.getConfig();
-    this.assertSafePropertyMap(config.propertyMap);
+    assertSafeCreationPropertyMap(config.propertyMap, PROJECT_CREATION_KIND);
 
-    const title = normalizeTaskTitle(request.title);
-    const folder = this.resolveDestinationFolder(config, request.targetFolder);
-    await this.ensureFolder(folder);
-
-    const path = this.findAvailablePath(folder, title);
-    const file = await this.app.vault.create(path, "");
-
-    try {
-      await this.initializeProjectFrontmatter(file, config.propertyMap);
-    } catch (error) {
-      try {
-        await this.app.vault.delete(file);
-      } catch {
-        // Preserve the more actionable initialization error.
+    const title = normalizeWorkItemTitle(request.title, {
+      label: "Project",
+      emptyCode: "empty-project-title",
+      invalidCode: "invalid-project-title"
+    });
+    const folder = resolveCreationFolder(
+      this.app,
+      config,
+      request.targetFolder,
+      {
+        unresolvedMessage:
+          "OnProgram could not determine the current Base folder. Focus the Base and try again, or choose Custom vault folder in OnProgram settings.",
+        unresolvedCode: "project-base-folder-unresolved"
       }
-      throw error;
-    }
+    );
+
+    await ensureCreationFolder(this.app, folder, PROJECT_CREATION_KIND);
+
+    const path = findAvailableMarkdownPath(
+      this.app,
+      folder,
+      title,
+      PROJECT_CREATION_KIND
+    );
+    const file = await createInitializedMarkdownFile(
+      this.app,
+      path,
+      "",
+      (createdFile) =>
+        this.initializeProjectFrontmatter(createdFile, config.propertyMap)
+    );
 
     if (request.openAfterCreate !== false) {
       await this.app.workspace.getLeaf(false).openFile(file);
@@ -66,101 +86,25 @@ export class ProjectCreator {
     };
   }
 
-  private resolveDestinationFolder(
-    config: TaskCreationConfig,
-    targetFolder: string | undefined
-  ): string {
-    if (config.taskFolderMode === "custom") {
-      return normalizeTaskFolder(config.taskFolder);
-    }
-
-    const contextualFolder = resolveOnProgramViewTaskFolder(this.app, targetFolder);
-    if (!contextualFolder) {
-      throw new OnProgramError(
-        "OnProgram could not determine the current Base folder. Focus the Base and try again, or choose Custom vault folder in OnProgram settings.",
-        "project-base-folder-unresolved"
-      );
-    }
-
-    return normalizeTaskFolder(contextualFolder);
-  }
-
   private async initializeProjectFrontmatter(
     file: TFile,
-    map: WorkItemPropertyMap
+    map: WorkItemCreationConfig["propertyMap"]
   ): Promise<void> {
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
       frontmatter[map.type] = "project";
       frontmatter[map.status] = DEFAULT_STATUS_BY_TYPE.project;
-      setDefault(frontmatter, map.project, null);
-      setDefault(frontmatter, map.priority, "normal");
-      setDefault(frontmatter, map.start, null);
-      setDefault(frontmatter, map.end, null);
-      setDefault(frontmatter, map.due, null);
-      setDefault(frontmatter, map.scheduled, null);
-      setDefault(frontmatter, map.duration, null);
-      setDefault(frontmatter, map.completed, null);
-      setDefault(frontmatter, map.parent, null);
-      setDefault(frontmatter, map.dependsOn, []);
-      setDefault(frontmatter, map.linkedBase, null);
+
+      setFrontmatterDefault(frontmatter, map.project, null);
+      setFrontmatterDefault(frontmatter, map.priority, "normal");
+      setFrontmatterDefault(frontmatter, map.start, null);
+      setFrontmatterDefault(frontmatter, map.end, null);
+      setFrontmatterDefault(frontmatter, map.due, null);
+      setFrontmatterDefault(frontmatter, map.scheduled, null);
+      setFrontmatterDefault(frontmatter, map.duration, null);
+      setFrontmatterDefault(frontmatter, map.completed, null);
+      setFrontmatterDefault(frontmatter, map.parent, null);
+      setFrontmatterDefault(frontmatter, map.dependsOn, []);
+      setFrontmatterDefault(frontmatter, map.linkedBase, null);
     });
-  }
-
-  private async ensureFolder(folder: string): Promise<void> {
-    if (!folder) return;
-
-    const segments = folder.split("/").filter((segment) => segment.length > 0);
-    let current = "";
-
-    for (const segment of segments) {
-      current = current ? `${current}/${segment}` : segment;
-      const existing = this.app.vault.getAbstractFileByPath(current);
-
-      if (!existing) {
-        await this.app.vault.createFolder(current);
-        continue;
-      }
-
-      if (!(existing instanceof TFolder)) {
-        throw new OnProgramError(
-          `Cannot create project folder because '${current}' is a file.`,
-          "project-folder-conflict"
-        );
-      }
-    }
-  }
-
-  private findAvailablePath(folder: string, title: string): string {
-    const makePath = (suffix: string): string =>
-      normalizePath(`${folder ? `${folder}/` : ""}${title}${suffix}.md`);
-
-    const first = makePath("");
-    if (!this.app.vault.getAbstractFileByPath(first)) return first;
-
-    for (let index = 2; index <= 9999; index += 1) {
-      const candidate = makePath(` ${index}`);
-      if (!this.app.vault.getAbstractFileByPath(candidate)) return candidate;
-    }
-
-    throw new OnProgramError(
-      `Unable to find an available filename for project '${title}'.`,
-      "project-filename-exhausted"
-    );
-  }
-
-  private assertSafePropertyMap(propertyMap: WorkItemPropertyMap): void {
-    const issues = validateWorkItemPropertyMap(propertyMap);
-    if (issues.length === 0) return;
-
-    throw new OnProgramError(
-      `Cannot create a project with the current property mapping: ${issues.map((issue) => issue.message).join(" ")}`,
-      "invalid-project-property-map"
-    );
-  }
-}
-
-function setDefault(frontmatter: Record<string, unknown>, property: string, value: unknown): void {
-  if (!Object.prototype.hasOwnProperty.call(frontmatter, property)) {
-    frontmatter[property] = value;
   }
 }
