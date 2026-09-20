@@ -1,4 +1,5 @@
 import { BasesView, Menu, Notice, TFile, type QueryController } from "obsidian";
+import { localDateIso } from "../../utils/dateTime";
 import { humanize } from "../../utils/text";
 import { CreateMilestoneModal } from "../../components/CreateMilestoneModal";
 import { CreateProjectModal } from "../../components/CreateProjectModal";
@@ -954,13 +955,6 @@ function currentLocalDateTime(): WorkItemDateValue {
   const hour = String(now.getHours()).padStart(2, "0");
   const minute = String(now.getMinutes()).padStart(2, "0");
   return { kind: "date-time", iso: `${year}-${month}-${day}T${hour}:${minute}` };
-}
-
-function localDateIso(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 
