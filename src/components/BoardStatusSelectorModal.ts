@@ -1,5 +1,5 @@
 import { Modal, Notice, Setting, type App } from "obsidian";
-import type { WorkItemStatus } from "../models/work-item/WorkItemStatus";
+import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../models/work-item/WorkItemStatus";
 import type { BoardStatusPreferences } from "../services/bases/BoardStatusPreferences";
 
 export interface BoardStatusSelectorModalOptions {
@@ -46,14 +46,7 @@ export class BoardStatusSelectorModal extends Modal {
 
     const reset = actions.createEl("button", { text: "Reset order" });
     reset.addEventListener("click", () => {
-      const current = new Set(this.order);
-      this.order = [];
-      for (const status of this.options.preferences.order) {
-        if (current.has(status) && !this.order.includes(status)) this.order.push(status);
-      }
-      for (const status of current) {
-        if (!this.order.includes(status)) this.order.push(status);
-      }
+      this.order = [...WORK_ITEM_STATUSES];
       this.render();
     });
 
