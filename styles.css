@@ -47,6 +47,63 @@
   resize: vertical;
 }
 
+.onprogram-editor-pills {
+  margin: var(--size-4-4) 0;
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+.onprogram-editor-pills-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--size-4-3);
+  margin-bottom: var(--size-4-2);
+}
+
+.onprogram-editor-pills-description,
+.onprogram-editor-pills-empty {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.onprogram-editor-pill-list {
+  display: grid;
+  gap: var(--size-4-2);
+}
+
+.onprogram-editor-pill-row {
+  display: grid;
+  grid-template-columns: minmax(110px, .8fr) minmax(160px, 1.25fr) minmax(110px, .7fr) minmax(120px, .8fr) auto auto auto;
+  gap: var(--size-4-1);
+  align-items: center;
+}
+
+.onprogram-editor-pill-row input,
+.onprogram-editor-pill-row select {
+  width: 100%;
+  min-width: 0;
+}
+
+.onprogram-editor-pill-row button {
+  min-width: 32px;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+@media (max-width: 820px) {
+  .onprogram-editor-pill-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .onprogram-editor-pill-row button {
+    width: auto;
+  }
+}
+
 .onprogram-editor-actions {
   display: flex;
   gap: var(--size-4-2);
