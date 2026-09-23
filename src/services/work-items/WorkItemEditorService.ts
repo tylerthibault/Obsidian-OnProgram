@@ -2,6 +2,7 @@ import { TFile, getFrontMatterInfo, normalizePath, type App } from "obsidian";
 import { OnProgramError } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
+import { cloneWorkItemPills, type WorkItemPill } from "../../models/work-item/WorkItemPill";
 import type { WorkItemPriority } from "../../models/work-item/WorkItemPriority";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import { normalizeTaskTitle } from "./TaskCreator";
@@ -18,6 +19,7 @@ export interface WorkItemEditorDraft {
   project: string;
   linkedBase: string;
   priority: WorkItemPriority;
+  pills: WorkItemPill[];
   start: string;
   due: string;
   scheduled: string;
@@ -52,6 +54,7 @@ export class WorkItemEditorService {
       project: item.project ?? "",
       linkedBase: item.linkedBase ?? "",
       priority: item.priority,
+      pills: cloneWorkItemPills(item.pills),
       start: item.dates.start?.iso ?? "",
       due: item.dates.due?.iso ?? "",
       scheduled: item.dates.scheduled?.iso ?? "",
@@ -131,6 +134,7 @@ export class WorkItemEditorService {
     return {
       status: draft.status,
       priority: draft.priority,
+      pills: cloneWorkItemPills(draft.pills),
       project: optionalString(draft.project),
       linkedBase: optionalString(draft.linkedBase),
       start: parseOptionalDate(draft.start, "start"),
