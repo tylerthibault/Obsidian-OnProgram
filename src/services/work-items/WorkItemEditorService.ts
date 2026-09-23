@@ -131,6 +131,15 @@ export class WorkItemEditorService {
   }
 
   private buildPatch(item: WorkItem, draft: WorkItemEditorDraft): WorkItemWritePatch {
+    for (const [index, pill] of draft.pills.entries()) {
+      if (!pill.type.trim() || !pill.value.trim()) {
+        throw new OnProgramError(
+          `Pill ${index + 1} needs both a type and a value.`,
+          "invalid-work-item-pill"
+        );
+      }
+    }
+
     return {
       status: draft.status,
       priority: draft.priority,
