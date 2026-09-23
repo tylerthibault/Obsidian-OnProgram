@@ -166,7 +166,13 @@ const DYNAMIC_PILL_STYLES = `
   z-index: 11;
 }
 
+.onprogram-calendar-item:not(.onprogram-calendar-timed-item).onprogram-has-dynamic-pills {
+  flex-wrap: wrap;
+}
+
 .onprogram-calendar-item:not(.onprogram-calendar-timed-item) > .onprogram-calendar-dynamic-pill-tray {
+  flex: 1 0 100%;
+  width: 100%;
   flex-wrap: wrap;
   margin-top: 4px;
 }
