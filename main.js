@@ -2127,13 +2127,28 @@ Source lives in src/main.ts.
     font-size: var(--font-ui-smallest);
   }
 }
-`;var Tr=require("obsidian");var Io="onprogram-calendar-dynamic-pill-tray",es="onprogram-calendar-dynamic-pill",ts=".onprogram-calendar-item[data-path]",Pr=class{constructor(r,e){this.plugin=r;this.getPillProperty=e;this.id="calendar-dynamic-pills"}start(){this.container=this.plugin.app.workspace.containerEl;let r=this.container.ownerDocument,e=r.defaultView;this.styleEl=r.createElement("style"),this.styleEl.dataset.onprogramDynamicPillStyles="true",this.styleEl.textContent=as,r.head.appendChild(this.styleEl),e&&(this.observer=new e.MutationObserver(t=>{t.some(o=>rs(o))&&this.queueRefresh()}),this.observer.observe(this.container,{childList:!0,subtree:!0})),this.plugin.registerEvent(this.plugin.app.metadataCache.on("changed",()=>this.queueRefresh())),this.queueRefresh()}stop(){this.observer?.disconnect(),this.observer=void 0,this.styleEl?.remove(),this.styleEl=void 0;let r=this.container?.ownerDocument.defaultView;r&&this.refreshFrame!==void 0&&r.cancelAnimationFrame(this.refreshFrame),this.refreshFrame=void 0,this.container=void 0}queueRefresh(){let r=this.container,e=r?.ownerDocument.defaultView;!r||!e||this.refreshFrame!==void 0||(this.refreshFrame=e.requestAnimationFrame(()=>{this.refreshFrame=void 0,this.refresh()}))}refresh(){let r=this.container;if(r)for(let e of Array.from(r.querySelectorAll(ts)))this.refreshCard(e)}refreshCard(r){let e=r.dataset.path;if(!e)return;let t=this.getPills(e),o=r.querySelector(`:scope > .${Io}`);if(t.length===0){o?.remove(),r.removeClass("onprogram-has-dynamic-pills");return}o||(o=r.createDiv({cls:Io})),o.empty();for(let n of t)o.appendChild(this.createPill(o.ownerDocument,n));r.addClass("onprogram-has-dynamic-pills")}createPill(r,e){let t=r.createElement("span");if(t.addClass(es),t.dataset.pillType=e.type,t.dataset.pillColor=Vo(e),e.icon){let n=t.createSpan({cls:"onprogram-calendar-dynamic-pill-icon"});try{(0,Tr.setIcon)(n,e.icon)}catch{n.remove()}}t.createSpan({text:e.value,cls:"onprogram-calendar-dynamic-pill-value"});let o=`${os(e.type)}: ${e.value}`;return t.setAttr("title",o),t.setAttr("aria-label",o),t}getPills(r){let e=this.plugin.app.vault.getAbstractFileByPath(r);if(!(e instanceof Tr.TFile))return[];let t=this.plugin.app.metadataCache.getFileCache(e)?.frontmatter;if(!t)return[];let o=this.getPillProperty().trim()||"onprogram_pills";return gt(t[o]).pills}};function rs(a){return!a.target.closest?.(`.${Io}`)}function os(a){return a.trim().replace(/[_-]+/g," ").replace(/\b\w/g,r=>r.toUpperCase())}var as=`
+`;var Tr=require("obsidian");var Io="onprogram-calendar-dynamic-pill-tray",es="onprogram-calendar-dynamic-pill",ts=[".onprogram-calendar-item[data-path]",".onprogram-board-card[data-path]"].join(", "),Pr=class{constructor(r,e){this.plugin=r;this.getPillProperty=e;this.id="calendar-dynamic-pills"}start(){this.container=this.plugin.app.workspace.containerEl;let r=this.container.ownerDocument,e=r.defaultView;this.styleEl=r.createElement("style"),this.styleEl.dataset.onprogramDynamicPillStyles="true",this.styleEl.textContent=as,r.head.appendChild(this.styleEl),e&&(this.observer=new e.MutationObserver(t=>{t.some(o=>rs(o))&&this.queueRefresh()}),this.observer.observe(this.container,{childList:!0,subtree:!0})),this.plugin.registerEvent(this.plugin.app.metadataCache.on("changed",()=>this.queueRefresh())),this.queueRefresh()}stop(){this.observer?.disconnect(),this.observer=void 0,this.styleEl?.remove(),this.styleEl=void 0;let r=this.container?.ownerDocument.defaultView;r&&this.refreshFrame!==void 0&&r.cancelAnimationFrame(this.refreshFrame),this.refreshFrame=void 0,this.container=void 0}queueRefresh(){let r=this.container,e=r?.ownerDocument.defaultView;!r||!e||this.refreshFrame!==void 0||(this.refreshFrame=e.requestAnimationFrame(()=>{this.refreshFrame=void 0,this.refresh()}))}refresh(){let r=this.container;if(r)for(let e of Array.from(r.querySelectorAll(ts)))this.refreshCard(e)}refreshCard(r){let e=r.dataset.path;if(!e)return;let t=this.getPills(e),o=r.querySelector(`:scope > .${Io}`);if(t.length===0){o?.remove(),r.removeClass("onprogram-has-dynamic-pills");return}o||(o=r.createDiv({cls:Io})),o.empty();for(let n of t)o.appendChild(this.createPill(o.ownerDocument,n));r.addClass("onprogram-has-dynamic-pills")}createPill(r,e){let t=r.createElement("span");if(t.addClass(es),t.dataset.pillType=e.type,t.dataset.pillColor=Vo(e),e.icon){let n=t.createSpan({cls:"onprogram-calendar-dynamic-pill-icon"});try{(0,Tr.setIcon)(n,e.icon)}catch{n.remove()}}t.createSpan({text:e.value,cls:"onprogram-calendar-dynamic-pill-value"});let o=`${os(e.type)}: ${e.value}`;return t.setAttr("title",o),t.setAttr("aria-label",o),t}getPills(r){let e=this.plugin.app.vault.getAbstractFileByPath(r);if(!(e instanceof Tr.TFile))return[];let t=this.plugin.app.metadataCache.getFileCache(e)?.frontmatter;if(!t)return[];let o=this.getPillProperty().trim()||"onprogram_pills";return gt(t[o]).pills}};function rs(a){return!a.target.closest?.(`.${Io}`)}function os(a){return a.trim().replace(/[_-]+/g," ").replace(/\b\w/g,r=>r.toUpperCase())}var as=`
 .onprogram-calendar-dynamic-pill-tray {
   display: flex;
   align-items: center;
   gap: 3px;
   min-width: 0;
   z-index: 11;
+}
+
+.onprogram-board-card > .onprogram-calendar-dynamic-pill-tray {
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--size-4-2);
+}
+
+.onprogram-board-card > .onprogram-calendar-dynamic-pill-tray .onprogram-calendar-dynamic-pill {
+  height: 20px;
+  min-height: 20px;
+  padding: 0 7px;
+  font-size: var(--font-ui-smaller);
+  line-height: 18px;
 }
 
 .onprogram-calendar-item:not(.onprogram-calendar-timed-item).onprogram-has-dynamic-pills {
