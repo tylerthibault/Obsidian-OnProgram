@@ -201,7 +201,7 @@ export class QuickTaskEditorModal extends Modal {
     const copy = header.createDiv();
     copy.createEl("strong", { text: "Pills" });
     copy.createDiv({
-      text: "Descriptive metadata shown as Calendar pills. Type controls the group; value is the visible label.",
+      text: "Descriptive metadata shown as Board and Calendar pills. Type controls the group; value is the visible label.",
       cls: "onprogram-editor-pills-description"
     });
 
