@@ -221,6 +221,51 @@
   margin: 0;
 }
 
+.onprogram-board-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  margin-left: auto;
+}
+
+.onprogram-board-status-modal-shell {
+  width: min(620px, 92vw);
+}
+
+.onprogram-board-status-modal > p {
+  color: var(--text-muted);
+}
+
+.onprogram-board-status-actions {
+  display: flex;
+  gap: var(--size-4-2);
+  margin: var(--size-4-3) 0;
+}
+
+.onprogram-board-status-list {
+  max-height: min(560px, 60vh);
+  overflow-y: auto;
+  border-top: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.onprogram-board-status-row .setting-item {
+  margin: 0;
+  padding: var(--size-4-2) 0;
+}
+
+.onprogram-board-status-row .setting-item-info {
+  min-width: 0;
+}
+
+.onprogram-board-status-row .setting-item-control {
+  gap: var(--size-4-1);
+}
+
+.onprogram-board-status-row .setting-item-control button {
+  min-width: 34px;
+}
+
 .onprogram-board-count,
 .onprogram-board-invalid-count,
 .onprogram-board-column-count {

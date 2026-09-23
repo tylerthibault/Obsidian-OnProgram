@@ -1,5 +1,6 @@
 import { BasesView, Menu, Notice, type QueryController } from "obsidian";
 import { BatchTaskImportModal } from "../../components/BatchTaskImportModal";
+import { BoardStatusSelectorModal } from "../../components/BoardStatusSelectorModal";
 import { CreateTaskModal } from "../../components/CreateTaskModal";
 import { openLinkedMarkdownCreateFlow } from "../../components/LinkedMarkdownCreateFlow";
 import { OnProgramBasePickerModal } from "../../components/OnProgramBasePickerModal";
@@ -9,6 +10,11 @@ import { getWorkItemTypeSchema } from "../../models/work-item/WorkItemSchema";
 import { WORK_ITEM_STATUSES, type WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 import type { BasesWorkItemAdapter } from "../../services/bases/BasesWorkItemAdapter";
 import type { LinkedMarkdownInstanceStore } from "../../services/bases/LinkedMarkdownInstanceStore";
+import {
+  parseBoardStatusPreferences,
+  serializeBoardStatusPreferences,
+  type BoardStatusPreferences
+} from "../../services/bases/BoardStatusPreferences";
 import {
   parseLinkedBaseBoardCards,
   serializeLinkedBaseBoardCards,
@@ -55,12 +61,20 @@ export class OnProgramBoardView extends BasesView {
 
     const result = this.adapter.adapt(this.data);
     const linkedBases = this.getLinkedBaseCards();
+    const statusPreferences = this.getStatusPreferences();
+    const visibleStatuses = new Set(statusPreferences.visible);
+    const visibleCardCount =
+      result.items.filter((item) => visibleStatuses.has(item.status)).length
+      + linkedBases.filter((card) => visibleStatuses.has(card.status)).length;
     const totalCards = result.items.length + linkedBases.length;
+    const hiddenCardCount = totalCards - visibleCardCount;
 
     const header = this.hostEl.createDiv({ cls: "onprogram-board-header" });
     header.createEl("h3", { text: "OnProgram Board" });
     header.createSpan({
-      text: `${totalCards} ${totalCards === 1 ? "card" : "cards"}`,
+      text: hiddenCardCount > 0
+        ? `${visibleCardCount} shown · ${hiddenCardCount} hidden`
+        : `${visibleCardCount} ${visibleCardCount === 1 ? "card" : "cards"}`,
       cls: "onprogram-board-count"
     });
 
@@ -71,13 +85,22 @@ export class OnProgramBoardView extends BasesView {
       });
     }
 
-    const addTask = header.createEl("button", { text: "+ Add" });
+    const headerActions = header.createDiv({ cls: "onprogram-board-header-actions" });
+
+    const statusesButton = headerActions.createEl("button", {
+      text: `Statuses ${statusPreferences.visible.length}/${WORK_ITEM_STATUSES.length}`
+    });
+    statusesButton.setAttr("title", "Choose which status columns this Board shows");
+    statusesButton.addEventListener("click", () => this.configureStatuses());
+
+    const addTask = headerActions.createEl("button", { text: "+ Add" });
     addTask.setAttr("title", "Add a task or link another OnProgram Base");
     addTask.addEventListener("click", () => this.createTask());
 
     const board = this.hostEl.createDiv({ cls: "onprogram-board" });
 
-    for (const status of WORK_ITEM_STATUSES) {
+    for (const status of statusPreferences.order) {
+      if (!visibleStatuses.has(status)) continue;
       const items = result.items.filter((item) => item.status === status);
       const baseCards = linkedBases.filter((card) => card.status === status);
       const column = board.createDiv({ cls: "onprogram-board-column" });
@@ -254,6 +277,25 @@ export class OnProgramBoardView extends BasesView {
       },
       onError: (error) => this.errorHandler.handle(error, "add board item", true)
     }).open();
+  }
+
+  private configureStatuses(): void {
+    new BoardStatusSelectorModal(this.app, {
+      preferences: this.getStatusPreferences(),
+      onApply: (preferences) => this.persistStatusPreferences(preferences)
+    }).open();
+  }
+
+  private getStatusPreferences(): BoardStatusPreferences {
+    return parseBoardStatusPreferences(this.config.get("boardStatusPreferences"));
+  }
+
+  private persistStatusPreferences(preferences: BoardStatusPreferences): void {
+    this.config.set(
+      "boardStatusPreferences",
+      serializeBoardStatusPreferences(preferences)
+    );
+    this.render();
   }
 
   private getConfiguredTaskFolder(): string | undefined {
