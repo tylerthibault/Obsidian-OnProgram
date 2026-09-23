@@ -188,6 +188,15 @@ export class QuickTaskEditorModal extends Modal {
 
   private renderPillEditor(draft: WorkItemEditorDraft): void {
     const section = this.contentEl.createDiv({ cls: "onprogram-editor-pills" });
+    this.renderPillEditorContents(section, draft);
+  }
+
+  private renderPillEditorContents(
+    section: HTMLElement,
+    draft: WorkItemEditorDraft
+  ): void {
+    section.empty();
+
     const header = section.createDiv({ cls: "onprogram-editor-pills-header" });
     const copy = header.createDiv();
     copy.createEl("strong", { text: "Pills" });
@@ -199,7 +208,7 @@ export class QuickTaskEditorModal extends Modal {
     const add = header.createEl("button", { text: "+ Add pill" });
     add.addEventListener("click", () => {
       draft.pills.push({ type: "software", value: "" });
-      this.renderForm();
+      this.renderPillEditorContents(section, draft);
     });
 
     if (draft.pills.length === 0) {
@@ -211,11 +220,14 @@ export class QuickTaskEditorModal extends Modal {
     }
 
     const rows = section.createDiv({ cls: "onprogram-editor-pill-list" });
-    draft.pills.forEach((pill, index) => this.renderPillRow(rows, draft, pill, index));
+    draft.pills.forEach((pill, index) => {
+      this.renderPillRow(rows, section, draft, pill, index);
+    });
   }
 
   private renderPillRow(
     parent: HTMLElement,
+    section: HTMLElement,
     draft: WorkItemEditorDraft,
     pill: WorkItemPill,
     index: number
@@ -263,7 +275,7 @@ export class QuickTaskEditorModal extends Modal {
     up.addEventListener("click", () => {
       if (index === 0) return;
       [draft.pills[index - 1], draft.pills[index]] = [draft.pills[index]!, draft.pills[index - 1]!];
-      this.renderForm();
+      this.renderPillEditorContents(section, draft);
     });
 
     const down = row.createEl("button", { text: "↓" });
@@ -272,7 +284,7 @@ export class QuickTaskEditorModal extends Modal {
     down.addEventListener("click", () => {
       if (index >= draft.pills.length - 1) return;
       [draft.pills[index], draft.pills[index + 1]] = [draft.pills[index + 1]!, draft.pills[index]!];
-      this.renderForm();
+      this.renderPillEditorContents(section, draft);
     });
 
     const remove = row.createEl("button", { text: "×" });
@@ -280,7 +292,7 @@ export class QuickTaskEditorModal extends Modal {
     remove.addClass("mod-warning");
     remove.addEventListener("click", () => {
       draft.pills.splice(index, 1);
-      this.renderForm();
+      this.renderPillEditorContents(section, draft);
     });
   }
 
