@@ -263,6 +263,7 @@ export class OnProgramCalendarView extends BasesView {
             title: basename,
             status: "todo",
             priority: "normal",
+            pills: [],
             dates: { scheduled },
             durationMinutes: instance.durationMinutes ?? DEFAULT_TIMED_DURATION_MINUTES,
             dependsOn: []
