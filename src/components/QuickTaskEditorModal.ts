@@ -1,5 +1,10 @@
 import { Modal, Notice, Setting, type App } from "obsidian";
 import type { WorkItem } from "../models/work-item/WorkItem";
+import {
+  WORK_ITEM_PILL_COLORS,
+  type WorkItemPill,
+  type WorkItemPillColor
+} from "../models/work-item/WorkItemPill";
 import { WORK_ITEM_PRIORITIES } from "../models/work-item/WorkItemPriority";
 import { getWorkItemTypeSchema } from "../models/work-item/WorkItemSchema";
 import type { ErrorHandler } from "../core/ErrorHandler";
@@ -111,6 +116,8 @@ export class QuickTaskEditorModal extends Modal {
         });
       });
 
+    this.renderPillEditor(draft);
+
     this.addDateSetting("Start", draft.start, (value) => { draft.start = value; });
     this.addDateSetting("Due", draft.due, (value) => { draft.due = value; });
     this.addDateSetting("Scheduled", draft.scheduled, (value) => { draft.scheduled = value; });
@@ -177,6 +184,116 @@ export class QuickTaskEditorModal extends Modal {
       new Notice(`OnProgram: saved ${result.file.basename}.`);
       this.close();
     }));
+  }
+
+  private renderPillEditor(draft: WorkItemEditorDraft): void {
+    const section = this.contentEl.createDiv({ cls: "onprogram-editor-pills" });
+    this.renderPillEditorContents(section, draft);
+  }
+
+  private renderPillEditorContents(
+    section: HTMLElement,
+    draft: WorkItemEditorDraft
+  ): void {
+    section.empty();
+
+    const header = section.createDiv({ cls: "onprogram-editor-pills-header" });
+    const copy = header.createDiv();
+    copy.createEl("strong", { text: "Pills" });
+    copy.createDiv({
+      text: "Descriptive metadata shown as Board and Calendar pills. Type controls the group; value is the visible label.",
+      cls: "onprogram-editor-pills-description"
+    });
+
+    const add = header.createEl("button", { text: "+ Add pill" });
+    add.addEventListener("click", () => {
+      draft.pills.push({ type: "software", value: "" });
+      this.renderPillEditorContents(section, draft);
+    });
+
+    if (draft.pills.length === 0) {
+      section.createDiv({
+        text: "No dynamic pills yet.",
+        cls: "onprogram-editor-pills-empty"
+      });
+      return;
+    }
+
+    const rows = section.createDiv({ cls: "onprogram-editor-pill-list" });
+    draft.pills.forEach((pill, index) => {
+      this.renderPillRow(rows, section, draft, pill, index);
+    });
+  }
+
+  private renderPillRow(
+    parent: HTMLElement,
+    section: HTMLElement,
+    draft: WorkItemEditorDraft,
+    pill: WorkItemPill,
+    index: number
+  ): void {
+    const row = parent.createDiv({ cls: "onprogram-editor-pill-row" });
+
+    const type = row.createEl("input", { type: "text", value: pill.type });
+    type.placeholder = "Type (software)";
+    type.setAttr("aria-label", "Pill type");
+    type.addEventListener("input", () => {
+      pill.type = type.value;
+    });
+
+    const value = row.createEl("input", { type: "text", value: pill.value });
+    value.placeholder = "Value (Obsidian)";
+    value.setAttr("aria-label", "Pill value");
+    value.addEventListener("input", () => {
+      pill.value = value.value;
+    });
+
+    const color = row.createEl("select");
+    color.setAttr("aria-label", "Pill color");
+    color.createEl("option", { text: "Auto color", value: "" });
+    for (const option of WORK_ITEM_PILL_COLORS) {
+      color.createEl("option", { text: humanize(option), value: option });
+    }
+    color.value = pill.color ?? "";
+    color.addEventListener("change", () => {
+      if (color.value) pill.color = color.value as WorkItemPillColor;
+      else delete pill.color;
+    });
+
+    const icon = row.createEl("input", { type: "text", value: pill.icon ?? "" });
+    icon.placeholder = "Icon (optional)";
+    icon.setAttr("aria-label", "Pill icon");
+    icon.addEventListener("input", () => {
+      const next = icon.value.trim();
+      if (next) pill.icon = next;
+      else delete pill.icon;
+    });
+
+    const up = row.createEl("button", { text: "↑" });
+    up.setAttr("aria-label", "Move pill up");
+    up.disabled = index === 0;
+    up.addEventListener("click", () => {
+      if (index === 0) return;
+      [draft.pills[index - 1], draft.pills[index]] = [draft.pills[index]!, draft.pills[index - 1]!];
+      this.renderPillEditorContents(section, draft);
+    });
+
+    const down = row.createEl("button", { text: "↓" });
+    down.setAttr("aria-label", "Move pill down");
+    down.disabled = index === draft.pills.length - 1;
+    down.addEventListener("click", () => {
+      if (index >= draft.pills.length - 1) return;
+      [draft.pills[index], draft.pills[index + 1]] = [draft.pills[index + 1]!, draft.pills[index]!];
+      this.renderPillEditorContents(section, draft);
+    });
+
+    const remove = row.createEl("button", { text: "×" });
+    remove.setAttr("aria-label", "Remove pill");
+    remove.addClass("mod-warning");
+    remove.addEventListener("click", () => {
+      draft.pills.splice(index, 1);
+      this.renderPillEditorContents(section, draft);
+    });
   }
 
   private addDateSetting(

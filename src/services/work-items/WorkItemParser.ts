@@ -9,6 +9,7 @@ import {
   WORK_ITEM_DATE_FIELDS,
   type WorkItemDates
 } from "../../models/work-item/WorkItemDates";
+import { parseWorkItemPills } from "../../models/work-item/WorkItemPill";
 import type {
   WorkItemPropertyKey,
   WorkItemPropertyMap
@@ -112,6 +113,10 @@ export class WorkItemParser {
       this.read(frontmatter, propertyMap, "duration"),
       issues
     );
+    const pills = this.parsePills(
+      this.read(frontmatter, propertyMap, "pills"),
+      issues
+    );
 
     if (!status || hasValidationErrors(issues)) {
       return this.invalid(file, issues);
@@ -126,6 +131,7 @@ export class WorkItemParser {
       title: file.basename,
       status,
       priority,
+      pills,
       dates,
       dependsOn
     };
@@ -270,6 +276,30 @@ export class WorkItemParser {
     }
 
     return references;
+  }
+
+  private parsePills(value: unknown, issues: WorkItemValidationIssue[]) {
+    const parsed = parseWorkItemPills(value);
+
+    if (parsed.invalidContainer) {
+      issues.push({
+        severity: "warning",
+        code: "invalid-pills",
+        property: "pills",
+        value,
+        message: "Dynamic pills must be a list of objects with non-empty type and value fields."
+      });
+    } else if (parsed.invalidEntries > 0) {
+      issues.push({
+        severity: "warning",
+        code: "invalid-pills",
+        property: "pills",
+        value,
+        message: `Ignored ${parsed.invalidEntries} invalid dynamic pill ${parsed.invalidEntries === 1 ? "entry" : "entries"}.`
+      });
+    }
+
+    return parsed.pills;
   }
 
   private parseDuration(value: unknown, issues: WorkItemValidationIssue[]): number | undefined {

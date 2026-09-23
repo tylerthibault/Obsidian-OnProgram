@@ -10,6 +10,7 @@ import { OnProgramBaseContext } from "./services/bases/OnProgramBaseContext";
 import { LinkedMarkdownInstanceStore } from "./services/bases/LinkedMarkdownInstanceStore";
 import { OnProgramBaseCreator } from "./services/bases/OnProgramBaseCreator";
 import { CalendarDayCountService } from "./services/calendar/CalendarDayCountService";
+import { CalendarDynamicPillService } from "./services/calendar/CalendarDynamicPillService";
 import { CalendarScrollStateService } from "./services/calendar/CalendarScrollStateService";
 import { CalendarStatusService } from "./services/calendar/CalendarStatusService";
 import { WorkItemBadgeService } from "./services/presentation/WorkItemBadgeService";
@@ -103,6 +104,10 @@ export default class OnProgramPlugin extends Plugin {
     const calendarScrollState = new CalendarScrollStateService(this);
     const calendarDayCounts = new CalendarDayCountService(this);
     const calendarPublishing = new CalendarPublishingService(this, projectAssignment);
+    const calendarDynamicPills = new CalendarDynamicPillService(
+      this,
+      () => this.settings.workItemProperties.pills
+    );
     const calendarProjects = new CalendarProjectIndicatorService(
       this,
       () => this.settings.workItemProperties.project
@@ -130,6 +135,7 @@ export default class OnProgramPlugin extends Plugin {
       services.register(calendarScrollState);
       services.register(calendarDayCounts);
       services.register(calendarPublishing);
+      services.register(calendarDynamicPills);
       services.register(calendarProjects);
       services.register(workItemBadges);
       this.addSettingTab(new OnProgramSettingTab(this.app, this));

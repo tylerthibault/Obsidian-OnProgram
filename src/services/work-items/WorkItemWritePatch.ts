@@ -1,4 +1,5 @@
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
+import type { WorkItemPill } from "../../models/work-item/WorkItemPill";
 import type { WorkItemPriority } from "../../models/work-item/WorkItemPriority";
 import type { WorkItemPropertyKey } from "../../models/work-item/WorkItemProperties";
 import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
@@ -6,6 +7,7 @@ import type { WorkItemStatus } from "../../models/work-item/WorkItemStatus";
 export interface WorkItemWritePatch {
   status?: WorkItemStatus;
   priority?: WorkItemPriority | null;
+  pills?: WorkItemPill[] | null;
   project?: string | null;
   linkedBase?: string | null;
   start?: WorkItemDateValue | null;
