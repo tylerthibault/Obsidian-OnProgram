@@ -1,4 +1,5 @@
 import type { EventWorkItemDates, MilestoneWorkItemDates, WorkItemDates } from "./WorkItemDates";
+import type { WorkItemPill } from "./WorkItemPill";
 import type { WorkItemPriority } from "./WorkItemPriority";
 import type { WorkItemStatus } from "./WorkItemStatus";
 
@@ -18,6 +19,8 @@ export interface WorkItemBase {
   title: string;
   status: WorkItemStatus;
   priority: WorkItemPriority;
+  /** Arbitrary descriptive metadata rendered as Calendar pills. */
+  pills: WorkItemPill[];
   project?: WorkItemReference;
   /** Optional link to a child OnProgram Base used for drill-down navigation. */
   linkedBase?: WorkItemReference;
