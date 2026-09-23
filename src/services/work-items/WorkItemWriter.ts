@@ -2,6 +2,7 @@ import { TFile, type App } from "obsidian";
 import { OnProgramError } from "../../core/ErrorHandler";
 import type { WorkItem } from "../../models/work-item/WorkItem";
 import type { WorkItemDateValue } from "../../models/work-item/WorkItemDates";
+import { isWorkItemPillList, type WorkItemPill } from "../../models/work-item/WorkItemPill";
 import { isWorkItemPriority } from "../../models/work-item/WorkItemPriority";
 import {
   validateWorkItemPropertyMap,
@@ -22,7 +23,7 @@ import type {
 } from "./WorkItemWritePatch";
 
 const DELETE_PROPERTY = Symbol("onprogram-delete-property");
-type SerializedPatchValue = string | number | string[] | typeof DELETE_PROPERTY;
+type SerializedPatchValue = string | number | string[] | WorkItemPill[] | typeof DELETE_PROPERTY;
 type Frontmatter = Record<string, unknown>;
 
 export class WorkItemWriter {
@@ -116,6 +117,16 @@ export class WorkItemWriter {
         propertyMap,
         "priority",
         patch.priority === null ? DELETE_PROPERTY : patch.priority,
+        changed
+      );
+    }
+
+    if (patch.pills !== undefined) {
+      this.setProperty(
+        frontmatter,
+        propertyMap,
+        "pills",
+        patch.pills === null || patch.pills.length === 0 ? DELETE_PROPERTY : patch.pills,
         changed
       );
     }
@@ -241,6 +252,13 @@ export class WorkItemWriter {
       throw new OnProgramError("Invalid priority in work item patch.", "invalid-work-item-patch");
     }
 
+    if (patch.pills !== undefined && patch.pills !== null && !isWorkItemPillList(patch.pills)) {
+      throw new OnProgramError(
+        "Dynamic pills must be a list of objects with non-empty type and value fields.",
+        "invalid-work-item-patch"
+      );
+    }
+
     this.assertOptionalReference(patch.project, "project");
     this.assertOptionalReference(patch.parent, "parent");
     this.assertOptionalReference(patch.linkedBase, "linkedBase");
@@ -361,11 +379,16 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function sameFrontmatterValue(current: unknown, next: string | number | string[]): boolean {
+function sameFrontmatterValue(
+  current: unknown,
+  next: string | number | string[] | WorkItemPill[]
+): boolean {
   if (Array.isArray(next)) {
-    return Array.isArray(current) &&
-      current.length === next.length &&
-      current.every((value, index) => value === next[index]);
+    try {
+      return JSON.stringify(current) === JSON.stringify(next);
+    } catch {
+      return false;
+    }
   }
 
   return current === next;
