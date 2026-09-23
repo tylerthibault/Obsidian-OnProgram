@@ -11,6 +11,14 @@ export const WORK_ITEM_PILL_COLORS = [
 
 export type WorkItemPillColor = (typeof WORK_ITEM_PILL_COLORS)[number];
 
+export const DEFAULT_WORK_ITEM_PILL_TYPES = [
+  "software",
+  "client",
+  "format",
+  "niche",
+  "platform"
+] as const;
+
 export interface WorkItemPill {
   type: string;
   value: string;
