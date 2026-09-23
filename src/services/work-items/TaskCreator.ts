@@ -134,6 +134,7 @@ export class TaskCreator {
 
       setDefault(frontmatter, map.project, project || null);
       setDefault(frontmatter, map.priority, request.priority ?? "normal");
+      setDefault(frontmatter, map.pills, []);
       setDefault(frontmatter, map.start, null);
       setDefault(frontmatter, map.end, null);
       setDefault(frontmatter, map.due, null);
