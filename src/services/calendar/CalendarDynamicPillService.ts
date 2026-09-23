@@ -8,7 +8,10 @@ import type { OnProgramService } from "../ServiceRegistry";
 
 const TRAY_CLASS = "onprogram-calendar-dynamic-pill-tray";
 const PILL_CLASS = "onprogram-calendar-dynamic-pill";
-const CARD_SELECTOR = ".onprogram-calendar-item[data-path]";
+const CARD_SELECTOR = [
+  ".onprogram-calendar-item[data-path]",
+  ".onprogram-board-card[data-path]"
+].join(", ");
 
 export class CalendarDynamicPillService implements OnProgramService {
   readonly id = "calendar-dynamic-pills";
@@ -164,6 +167,21 @@ const DYNAMIC_PILL_STYLES = `
   gap: 3px;
   min-width: 0;
   z-index: 11;
+}
+
+.onprogram-board-card > .onprogram-calendar-dynamic-pill-tray {
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--size-4-2);
+}
+
+.onprogram-board-card > .onprogram-calendar-dynamic-pill-tray .onprogram-calendar-dynamic-pill {
+  height: 20px;
+  min-height: 20px;
+  padding: 0 7px;
+  font-size: var(--font-ui-smaller);
+  line-height: 18px;
 }
 
 .onprogram-calendar-item:not(.onprogram-calendar-timed-item).onprogram-has-dynamic-pills {
